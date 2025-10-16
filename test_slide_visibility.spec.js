@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.describe('Slide Presentation Visibility Tests', () => {
   test('should display slide content without cutoff', async ({ page }) => {
     // Navigate to the slide presentation
-    await page.goto('http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai');
+    await page.goto('https://anshumanbiswas.com/slides/vibe-coding-to-production-mastering-cursor-ai');
     
     // Wait for the page to load completely
     await page.waitForLoadState('networkidle');
