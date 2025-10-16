@@ -286,7 +286,31 @@
         </div>
     </div>
 
-    <!-- Let slide content handle its own Reveal.js initialization -->
+    <!-- Load Reveal.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/notes/notes.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/highlight.js"></script>
+
+    <!-- Initialize Reveal.js -->
+    <script>
+        Reveal.initialize({
+            width: 1280,
+            height: 720,
+            margin: 0.06,
+            minScale: 0.2,
+            maxScale: 1.5,
+            hash: true,
+            controls: true,
+            progress: true,
+            slideNumber: true,
+            center: false,
+            transition: 'fade',
+            transitionSpeed: 'default',
+            autoAnimateEasing: 'ease-out',
+            plugins: [ RevealNotes, RevealHighlight ]
+        });
+    </script>
+
     <script>
         // Fullscreen functionality
         document.getElementById('fullscreen-btn').addEventListener('click', function() {
