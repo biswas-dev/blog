@@ -19,10 +19,12 @@
 		}
 		.reveal .slides{ text-align:left; }
 		.reveal .slides section{
-                        max-width:1100px;
+                        max-width:100%;
+                        width:100%;
                         margin:0 auto;
                         padding:0 84px 56px 84px;   /* wider, symmetric gutters */
                         overflow: visible;          /* avoid glyph clipping during scaling */
+                        box-sizing: border-box;     /* include padding in width */
 		  /* removed: transform: translateX(-12px); */
 		}
 		.reveal h1,.reveal h2,.reveal h3{ color:#111; line-height:1.08; letter-spacing:-0.01em; }
@@ -34,11 +36,12 @@
 		.quote{ font-size:1.1rem; color:#222; border-left:4px solid #111; padding-left:.8rem; }
 		.two-col{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:2rem; align-items:center; }
 		.grid-2{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:2rem; }
-		.grid-3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.2rem; }
+		.grid-3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.2rem; max-width:100%; box-sizing:border-box; }
+		.grid-3 > div{ min-width:0; box-sizing:border-box; }
 		.reveal pre code{ font-size:.82em; line-height:1.35; }
 		.reveal pre{ box-shadow:none; }
 		.tight{ margin-top:.6rem; }
-		.reveal .slides svg{ display:block; width:100%; height:auto; max-height:56vh; margin:.4rem auto 0; }
+		.reveal .slides svg{ display:block; width:100%; height:auto; max-width:100%; max-height:56vh; margin:.4rem auto 0; box-sizing:border-box; }
 
 		/* Small screens: gently reduce side padding to avoid clipping */
 		@media (max-width: 900px){
