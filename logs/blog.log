@@ -2,3 +2,9 @@
 {"level":"info","ts":1760654961.735444,"caller":"blog/db.go:34","msg":"Database connection established!"}
 Signups Disabled ...
 {"level":"info","ts":1760654961.737757,"caller":"blog/main.go:289","msg":"server listening on :22222"}
+2025/10/16 18:50:59 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:65351 - 200 31853B in 12.469083ms
+2025/10/16 18:50:59 "GET http://localhost:22222/static/favicon.svg HTTP/1.1" from [::1]:65351 - 200 1944B in 3.570708ms
+2025/10/16 18:51:07 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:65410 - 200 31853B in 10.90425ms
+2025/10/16 18:51:07 "GET http://localhost:22222/static/favicon.svg HTTP/1.1" from [::1]:65410 - 200 1944B in 413.75µs
+2025/10/16 18:52:03 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:49355 - 200 31853B in 5.240292ms
+2025/10/16 18:52:10 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:49397 - 200 31853B in 3.666375ms
