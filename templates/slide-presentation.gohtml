@@ -47,9 +47,10 @@
         .reveal .slides section {
             max-width: 1100px !important;
             margin: 0 auto !important;
-            padding: 0 40px 40px 40px !important;
+            padding: 40px 40px 40px 40px !important;
             overflow: visible !important;
             box-sizing: border-box !important;
+            top: 0 !important;
         }
         
         /* Typography styles from slide content */
@@ -302,14 +303,14 @@
         Reveal.initialize({
             width: 1280,
             height: 720,
-            margin: 0.06,
+            margin: 0.1,
             minScale: 0.2,
             maxScale: 1.5,
             hash: true,
             controls: true,
             progress: true,
             slideNumber: true,
-            center: false,
+            center: true,
             transition: 'fade',
             transitionSpeed: 'default',
             autoAnimateEasing: 'ease-out',
