@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vibe Coding to Production — Mastering Cursor + AI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/theme/white.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/plugin/highlight/monokai.css">
+  <style>
+		:root{
+		  --r-main-font-size: 30px;
+		  --r-block-margin: 16px;
+		  --r-heading-font: Inter, Segoe UI, Arial, sans-serif;
+		  --r-code-font: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+		  --r-heading1-size: 2.0em;
+		  --r-heading2-size: 1.6em;
+		  --r-heading3-size: 1.35em;
+		}
+		.reveal .slides{ text-align:left; }
+		.reveal .slides section{
+                        max-width:1100px;
+                        margin:0 auto;
+                        padding:0 84px 56px 84px;   /* wider, symmetric gutters */
+                        overflow: visible;          /* avoid glyph clipping during scaling */
+		  /* removed: transform: translateX(-12px); */
+		}
+		.reveal h1,.reveal h2,.reveal h3{ color:#111; line-height:1.08; letter-spacing:-0.01em; }
+		.subtitle{ font-size:1.05rem; color:#333; margin-top:.4rem; }
+		.byline{ font-size:.95rem; color:#555; }
+		.footnote{ font-size:.8rem; color:#666; }
+		.mono{ font-family:var(--r-code-font); }
+		.pill{ display:inline-block; border:1px solid #111; border-radius:999px; padding:.2rem .6rem; margin-right:.4rem; }
+		.quote{ font-size:1.1rem; color:#222; border-left:4px solid #111; padding-left:.8rem; }
+		.two-col{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:2rem; align-items:center; }
+		.grid-2{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:2rem; }
+		.grid-3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.2rem; }
+		.reveal pre code{ font-size:.82em; line-height:1.35; }
+		.reveal pre{ box-shadow:none; }
+		.tight{ margin-top:.6rem; }
+		.reveal .slides svg{ display:block; width:100%; height:auto; max-height:56vh; margin:.4rem auto 0; }
+
+		/* Small screens: gently reduce side padding to avoid clipping */
+		@media (max-width: 900px){
+		  .reveal .slides section{ padding:0 36px 48px 36px; }
+		}
+		footer.tiny{ position:fixed; bottom:8px; right:16px; font-size:.72rem; color:#666; }
+
+  </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- 1. TITLE -->
+<section data-transition="fade">
+  <h1>Vibe Coding to Prod</h1>
+  <h5><strong>Mastering Cursor + AI</strong></h5>
+  <p class="byline">
+    <h3>Anshuman Biswas, Ph.D.</h3>
+    <h6>17th October 2025</h6>
+  <div class="tight">
+    <svg viewBox="0 0 900 360" role="img" aria-label="Hero">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#111" stop-opacity=".9"/><stop offset="100%" stop-color="#111" stop-opacity=".35"/></linearGradient></defs>
+      <path d="M0,270 C120,210 240,330 360,270 C480,210 600,330 720,270 C780,240 840,250 900,240" fill="none" stroke="url(#g)" stroke-width="4" stroke-linecap="round" opacity=".9"/>
+      <g stroke="#111" fill="none" stroke-width="6" opacity=".8">
+        <path d="M120,90 c-30,0 -40,20 -40,40 v40 c0,20 -10,30 -30,30"/>
+        <path d="M240,90 c30,0 40,20 40,40 v40 c0,20 10,30 30,30"/>
+      </g>
+      <text x="180" y="170" text-anchor="middle" font-family="Inter,Segoe UI,Arial" font-size="46" fill="#111">{ code }</text>
+      <g transform="translate(640,90)" stroke="#111" fill="none" stroke-width="3">
+        <path d="M0,60 Q40,10 90,0 Q80,50 30,90 Z" fill="#fff"/>
+        <circle cx="48" cy="35" r="10" />
+        <path d="M0,60 L-20,70 L-8,80 Z" fill="#fff"/>
+        <path d="M60,90 C50,120 30,130 15,138" stroke-dasharray="5 7" opacity="0.6"/>
+      </g>
+      <text x="450" y="330" text-anchor="middle" font-family="Inter,Segoe UI,Arial" font-size="18" fill="#333">Vibes → Specs → Tests → Code → Prod</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 2. AGENDA (20 + 30) -->
+<section data-transition="fade">
+  <h2>Quick agenda (50 min)</h2>
+  <div class="grid-3">
+    <div>
+      <p class="pill">Talk · 20 min</p>
+      <ul>
+        <li>Vibe Coding: what & why</li>
+        <li>Tokens & context windows</li>
+        <li>Cursor + Claude Code workflow</li>
+      </ul>
+    </div>
+    <div>
+      <p class="pill">Demo · 30 min</p>
+      <ul>
+        <li>Build <strong>ShipIt</strong> (Go + SQLite + React)</li>
+        <li>Tests + CI</li>
+        <li>Claude Code + (historic) Codex in Cursor</li>
+      </ul>
+    </div>
+    <div>
+      <p class="pill">Outcomes</p>
+      <ul>
+        <li>Prompt patterns</li>
+        <li>Token discipline</li>
+        <li>Ship with confidence</li>
+      </ul>
+    </div>
+  </div>
+  <svg viewBox="0 0 900 220" role="img" aria-label="Agenda timeline">
+    <g stroke="#111" fill="none" stroke-width="3">
+      <line x1="80" y1="120" x2="820" y2="120"/>
+      <circle cx="260" cy="120" r="10"/><circle cx="560" cy="120" r="10"/><circle cx="820" cy="120" r="10"/>
+    </g>
+    <text x="80" y="150" font-size="16">0</text>
+    <text x="220" y="90" font-size="18">Talk</text>
+    <text x="520" y="90" font-size="18">Demo</text>
+    <text x="800" y="150" font-size="16">50</text>
+  </svg>
+</section>
+
+<!-- 3. WHAT IS VIBE CODING -->
+<section data-transition="fade">
+  <h2>Vibe Coding — the punk-rock workflow</h2>
+  <div class="two-col">
+    <div>
+      <p class="quote">Program by intent: describe behavior; let the agent draft; tighten with tests and edits.</p>
+      <ul>
+        <li>Think in outcomes, not files.</li>
+        <li>Specs & tests are the control rods.</li>
+        <li>Ship small, observable slices.</li>
+      </ul>
+      <p class="footnote">Inspo: “vibe coding” talk track; adapt to production reality.</p>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 300" role="img" aria-label="Intent loop">
+        <g stroke="#111" fill="none" stroke-width="3">
+          <circle cx="180" cy="140" r="55"/><path d="M150,190 q30,20 60,0"/>
+          <path d="M320,160 q40,-40 80,0 t80,0 t80,0" stroke-dasharray="8 10"/>
+          <rect x="600" y="100" width="160" height="80" rx="12"/>
+          <text x="680" y="148" font-size="24" text-anchor="middle">{ code }</text>
+        </g>
+        <text x="320" y="200" font-size="18">Natural language + tests → code</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 4. TOKENS 101 -->
+<section data-transition="fade">
+  <h2>How ChatGPT “talks”: tokens 101</h2>
+  <div class="two-col">
+    <div>
+      <ul>
+        <li>Models don’t “see characters” — they process <strong>tokens</strong> (subword units).</li>
+        <li>Tokenization is usually <em>BPE</em>-style: frequent chunks get their own tokens.</li>
+        <li>Generation = predicting the next token, one at a time, with a probability distribution.</li>
+        <li>Why you care: <strong>context window</strong> size, cost, speed, and accuracy.</li>
+      </ul>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 260" role="img" aria-label="Tokens">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="100" y="80" width="700" height="100" rx="10"/>
+          <rect x="120" y="100" width="90" height="60" rx="8"/><text x="165" y="135" text-anchor="middle">Hel</text>
+          <rect x="220" y="100" width="110" height="60" rx="8"/><text x="275" y="135" text-anchor="middle">lo</text>
+          <rect x="340" y="100" width="120" height="60" rx="8"/><text x="400" y="135" text-anchor="middle">▁world</text>
+          <rect x="470" y="100" width="90" height="60" rx="8"/><text x="515" y="135" text-anchor="middle">!</text>
+          <rect x="570" y="100" width="210" height="60" rx="8"/><text x="675" y="135" text-anchor="middle">…next</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 5. SPLIT → ENCODE → THINK → DECODE → JOIN -->
+<section data-transition="fade">
+  <h2>Split → Encode → LLM “thinking” → Output → Decode → Join</h2>
+  <div class="two-col">
+    <div>
+      <ol>
+        <li><strong>Split</strong> text into tokens via tokenizer.</li>
+        <li><strong>Encode</strong> tokens → ids (integers).</li>
+        <li><strong>LLM “thinking”</strong>: attention layers transform vectors, predict next token id.</li>
+        <li><strong>Output</strong> stream of token ids.</li>
+        <li><strong>Decode</strong> ids → tokens; <strong>Join</strong> tokens → text.</li>
+      </ol>
+      <p class="footnote">Demo this visually; tie back to cost & window budgeting.</p>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 260" role="img" aria-label="Pipeline">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="60" y="80" width="100" height="80" rx="10"/><text x="110" y="128" text-anchor="middle">Split</text>
+          <polygon points="170,120 200,120 200,110 230,140 200,170 200,160 170,160" fill="#111"/>
+          <rect x="230" y="80" width="110" height="80" rx="10"/><text x="285" y="128" text-anchor="middle">Encode</text>
+          <polygon points="350,120 380,120 380,110 410,140 380,170 380,160 350,160" fill="#111"/>
+          <rect x="410" y="60" width="180" height="120" rx="14"/><text x="500" y="120" text-anchor="middle">LLM</text>
+          <polygon points="600,120 630,120 630,110 660,140 630,170 630,160 600,160" fill="#111"/>
+          <rect x="660" y="80" width="110" height="80" rx="10"/><text x="715" y="128" text-anchor="middle">Decode</text>
+          <polygon points="780,120 810,120 810,110 840,140 810,170 810,160 780,160" fill="#111"/>
+          <rect x="840" y="80" width="20" height="80" rx="6"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 6. TIKTOKEN EXAMPLE -->
+<section data-transition="fade">
+  <h2>Hands-on token view (Python + <span class="mono">tiktoken</span>)</h2>
+  <div class="two-col">
+    <div>
+      <pre><code class="language-py">import tiktoken
+enc = tiktoken.get_encoding("cl100k_base")
+text = "Hello, world! 👋 Ship fast."
+ids = enc.encode(text)
+print("ids:", ids)
+print("tokens:", [enc.decode([i]) for i in ids])
+print("count:", len(ids))</code></pre>
+      <ul>
+        <li>Show token ids and decoded pieces.</li>
+        <li>Measure prompt size & cost ahead of time.</li>
+      </ul>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 260" role="img" aria-label="IDs">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="80" y="70" width="740" height="120" rx="12"/>
+          <rect x="100" y="90" width="140" height="80" rx="8"/><text x="170" y="130" text-anchor="middle">[15496]</text>
+          <rect x="250" y="90" width="140" height="80" rx="8"/><text x="320" y="130" text-anchor="middle">[11]</text>
+          <rect x="400" y="90" width="140" height="80" rx="8"/><text x="470" y="130" text-anchor="middle">[995]</text>
+          <rect x="550" y="90" width="140" height="80" rx="8"/><text x="620" y="130" text-anchor="middle">[…]</text>
+          <rect x="700" y="90" width="100" height="80" rx="8"/><text x="750" y="130" text-anchor="middle">count</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+  <p class="footnote">Tip: budget prompts to < 60% of the model’s window so replies fit comfortably.</p>
+</section>
+
+<!-- 7. CONTEXT WINDOWS -->
+<section data-transition="fade">
+  <h2>Context windows & budgeting</h2>
+  <div class="two-col">
+    <div>
+      <ul>
+        <li>8K ≈ a few files; 32–200K ≈ small repos.</li>
+        <li>Feed only what the agent needs <em>now</em>.</li>
+        <li>Pin a 1-pager brief (<span class="mono">.claude.md</span>) to avoid drift.</li>
+      </ul>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 220" role="img" aria-label="Window bar">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="100" y="90" width="700" height="24" rx="12"/>
+          <rect x="100" y="90" width="420" height="24" rx="12" fill="#111"/>
+        </g>
+        <text x="110" y="135" font-size="14" fill="#111">prompt + code + tests</text>
+        <text x="820" y="135" font-size="14" fill="#333">capacity →</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 8. TOOLCHAIN -->
+<section data-transition="fade">
+  <h2>Primary workflow: Cursor + Claude Code</h2>
+  <div class="grid-2">
+    <div>
+      <ul>
+        <li>Editor-aware, repo-wide edits, context pins.</li>
+        <li>Great for iterative patches & test-first loops.</li>
+        <li>Also compare: (historic) Codex & Google Gemini.</li>
+      </ul>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 240" role="img" aria-label="Tools">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="140" y="80" width="180" height="80" rx="12"/><text x="230" y="128" text-anchor="middle">Cursor</text>
+          <polygon points="330,120 360,120 360,110 390,140 360,170 360,160 330,160" fill="#111"/>
+          <rect x="390" y="80" width="180" height="80" rx="12"/><text x="480" y="128" text-anchor="middle">Claude Code</text>
+          <polygon points="580,120 610,120 610,110 640,140 610,170 610,160 580,160" fill="#111"/>
+          <rect x="640" y="80" width="140" height="80" rx="12"/><text x="710" y="128" text-anchor="middle">CI</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 9. DOCS → TESTS → CODE -->
+<section data-transition="fade">
+  <h2>Docs as the blueprint → Code as the artifact</h2>
+  <div class="two-col">
+    <div>
+      <ol>
+        <li>Write design doc & acceptance criteria.</li>
+        <li>Create failing tests (unit + E2E).</li>
+        <li>Generate code; iterate until green.</li>
+      </ol>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 240" role="img" aria-label="Docs to code">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="90" y="60" width="220" height="120" rx="10"/>
+          <line x1="110" y1="90" x2="290" y2="90"/>
+          <line x1="110" y1="110" x2="270" y2="110"/>
+          <polygon points="330,120 450,120 450,110 480,140 450,170 450,160 330,160" fill="#111"/>
+          <rect x="500" y="60" width="220" height="120" rx="10"/>
+          <text x="610" y="132" font-size="46" fill="#111">{ }</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 10. TEST-FIRST -->
+<section data-transition="fade">
+  <h2>Test-first vibe coding</h2>
+  <div class="two-col">
+    <div>
+      <ul>
+        <li>Small deterministic unit tests guide the agent.</li>
+        <li>E2E encodes user intent.</li>
+        <li>Green tests = permission to ship.</li>
+      </ul>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 220" role="img" aria-label="Tests">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="120" y="70" width="280" height="110" rx="10"/>
+          <path d="M150,100 h220 M150,120 h200 M150,140 h160"/>
+          <circle cx="380" cy="160" r="12"/><path d="M375,160 l4,6 l8,-14"/>
+          <rect x="480" y="70" width="300" height="110" rx="10"/>
+          <path d="M510,100 h240 M510,120 h140 M510,140 h180"/>
+          <circle cx="750" cy="160" r="12"/><path d="M745,160 l4,6 l8,-14"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 11. SECURITY & OBS -->
+<section data-transition="fade">
+  <h2>Security & observability by default</h2>
+  <ul>
+    <li>Validate inputs; parameterized SQL; least-privilege.</li>
+    <li>JSON logs + metrics + traces on day one.</li>
+    <li>Pin deps; SBOM; static + dynamic scans in CI.</li>
+  </ul>
+  <svg viewBox="0 0 900 200" role="img" aria-label="Shield">
+    <g stroke="#111" fill="none" stroke-width="2">
+      <path d="M220,60 q120,-40 240,0 q0,160 -120,180 q-120,-20 -120,-180 z"/>
+      <path d="M340,90 v90 M300,130 h90"/>
+    </g>
+  </svg>
+</section>
+
+<!-- 12. DEMO INTRO -->
+<section data-transition="fade">
+  <h2>Live Demo (30 min): Build <em>ShipIt</em></h2>
+  <div class="two-col">
+    <div>
+      <ul>
+        <li>Stack: Go API + SQLite + React + Vite</li>
+        <li>Auth-lite (shared admin key)</li>
+        <li>CRUD: Projects → Tasks → Notes</li>
+        <li>Tests: Go unit + Playwright E2E</li>
+      </ul>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 260" role="img" aria-label="Architecture">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="120" y="80" width="200" height="120" rx="12"/><text x="220" y="145" text-anchor="middle">React (Vite)</text>
+          <polygon points="330,140 360,140 360,130 390,160 360,190 360,180 330,180" fill="#111"/>
+          <rect x="390" y="80" width="200" height="120" rx="12"/><text x="490" y="115" text-anchor="middle">Go API</text><text x="490" y="145" text-anchor="middle">/projects /tasks</text>
+          <polygon points="600,140 630,140 630,130 660,160 630,190 630,180 600,180" fill="#111"/>
+          <rect x="660" y="80" width="160" height="120" rx="12"/><text x="740" y="145" text-anchor="middle">SQLite</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 13. DEMO CHECKLIST -->
+<section data-transition="fade">
+  <h2>Demo plan: 6 steps, 5 minutes each</h2>
+  <ol>
+    <li>Scaffold repo & brief (<span class="mono">.claude.md</span>).</li>
+    <li>DB & models (SQLite) + migrations.</li>
+    <li>HTTP handlers + JSON schema.</li>
+    <li>React UI (Projects/Tasks/Notes).</li>
+    <li>Tests (Go + Playwright).</li>
+    <li>Polish: logs, error shapes, seed data.</li>
+  </ol>
+  <svg viewBox="0 0 900 200" role="img" aria-label="Checklist">
+    <g stroke="#111" fill="none" stroke-width="2">
+      <rect x="120" y="80" width="660" height="80" rx="12"/>
+      <circle cx="160" cy="120" r="10"/><path d="M155,120 l4,6 l8,-14" />
+      <circle cx="240" cy="120" r="10"/><path d="M235,120 l4,6 l8,-14" />
+      <circle cx="320" cy="120" r="10"/><path d="M315,120 l4,6 l8,-14" />
+      <circle cx="400" cy="120" r="10"/><path d="M395,120 l4,6 l8,-14" />
+      <circle cx="480" cy="120" r="10"/><path d="M475,120 l4,6 l8,-14" />
+      <circle cx="560" cy="120" r="10"/><path d="M555,120 l4,6 l8,-14" />
+    </g>
+  </svg>
+</section>
+
+<!-- 14. PROMPTS (CLAUDE CODE) -->
+<section data-transition="fade">
+  <h2>Agent prompts — Claude Code in Cursor</h2>
+  <div class="two-col">
+    <div>
+      <p class="pill">Project brief (add to <span class="mono">.claude.md</span>)</p>
+      <pre><code class="language-md">Project: ShipIt (Go + SQLite + React)
+Goals: CRUD Projects/Tasks/Notes; tests; JSON logs.
+Conventions: RFC7807 errors; /api prefix; CORS; seed data.
+Commands: go test ./... ; pnpm test:e2e</code></pre>
+      <p class="pill">Task prompt (backend)</p>
+      <pre><code class="language-txt">Implement /api/projects and /api/tasks:
+- Go 1.22, chi router, SQLite via modernc.org/sqlite
+- Migrations: projects(id PK, name, created_at), tasks(id PK, project_id FK, title, done, created_at)
+- Handlers: list/create/update/delete
+- Return JSON; validate input; use prepared statements
+- Add unit tests covering happy path + 1 error case</code></pre>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 260" role="img" aria-label="Prompt flow">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="120" y="60" width="200" height="120" rx="12"/><text x="220" y="120" text-anchor="middle">Brief</text>
+          <polygon points="330,120 360,120 360,110 390,140 360,170 360,160 330,160" fill="#111"/>
+          <rect x="390" y="60" width="200" height="120" rx="12"/><text x="490" y="120" text-anchor="middle">Task</text>
+          <polygon points="600,120 630,120 630,110 660,140 630,170 630,160 600,160" fill="#111"/>
+          <rect x="660" y="60" width="120" height="120" rx="12"/><text x="720" y="120" text-anchor="middle">Patch</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 15. PROMPTS (FRONTEND) -->
+<section data-transition="fade">
+  <h2>Agent prompts — React frontend</h2>
+  <div class="two-col">
+    <div>
+      <pre><code class="language-txt">Create a Vite + React app with:
+- Pages: Projects (list/create), ProjectDetail (tasks CRUD), Notes panel
+- Data via fetch to /api/*
+- Accessible forms (labels/roles), optimistic UI on task toggle
+- Routing with react-router; basic error boundary
+- Add Playwright test: create project, add task, mark done, assert UI</code></pre>
+      <p class="footnote">Keep components small; name by role; test selectors by role.</p>
+    </div>
+    <div>
+      <svg viewBox="0 0 900 240" role="img" aria-label="UI mock">
+        <g stroke="#111" fill="none" stroke-width="2">
+          <rect x="120" y="60" width="660" height="140" rx="12"/>
+          <rect x="140" y="80" width="200" height="30" rx="6"/>
+          <rect x="140" y="120" width="540" height="20" rx="6"/>
+          <circle cx="700" cy="130" r="10"/><path d="M695,130 l4,6 l8,-14"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 16. API & SCHEMA -->
+<section data-transition="fade">
+  <h2>API endpoints & schema</h2>
+  <div class="grid-2">
+    <div>
+      <pre><code class="language-json">GET  /api/projects
+POST /api/projects { name }
+GET  /api/projects/:id
+PATCH /api/projects/:id { name? }
+DELETE /api/projects/:id
+
+GET  /api/projects/:id/tasks
+POST /api/projects/:id/tasks { title }
+PATCH /api/tasks/:id { title?, done? }
+DELETE /api/tasks/:id</code></pre>
+    </div>
+    <div>
+      <pre><code class="language-sql">-- migrations/001_init.sql
+CREATE TABLE projects (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE tasks (
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  done INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);</code></pre>
+    </div>
+  </div>
+  <svg viewBox="0 0 900 180" role="img" aria-label="DB">
+    <g stroke="#111" fill="none" stroke-width="2">
+      <rect x="140" y="60" width="260" height="80" rx="10"/><text x="270" y="100" text-anchor="middle">projects</text>
+      <rect x="500" y="60" width="260" height="80" rx="10"/><text x="630" y="100" text-anchor="middle">tasks</text>
+      <line x1="400" y1="100" x2="500" y2="100" />
+    </g>
+  </svg>
+</section>
+
+<!-- 17. TESTS SNIPPETS -->
+<section data-transition="fade">
+  <h2>Minimal tests to stay honest</h2>
+  <div class="grid-2">
+    <div>
+      <pre><code class="language-go">// api/projects_test.go
+func TestCreateProject(t *testing.T){
+  s := newTestServer(t) // in-mem sqlite
+  body := `{"name":"Demo"}`
+  res := s.POST("/api/projects", body)
+  if res.StatusCode != 201 { t.Fatal(res.Status) }
+}</code></pre>
+    </div>
+    <div>
+      <pre><code class="language-js">// tests/e2e.spec.ts
+test('create project & task', async ({ page }) => {
+  await page.goto('http://localhost:5173');
+  await page.getByRole('textbox', { name:/name/i }).fill('Demo');
+  await page.getByRole('button', { name:/create/i }).click();
+  await page.getByRole('link', { name:'Demo' }).click();
+  await page.getByRole('textbox', { name:/title/i }).fill('First task');
+  await page.getByRole('button', { name:/add/i }).click();
+  await page.getByRole('checkbox', { name:'First task' }).check();
+});</code></pre>
+    </div>
+  </div>
+  <svg viewBox="0 0 900 160" role="img" aria-label="Green bar">
+    <rect x="120" y="80" width="660" height="20" rx="10" fill="#111"/>
+  </svg>
+</section>
+
+<!-- 18. PROMPT PATTERNS -->
+<section data-transition="fade">
+  <h2>Prompt patterns that win</h2>
+  <ul>
+    <li><strong>Short goal</strong> + <strong>measurable done</strong> + <strong>constraints</strong>.</li>
+    <li>Ask for <strong>file-scoped patches</strong> or <strong>unified diffs</strong>.</li>
+    <li>Pin the brief; keep prompts < 60% window.</li>
+  </ul>
+  <svg viewBox="0 0 900 180" role="img" aria-label="Cards">
+    <g stroke="#111" fill="none" stroke-width="2">
+      <rect x="120" y="60" width="200" height="90" rx="12"/>
+      <rect x="360" y="60" width="200" height="90" rx="12"/>
+      <rect x="600" y="60" width="200" height="90" rx="12"/>
+    </g>
+  </svg>
+</section>
+
+<!-- 19. WRAP -->
+<section data-transition="fade">
+  <h2>Takeaways</h2>
+  <ul>
+    <li>Tokens rule everything: split/encode → think → decode/join.</li>
+    <li>Cursor + Claude Code = rapid, test-first iteration.</li>
+    <li>Ship small, observable, secure slices.</li>
+  </ul>
+  <svg viewBox="0 0 900 180" role="img" aria-label="Rocket">
+    <g stroke="#111" fill="none" stroke-width="2">
+      <path d="M220,120 q120,-80 240,0 q-120,80 -240,0 z" />
+      <line x1="320" y1="120" x2="420" y2="120"/>
+      <path d="M200,120 q-20,20 -40,0 q20,-20 40,0 z" />
+    </g>
+  </svg>
+  <p class="footnote">Twitter/X: @anchoo2kewl • anshumanbiswas.com</p>
+</section>
+
+<!-- 20. Q&A -->
+<section data-transition="fade">
+  <h2>Q&A</h2>
+  <svg viewBox="0 0 900 220" role="img" aria-label="Q&A">
+    <g stroke="#111" fill="none" stroke-width="2">
+      <circle cx="240" cy="110" r="50"/><text x="240" y="118" text-anchor="middle" font-size="28">Q</text>
+      <circle cx="660" cy="110" r="50"/><text x="660" y="118" text-anchor="middle" font-size="28">A</text>
+      <line x1="290" y1="110" x2="610" y2="110"/>
+    </g>
+  </svg>
+</section>
+
+</div>
+</div>
+
+<footer class="tiny">Vibe Coding to Production — Mastering Cursor + AI</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/plugin/notes/notes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/plugin/highlight/highlight.js"></script>
+<script>
+  Reveal.initialize({
+    width: 1280, height: 720, margin: 0.06,
+    minScale: 0.2, maxScale: 1.5,
+    hash: true, controls: true, progress: true, slideNumber: true, center: false,
+    transition: 'fade', transitionSpeed: 'default', autoAnimateEasing: 'ease-out',
+    plugins: [ RevealNotes, RevealHighlight ]
+  });
+</script>
+</body>
+</html>

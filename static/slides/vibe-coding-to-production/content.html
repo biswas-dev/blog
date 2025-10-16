@@ -1,43 +1,592 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>Test Presentation</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/white.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vibe Coding to Production — Anshuman Biswas, Ph.D.</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/white.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/monokai.css">
+  <style>
+    :root{
+      --r-main-font-size: 30px;
+      --r-block-margin: 14px;
+      --r-heading-font: Inter, Segoe UI, Arial, sans-serif;
+      --r-code-font: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --r-heading1-size: 2.0em;
+      --r-heading2-size: 1.6em;
+      --r-heading3-size: 1.35em;
+    }
+
+    .reveal .slides { text-align: left; }
+    .reveal .slides section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 96px 48px 56px; /* extra right gutter */
+      transform: translateX(-12px); /* nudge content left */
+    }
+
+    .reveal h1, .reveal h2, .reveal h3 {
+      color: #111;
+      line-height: 1.08;
+      word-break: break-word;
+      hyphens: auto;
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle { font-size: 1.05rem; color: #333; margin-top: .4rem; }
+    .byline { font-size: .95rem; color: #555; }
+    .footnote { font-size: .8rem; color: #666; }
+    .mono { font-family: var(--r-code-font); }
+
+    /* Responsive grids */
+    .two-col { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 2rem; align-items: center; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 2rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1.2rem; }
+
+    /* Keep SVGs within the slide */
+    .reveal .slides svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 56vh;
+      margin: .4rem auto 0;
+    }
+
+    .reveal pre code { font-size: .82em; line-height: 1.35; }
+    .reveal pre { box-shadow: none; }
+
+    .pill { display:inline-block; border:1px solid #111; border-radius:999px; padding:.2rem .6rem; margin-right:.4rem; }
+    .quote { font-size: 1.1rem; color: #222; border-left: 4px solid #111; padding-left: .8rem; }
+    .tight { margin-top: .6rem; }
+    footer.tiny { position: absolute; bottom: 8px; right: 16px; font-size: .72rem; color: #666; }
+  </style>
 </head>
 <body>
-    <div class="reveal">
-        <div class="slides">
-            <section>
-                <h1>Test Presentation</h1>
-                <p>This is a test slide created through the blog system.</p>
-            </section>
-            <section>
-                <h2>Slide 2</h2>
-                <p>This demonstrates the slide functionality is working.</p>
-                <ul>
-                    <li>Bullet point 1</li>
-                    <li>Bullet point 2</li>
-                    <li>Bullet point 3</li>
-                </ul>
-            </section>
-            <section>
-                <h2>Final Slide</h2>
-                <p>Thank you for viewing this test presentation!</p>
-            </section>
+  <div class="reveal">
+    <div class="slides">
+
+      <section data-transition="fade">
+        <h1>Vibe Coding to Prod</h1>
+        <p class="subtitle"><h5>Build one feature end‑to‑end<h5></p>
+        <p class="byline"><h2>Anshuman Biswas</h2>
+        <h6>VP of Engineering, Elastio</h6></p>
+        <h6>16th September, 2025</h6></p>
+        <div class="tight"><svg width="900" height="360" viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vibe Coding hero graphic">
+  <defs>
+    <linearGradient id="gradA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111111" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#111111" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+  <path d="M0,270 C120,210 240,330 360,270 C480,210 600,330 720,270 C780,240 840,250 900,240"
+        fill="none" stroke="url(#gradA)" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+  <g stroke="#111" fill="none" stroke-width="6" opacity="0.8">
+    <path d="M120,90 c-30,0 -40,20 -40,40 v40 c0,20 -10,30 -30,30 M120,90 v0"/>
+    <path d="M240,90 c30,0 40,20 40,40 v40 c0,20 10,30 30,30 M240,90 v0"/>
+  </g>
+  <text x="180" y="170" text-anchor="middle" font-family="Inter,Segoe UI,Arial" font-size="46" fill="#111">{ code }</text>
+  <g transform="translate(640,90)" stroke="#111" fill="none" stroke-width="3">
+    <path d="M0,60 Q40,10 90,0 Q80,50 30,90 Z" fill="#fff"/>
+    <circle cx="48" cy="35" r="10" />
+    <path d="M0,60 L-20,70 L-8,80 Z" fill="#fff"/>
+    <path d="M60,90 C50,120 30,130 15,138" stroke-dasharray="5 7" opacity="0.6"/>
+  </g>
+  <text x="450" y="330" text-anchor="middle" font-family="Inter,Segoe UI,Arial" font-size="18" fill="#333">Vibes → Specs → Tests → Code → Prod</text>
+</svg></div>
+        <aside class="notes">
+          Welcome! I’ll show how to go from a product "vibe" to shipping a production feature rapidly,
+          using modern AI agents while keeping quality and security high.
+        </aside>
+      </section>
+
+      <section data-transition="fade" data-auto-animate>
+        <h2>Goal of this talk</h2>
+        <div class="two-col">
+          <div>
+            <ul>
+              <li class="fragment">Pick one audience‑suggested feature for my blogging platform.</li>
+              <li class="fragment">Design in docs → codify as tests → generate & iterate code.</li>
+              <li class="fragment">Ship a safe, observable, production‑ready slice.</li>
+            </ul>
+            <p class="footnote fragment">Stack: Go backend + React frontend • CI • Playwright • Go tests</p>
+          </div>
+          <div><svg width="900" height="300" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Goal pipeline">
+  <g font-family="Inter,Segoe UI,Arial" fill="#111" stroke="#111" stroke-width="2">
+    <rect x="40" y="80" width="130" height="100" rx="12" fill="none"/>
+    <path d="M60,100 h90 M60,120 h70 M60,140 h90" />
+    <text x="105" y="205" text-anchor="middle">Blog</text>
+    <polygon points="190,130 250,130 250,120 285,145 250,170 250,160 190,160" fill="#111"/>
+    <rect x="300" y="80" width="140" height="100" rx="8" fill="none"/>
+    <rect x="300" y="80" width="140" height="16" rx="8" fill="#111"/>
+    <text x="370" y="157" text-anchor="middle" fill="#111" font-size="20">IDE</text>
+    <text x="370" y="205" text-anchor="middle">Cursor</text>
+    <polygon points="460,130 520,130 520,120 555,145 520,170 520,160 460,160" fill="#111"/>
+    <rect x="570" y="80" width="140" height="100" rx="16" fill="none"/>
+    <circle cx="640" cy="125" r="20" fill="none"/>
+    <circle cx="632" cy="120" r="3"/><circle cx="648" cy="120" r="3"/>
+    <path d="M628,136 q12,10 24,0" fill="none"/>
+    <text x="640" y="205" text-anchor="middle">Claude Code</text>
+    <polygon points="730,130 790,130 790,120 825,145 790,170 790,160 730,160" fill="#111"/>
+    <path d="M835,110 q20,-25 40,0 q25,-10 35,15 q-5,20 -25,20 h-50 q-20,0 -25,-20 q10,-25 25,-15 z" fill="none"/>
+    <text x="855" y="205" text-anchor="middle">Prod</text>
+  </g>
+</svg></div>
         </div>
+        <aside class="notes">
+          We’ll anchor on a real feature. We start with a doc spec, then tests, then code with an AI agent,
+          and wire it into CI so we can ship confidently.
+        </aside>
+      </section>
+
+      <section data-transition="fade" data-auto-animate>
+        <h2>Quick agenda</h2>
+        <div class="grid-3">
+          <div>
+            <p class="pill">Tools</p>
+            <ul>
+              <li>Build in <strong>Cursor</strong> + <strong>Claude Code</strong></li>
+              <li>Also show <strong>OpenAI Codex†</strong> & <strong>Gemini CLI</strong></li>
+            </ul>
+          </div>
+          <div>
+            <p class="pill">Concepts</p>
+            <ul>
+              <li>Vibe coding in brief (Karpathy)</li>
+              <li>Hype vs. real progress</li>
+              <li>Docs → Code pipeline</li>
+            </ul>
+          </div>
+          <div>
+            <p class="pill">Practice</p>
+            <ul>
+              <li>Local vs. cloud agents</li>
+              <li>Context windows & tokens</li>
+              <li>Test‑first vibe coding</li>
+              <li>Task design tips</li>
+            </ul>
+          </div>
+        </div>
+        <p class="footnote">† Codex is shown historically; modern OpenAI models provide coding capabilities.</p>
+      </section>
+
+      <section data-transition="fade">
+        <h2>What is “Vibe Coding”?</h2>
+        <div class="two-col">
+          <div><svg width="900" height="300" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vibe coding concept">
+  <g stroke="#111" fill="none" stroke-width="3">
+    <circle cx="180" cy="140" r="55"/>
+    <rect x="115" y="100" width="30" height="80" rx="6"/>
+    <rect x="215" y="100" width="30" height="80" rx="6"/>
+    <path d="M150,190 q30,20 60,0"/>
+  </g>
+  <path d="M320,160 q40,-40 80,0 t80,0 t80,0" stroke="#111" stroke-width="3" fill="none" stroke-dasharray="8 10"/>
+  <text x="320" y="200" font-family="Inter,Segoe UI,Arial" font-size="22" fill="#111">Natural language + tests → code</text>
+</svg></div>
+          <div>
+            <p class="quote fragment">
+              Program by intent: describe the behavior and constraints; let the agent draft code; tighten the loop with tests and edits.
+            </p>
+            <p class="fragment">
+              Popularized by <strong>Andrej Karpathy</strong> (ex‑OpenAI, Tesla). You steer through <em>vibes</em> (desired outcomes),
+              specs, and test feedback.
+            </p>
+          </div>
+        </div>
+        <aside class="notes">
+          The "vibe" is the qualitative intent. We translate that into measurable tests and guardrails so the agent produces the right code.
+        </aside>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Hype vs. progress</h2>
+        <div><svg width="900" height="300" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hype vs actual progress">
+  <g stroke="#111" fill="none">
+    <line x1="60" y1="240" x2="860" y2="240" stroke-width="2"/>
+    <line x1="60" y1="40" x2="60" y2="240" stroke-width="2"/>
+    <path d="M60,220 C160,60 260,270 360,120 C480,40 600,70 860,60" stroke="#999" stroke-width="2"/>
+    <path d="M60,230 C220,220 360,160 560,140 C720,130 800,100 860,90" stroke="#111" stroke-width="3"/>
+  </g>
+  <text x="820" y="260" font-family="Inter,Segoe UI,Arial" font-size="14" fill="#333">time</text>
+  <text x="20" y="60" font-family="Inter,Segoe UI,Arial" font-size="14" fill="#333" transform="rotate(-90 20,60)">level</text>
+  <text x="380" y="80" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#666">hype</text>
+  <text x="610" y="150" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">real capabilities ↑</text>
+</svg></div>
+        <ul>
+          <li class="fragment">Yes, there’s a hype cycle.</li>
+          <li class="fragment">But some capabilities improve at <em>breakneck speed</em> (reasoning, tooling, repos).</li>
+          <li class="fragment">Adopt selectively: pair agents with tests, telemetry, and review.</li>
+        </ul>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Docs as the blueprint → Code as the artifact</h2>
+        <div><svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Docs as the blueprint">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <rect x="90" y="60" width="220" height="140" rx="10"/>
+    <line x1="110" y1="90" x2="290" y2="90"/>
+    <line x1="110" y1="110" x2="270" y2="110"/>
+    <line x1="110" y1="130" x2="290" y2="130"/>
+    <rect x="500" y="60" width="220" height="140" rx="10"/>
+    <text x="610" y="140" font-family="Inter,Segoe UI,Arial" font-size="46" fill="#111">{ }</text>
+    <polygon points="350,130 460,130 460,120 490,150 460,180 460,170 350,170" fill="#111"/>
+  </g>
+  <text x="200" y="220" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Docs / design notes</text>
+  <text x="610" y="220" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Generated code</text>
+</svg></div>
+        <ul>
+          <li class="fragment">Write the design doc & acceptance criteria first.</li>
+          <li class="fragment">Generate scaffolding/code repeatedly until tests pass.</li>
+          <li class="fragment">The <strong>doc</strong> becomes the durable spec; code evolves freely.</li>
+        </ul>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Two paths to move fast</h2>
+        <div class="grid-2">
+          <div>
+            <h3>Keep data local</h3>
+            <p class="fragment">Run <strong>Ollama</strong> with <strong>Qwen Coder</strong> in an IDE like <strong>Roo Code</strong>.</p>
+            <p class="fragment">Great for privacy, air‑gapped work, or sensitive repos.</p>
+            <div><svg width="900" height="280" viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Local models path">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <rect x="120" y="80" width="240" height="140" rx="10"/>
+    <rect x="150" y="110" width="180" height="80" rx="6"/>
+    <circle cx="300" cy="96" r="10"/>
+    <path d="M220,228 l-14,22 h28 z" fill="#111"/>
+    <circle cx="240" cy="220" r="6"/>
+    <text x="240" y="250" text-anchor="middle" font-family="Inter,Segoe UI,Arial" font-size="14" fill="#111">local</text>
+    <rect x="520" y="80" width="260" height="140" rx="10"/>
+    <rect x="540" y="100" width="80" height="60" rx="6"/>
+    <rect x="640" y="100" width="80" height="60" rx="6"/>
+    <rect x="740" y="100" width="20" height="60" rx="4"/>
+  </g>
+  <text x="240" y="70" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Laptop + Ollama (local)</text>
+  <text x="650" y="70" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Qwen Coder • Roo Code</text>
+</svg></div>
+          </div>
+          <div>
+            <h3>Max out cloud agents</h3>
+            <p class="fragment">Use the largest context & highest‑capability tiers (e.g., Claude Code, OpenAI).</p>
+            <p class="fragment">Fast iteration, strong repo tools, multi‑file edits.</p>
+            <div><svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cloud max plan path">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <path d="M140,140 q20,-25 40,0 q25,-10 35,15 q-5,20 -25,20 h-50 q-20,0 -25,-20 q10,-25 25,-15 z"/>
+    <polygon points="240,150 300,150 300,140 335,165 300,190 300,180 240,180" fill="#111"/>
+    <rect x="350" y="120" width="180" height="80" rx="10"/>
+    <text x="440" y="170" font-family="Inter,Segoe UI,Arial" font-size="18" fill="#111">Claude Code / GPT</text>
+    <polygon points="550,150 610,150 610,140 645,165 610,190 610,180 550,180" fill="#111"/>
+    <path d="M660,200 q40,-80 120,-80 l20,-20 l20,20 q-20,40 -40,60 z" />
+  </g>
+</svg></div>
+          </div>
+        </div>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Context windows & tokens</h2>
+        <div class="two-col">
+          <div>
+            <ul>
+              <li class="fragment">A “token” ≈ ~4 chars in English; context window = how much the model can read at once.</li>
+              <li class="fragment">Chunk repos; provide the <em>right</em> files + tests + docs for each task.</li>
+              <li class="fragment">Use retrieval or editor‑select to keep prompts lean and on‑target.</li>
+            </ul>
+          </div>
+          <div><svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Context window">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <rect x="100" y="120" width="700" height="24" rx="12"/>
+    <rect x="100" y="120" width="420" height="24" rx="12" fill="#111"/>
+  </g>
+  <text x="100" y="95" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Context window (tokens)</text>
+  <text x="820" y="160" font-family="Inter,Segoe UI,Arial" font-size="14" fill="#333">capacity →</text>
+  <text x="110" y="160" font-family="Inter,Segoe UI,Arial" font-size="14" fill="#fff">prompt + code + tests</text>
+</svg></div>
+        </div>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Context windows — getting practical</h2>
+        <div class="two-col">
+          <div>
+            <ul>
+              <li class="fragment"><strong>Token math:</strong> 1 token ≈ 3–4 chars (English). 8K ≈ a few files; 32–200K ≈ small repos.</li>
+              <li class="fragment"><strong>Plan the window:</strong> include only the files + tests the agent needs <em>now</em>.</li>
+              <li class="fragment"><strong>Chunk work:</strong> decompose into patches that keep prompts < 40–60% of the window.</li>
+              <li class="fragment"><strong>Pin the spec:</strong> keep the doc + acceptance criteria in context for every step.</li>
+              <li class="fragment"><strong>Use diffs:</strong> ask for file‑scoped changes or unified diffs to minimize token use.</li>
+            </ul>
+          </div>
+          <div><svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Context window">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <rect x="100" y="120" width="700" height="24" rx="12"/>
+    <rect x="100" y="120" width="420" height="24" rx="12" fill="#111"/>
+  </g>
+  <text x="100" y="95" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Context window (tokens)</text>
+  <text x="820" y="160" font-family="Inter,Segoe UI,Arial" font-size="14" fill="#333">capacity →</text>
+  <text x="110" y="160" font-family="Inter,Segoe UI,Arial" font-size="14" fill="#fff">prompt + code + tests</text>
+</svg></div>
+        </div>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Claude Code: avoid context thrash</h2>
+        <ul>
+          <li class="fragment">Large edits and long chats can push earlier instructions out of the window.</li>
+          <li class="fragment"><strong>Create a project brief:</strong> add a root‑level <code>.claude.md</code> (or <code>docs/ai/brief.md</code>) and pin/reference it.</li>
+          <li class="fragment">Keep it 1–2 pages; include repo map, style decisions, test commands, and “definition of done”.</li>
+          <li class="fragment">Refresh the brief as the project evolves; keep IDs, routes, and invariants there.</li>
+        </ul>
+<pre><code class="language-md"># .claude.md — project memory (excerpt)
+Project: anshumanbiswas.com blog
+Stack: Go 1.22, React, Postgres
+
+## Principles
+- Tests first: <code>go test ./...</code>, <code>pnpm test:e2e</code>
+- Observability: JSON logs; pass context for tracing
+- Security: validated inputs; parameterized SQL; least-privilege
+
+## Conventions
+- Packages: <code>internal/blog</code>, <code>cmd/api</code>
+- HTTP errors: RFC7807 problem+json with <code>type</code>, <code>detail</code>
+- CI: run Go + Playwright on PR; require green
+
+## Current task
+Create Post API; unique slug; return 201 JSON; update E2E.</code></pre>
+      </section>
+
+      <section data-transition="fade">
+        <h2>LLM memory & sessions</h2>
+        <div class="grid-2">
+          <div>
+            <h3>What “memory” means</h3>
+            <ul>
+              <li class="fragment"><strong>Session state:</strong> the running chat history (falls out when tokens run out).</li>
+              <li class="fragment"><strong>Product memory:</strong> tool‑level preferences or pinned docs (e.g., <code>.claude.md</code>).</li>
+              <li class="fragment"><strong>Source of truth:</strong> keep canonical details in versioned docs/tests—not only in chat.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>When to start a new session</h3>
+            <ul>
+              <li class="fragment">You feel drift or the agent contradicts earlier decisions.</li>
+              <li class="fragment">Prompt size or repo context regularly exceeds the window.</li>
+              <li class="fragment">You switch to a new feature or refactor that needs a clean brief.</li>
+              <li class="fragment">The chat is > ~100 interactions and “compression” is obvious.</li>
+            </ul>
+            <p class="footnote">Before you reset, copy important facts into <code>.claude.md</code> (or your brief) so the next session starts aligned.</p>
+          </div>
+        </div>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Test‑first vibe coding</h2>
+        <div><svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Testing first">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <rect x="120" y="70" width="300" height="120" rx="10"/>
+    <path d="M150,100 h240 M150,120 h220 M150,140 h160"/>
+    <circle cx="390" cy="160" r="12"/>
+    <path d="M385,160 l4,6 l8,-14" />
+    <rect x="480" y="70" width="300" height="120" rx="10"/>
+    <path d="M510,100 h240 M510,120 h140 M510,140 h180"/>
+    <circle cx="750" cy="160" r="12"/>
+    <path d="M745,160 l4,6 l8,-14" />
+  </g>
+  <text x="270" y="210" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Go unit tests</text>
+  <text x="630" y="210" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Playwright E2E</text>
+</svg></div>
+        <p class="footnote">Ship confidence comes from tests, not vibes. Start with a failing test to focus the agent.</p>
+      </section>
+
+      <section data-transition="fade">
+        <h3>Go backend — minimal unit test</h3>
+<pre><code class="language-go">// blog/service_test.go
+func TestCreatePost(t *testing.T) {
+    repo := memory.NewPostRepo()
+    svc := blog.NewService(repo)
+
+    req := blog.CreatePostRequest{
+        Title: "Hello", Slug: "hello", Body: "World",
+    }
+    got, err := svc.CreatePost(context.Background(), req)
+    if err != nil { t.Fatal(err) }
+
+    if got.Slug != "hello" {
+        t.Fatalf("expected slug 'hello', got %q", got.Slug)
+    }
+}</code></pre>
+        <aside class="notes">
+          Small, deterministic tests keep the agent honest. Start with a single "happy path" then add edge cases.
+        </aside>
+      </section>
+
+      <section data-transition="fade">
+        <h3>React frontend — Playwright E2E</h3>
+<pre><code class="language-js">// tests/create-post.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('create post flow', async ({ page }) => {
+  await page.goto('http://localhost:3000/admin');
+  await page.getByRole('textbox', { name: /title/i }).fill('Hello');
+  await page.getByRole('textbox', { name: /slug/i }).fill('hello');
+  await page.getByRole('button', { name: /publish/i }).click();
+
+  await expect(page).toHaveURL(/\/hello$/);
+  await expect(page.getByRole('heading', { name: 'Hello' })).toBeVisible();
+});</code></pre>
+        <aside class="notes">
+          The E2E test encodes the user intent. Keep it resilient (by role/name) and fast enough to run in CI.
+        </aside>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Design tasks the agent can win</h2>
+        <div><svg width="900" height="280" viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Prompt tips cards">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <rect x="80" y="60" width="200" height="150" rx="12"/>
+    <rect x="350" y="60" width="200" height="150" rx="12"/>
+    <rect x="620" y="60" width="200" height="150" rx="12"/>
+    <line x1="100" y1="100" x2="260" y2="100"/>
+    <line x1="370" y1="100" x2="530" y2="100"/>
+    <line x1="640" y1="100" x2="800" y2="100"/>
+  </g>
+  <text x="180" y="230" text-anchor="middle" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Short goals</text>
+  <text x="450" y="230" text-anchor="middle" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Measurable</text>
+  <text x="720" y="230" text-anchor="middle" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111">Constraints</text>
+</svg></div>
+        <ul>
+          <li class="fragment"><strong>Short, scoped goals:</strong> “Add /api/posts POST handler that returns 201 + JSON.”</li>
+          <li class="fragment"><strong>Measure done:</strong> “Green tests: TestCreatePost, TestListPosts, create-post.spec.”</li>
+          <li class="fragment"><strong>Provide assets:</strong> schema, sample payloads, test stubs, error cases.</li>
+          <li class="fragment"><strong>State constraints:</strong> idempotency, logging, authz, perf budgets.</li>
+          <li class="fragment"><strong>Prefer patches:</strong> ask for diffs or file‑scoped changes.</li>
+        </ul>
+      </section>
+
+      <section data-transition="fade">
+        <h3>Task spec template (copy/paste)</h3>
+<pre><code class="language-md"># Task
+Implement Create Post API in Go service.
+
+## Inputs
+- Storage: PostgreSQL (table posts)
+- Fields: id, title, slug, body, created_at
+- Constraints: unique slug; server‑side slugify
+
+## Done when
+- POST /api/posts returns 201 with post JSON
+- Unit: TestCreatePost, TestListPosts pass
+- E2E: create-post.spec passes
+
+## Notes
+- Add repository + service layers
+- Log structured JSON; redact secrets
+- Include Swagger/OpenAPI snippet
+</code></pre>
+      </section>
+
+      <section data-transition="fade">
+        <h2>When “longer thinking” helps</h2>
+        <div class="two-col">
+          <div>
+            <ul>
+              <li class="fragment">Some models have deliberate/slow modes for heavier refactors.</li>
+              <li class="fragment">Use for cross‑file changes, complex migrations, or API design.</li>
+            </ul>
+          </div>
+          <div><svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Longer thinking modes">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <circle cx="180" cy="130" r="52"/>
+    <path d="M144,120 q18,-10 36,0 q18,10 36,0" />
+    <path d="M160,150 q20,18 40,0" />
+    <line x1="240" y1="130" x2="740" y2="130" />
+    <polygon points="740,130 720,120 720,140" fill="#111"/>
+  </g>
+  <text x="740" y="150" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111" text-anchor="end">deliberate / deeper</text>
+</svg></div>
+        </div>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Refactor at scale</h2>
+        <div><svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Refactor at scale">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <rect x="120" y="70" width="120" height="60" rx="6"/>
+    <rect x="260" y="70" width="120" height="60" rx="6"/>
+    <rect x="400" y="70" width="120" height="60" rx="6"/>
+    <rect x="180" y="150" width="120" height="60" rx="6"/>
+    <rect x="320" y="150" width="120" height="60" rx="6"/>
+    <rect x="460" y="150" width="120" height="60" rx="6"/>
+    <polygon points="600,120 670,120 670,110 700,135 670,160 670,150 600,150" fill="#111"/>
+    <rect x="720" y="100" width="60" height="60" rx="6"/>
+  </g>
+  <text x="750" y="180" font-family="Inter,Segoe UI,Arial" font-size="16" fill="#111" text-anchor="middle">same API</text>
+</svg></div>
+        <ul>
+          <li class="fragment">Tools like <strong>blitzy.com</strong> aim to read very large repos and refactor while preserving behavior.</li>
+          <li class="fragment">Anchor every refactor in tests + type checks + CI to ensure parity.</li>
+        </ul>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Security & observability by default</h2>
+        <ul>
+          <li class="fragment">Threat model: avoid prompt‑injected secrets; watch for supply‑chain changes.</li>
+          <li class="fragment">Static/dynamic scans in CI; SBOM; dependency pinning.</li>
+          <li class="fragment">Add logs/metrics/traces to new endpoints on day one.</li>
+        </ul>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Live demo: pick the feature</h2>
+        <div><svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Live demo request">
+  <g stroke="#111" fill="none" stroke-width="2">
+    <rect x="120" y="80" width="80" height="100" rx="20"/>
+    <circle cx="160" cy="110" r="16"/>
+    <line x1="160" y1="130" x2="160" y2="160"/>
+    <path d="M220,130 h420" />
+    <polygon points="660,130 640,120 640,140" fill="#111"/>
+  </g>
+  <text x="700" y="140" font-family="Inter,Segoe UI,Arial" font-size="18" fill="#111">Your feature idea?</text>
+</svg></div>
+        <ul>
+          <li class="fragment">Suggest a feature for <strong>anshumanbiswas.com</strong>.</li>
+          <li class="fragment">We’ll draft the doc, write a failing test, and let the agent code.</li>
+          <li class="fragment">Ship it if CI is green.</li>
+        </ul>
+      </section>
+
+      <section data-transition="fade">
+        <h2>Thank you</h2>
+        <p>Slides & SVGs provided in this chat. Questions welcome.</p>
+        <p class="footnote">Twitter/X: @anchoo2kewl • Site: anshumanbiswas.com</p>
+      </section>
+
     </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
-    <script>
-        Reveal.initialize({
-            hash: true,
-            controls: true,
-            progress: true,
-            center: true,
-            transition: 'slide'
-        });
-    </script>
+  </div>
+
+  <footer class="tiny">Vibe Coding to Production — Anshuman Biswas, Ph.D.</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/notes/notes.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/highlight.js"></script>
+  <script>
+    Reveal.initialize({
+      width: 1280,
+      height: 720,
+      margin: 0.06,
+      minScale: 0.2,
+      maxScale: 1.5,
+      hash: true,
+      controls: true,
+      progress: true,
+      slideNumber: true,
+      center: false,
+      transition: 'fade',
+      transitionSpeed: 'default',
+      autoAnimateEasing: 'ease-out',
+      plugins: [ RevealNotes, RevealHighlight ]
+    });
+  </script>
 </body>
 </html>
