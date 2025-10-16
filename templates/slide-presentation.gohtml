@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
     <title>{{.Slide.Title}} - Presentation</title>
     <meta name="description" content="{{.Slide.Title}} - Interactive presentation" />
     <meta name="author" content="Anshuman Biswas" />
@@ -19,51 +19,150 @@
     
     <!-- Custom styles -->
     <style>
+        /* CSS Custom Properties from slide content */
+        :root {
+            --r-main-font-size: 30px;
+            --r-block-margin: 16px;
+            --r-heading-font: Inter, Segoe UI, Arial, sans-serif;
+            --r-code-font: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+            --r-heading1-size: 2.0em;
+            --r-heading2-size: 1.6em;
+            --r-heading3-size: 1.35em;
+        }
+
+        /* Ensure full viewport usage and no clipping */
+        html, body {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+        
+        /* Critical slide content styles that were missing */
+        .reveal .slides { 
+            text-align: left; 
+        }
+        
         .reveal .slides section {
-            text-align: left !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+            padding: 0 84px 56px 84px !important;   /* wider, symmetric gutters */
+            overflow: visible !important;           /* avoid glyph clipping during scaling */
+            box-sizing: border-box !important;      /* include padding in width calculation */
         }
         
-        .reveal .slides section p,
-        .reveal .slides section li,
-        .reveal .slides section div,
-        .reveal .slides section ul,
-        .reveal .slides section ol {
-            text-align: left !important;
+        /* Typography styles from slide content */
+        .reveal h1, .reveal h2, .reveal h3 { 
+            color: #111; 
+            line-height: 1.08; 
+            letter-spacing: -0.01em; 
         }
         
-        /* Fix bullet points alignment */
-        .reveal .slides section ul,
-        .reveal .slides section ol {
-            display: block !important;
-            margin-left: 1em !important;
+        .subtitle { 
+            font-size: 1.05rem; 
+            color: #333; 
+            margin-top: .4rem; 
         }
         
-        .reveal .slides section li {
-            text-align: left !important;
-            list-style-position: outside !important;
-            margin-left: 0 !important;
-            padding-left: 0 !important;
+        .byline { 
+            font-size: .95rem; 
+            color: #555; 
         }
         
-        /* Override any Reveal.js centering */
-        .reveal ul,
-        .reveal ol {
-            display: block !important;
-            text-align: left !important;
+        .footnote { 
+            font-size: .8rem; 
+            color: #666; 
         }
         
+        .mono { 
+            font-family: var(--r-code-font); 
+        }
+        
+        .pill { 
+            display: inline-block; 
+            border: 1px solid #111; 
+            border-radius: 999px; 
+            padding: .2rem .6rem; 
+            margin-right: .4rem; 
+        }
+        
+        .quote { 
+            font-size: 1.1rem; 
+            color: #222; 
+            border-left: 4px solid #111; 
+            padding-left: .8rem; 
+        }
+        
+        /* Grid layouts from slide content */
+        .two-col { 
+            display: grid; 
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); 
+            gap: 2rem; 
+            align-items: center; 
+        }
+        
+        .grid-2 { 
+            display: grid; 
+            grid-template-columns: repeat(2, minmax(0, 1fr)); 
+            gap: 2rem; 
+        }
+        
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1.2rem;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .grid-3 > div {
+            min-width: 0; /* prevent grid blowout */
+            box-sizing: border-box;
+        }
+        
+        .reveal pre code { 
+            font-size: .82em; 
+            line-height: 1.35; 
+        }
+        
+        .reveal pre { 
+            box-shadow: none; 
+        }
+        
+        .tight { 
+            margin-top: .6rem; 
+        }
+        
+        .reveal .slides svg {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            max-height: 56vh;
+            margin: .4rem auto 0;
+            box-sizing: border-box;
+        }
+        
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 900px) {
+            .reveal .slides section { 
+                padding: 0 36px 48px 36px !important; 
+            }
+        }
+        
+        footer.tiny { 
+            position: fixed; 
+            bottom: 8px; 
+            right: 16px; 
+            font-size: .72rem; 
+            color: #666; 
+        }
+        
+        /* Allow slide content to define its own styling - only apply minimal overrides */
         .reveal .slides section.center {
             text-align: center;
-        }
-        
-        .reveal .slides section h1,
-        .reveal .slides section h2,
-        .reveal .slides section h3,
-        .reveal .slides section h4,
-        .reveal .slides section h5,
-        .reveal .slides section h6 {
-            text-align: center;
-            margin-bottom: 1em;
         }
         
         .reveal .controls {
@@ -139,6 +238,18 @@
                 color: #60a5fa;
             }
         }
+
+        /* Ensure slide content doesn't get cut off - preserve slide content's own styling */
+        .reveal .slides {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        /* Ensure the reveal container can accommodate the slide content's max-width */
+        .reveal {
+            width: 100% !important;
+            height: 100% !important;
+        }
     </style>
 </head>
 
@@ -175,89 +286,8 @@
         </div>
     </div>
 
-    <!-- Reveal.js JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/markdown/markdown.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/highlight.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/notes/notes.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/zoom/zoom.js"></script>
-
+    <!-- Let slide content handle its own Reveal.js initialization -->
     <script>
-        // Initialize Reveal.js
-        Reveal.initialize({
-            hash: true,
-            controls: true,
-            progress: true,
-            center: false,
-            touch: true,
-            loop: false,
-            rtl: false,
-            navigationMode: 'default',
-            shuffle: false,
-            fragments: true,
-            fragmentInURL: false,
-            embedded: false,
-            help: true,
-            pause: true,
-            showNotes: false,
-            autoPlayMedia: null,
-            preloadIframes: null,
-            autoAnimate: true,
-            autoAnimateMatcher: null,
-            autoAnimateEasing: 'ease',
-            autoAnimateDuration: 1.0,
-            autoAnimateUnmatched: true,
-            autoAnimateStyles: [
-                'opacity',
-                'color',
-                'background-color',
-                'padding',
-                'font-size',
-                'line-height',
-                'letter-spacing',
-                'border-width',
-                'border-color',
-                'border-radius',
-                'outline',
-                'outline-offset'
-            ],
-            autoSlide: 0,
-            autoSlideStoppable: true,
-            autoSlideMethod: null,
-            defaultTiming: null,
-            mouseWheel: false,
-            hideInactiveCursor: true,
-            hideCursorTime: 5000,
-            previewLinks: false,
-            postMessage: true,
-            postMessageEvents: false,
-            focusBodyOnPageVisibilityChange: true,
-            transition: 'slide',
-            transitionSpeed: 'default',
-            backgroundTransition: 'fade',
-            parallaxBackgroundImage: '',
-            parallaxBackgroundSize: '',
-            parallaxBackgroundRepeat: '',
-            parallaxBackgroundPosition: '',
-            parallaxBackgroundHorizontal: null,
-            parallaxBackgroundVertical: null,
-            view: 'scroll',
-            width: 960,
-            height: 700,
-            margin: 0.04,
-            minScale: 0.2,
-            maxScale: 2.0,
-            disableLayout: false,
-            
-            // Learn about plugins: https://revealjs.com/plugins/
-            plugins: [ 
-                RevealMarkdown, 
-                RevealHighlight, 
-                RevealNotes, 
-                RevealZoom 
-            ]
-        });
-
         // Fullscreen functionality
         document.getElementById('fullscreen-btn').addEventListener('click', function() {
             if (document.fullscreenElement) {
@@ -267,43 +297,43 @@
             }
         });
 
-        // Keyboard shortcuts help
-        document.addEventListener('keydown', function(event) {
-            // Press 'h' to show help
-            if (event.key === 'h' && !event.ctrlKey && !event.metaKey && !event.altKey) {
-                Reveal.getPlugin('notes').toggleHelp();
-            }
-        });
+        // Wait for slide content to initialize Reveal.js, then add our custom functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait a bit for Reveal.js to be initialized by the slide content
+            setTimeout(function() {
+                if (window.Reveal) {
+                    // Update fullscreen button on fullscreen change
+                    document.addEventListener('fullscreenchange', function() {
+                        const btn = document.getElementById('fullscreen-btn');
+                        const svg = btn.querySelector('svg path');
+                        if (document.fullscreenElement) {
+                            svg.setAttribute('d', 'M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM8 21a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM3 8a1 1 0 011-1h2a1 1 0 110 2H4a1 1 0 01-1-1zM21 8a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z');
+                            btn.title = 'Exit Fullscreen';
+                        } else {
+                            svg.setAttribute('d', 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4');
+                            btn.title = 'Toggle Fullscreen';
+                        }
+                    });
 
-        // Update fullscreen button on fullscreen change
-        document.addEventListener('fullscreenchange', function() {
-            const btn = document.getElementById('fullscreen-btn');
-            const svg = btn.querySelector('svg path');
-            if (document.fullscreenElement) {
-                svg.setAttribute('d', 'M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM8 21a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM3 8a1 1 0 011-1h2a1 1 0 110 2H4a1 1 0 01-1-1zM21 8a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z');
-                btn.title = 'Exit Fullscreen';
-            } else {
-                svg.setAttribute('d', 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4');
-                btn.title = 'Toggle Fullscreen';
-            }
-        });
+                    // Analytics - track slide views
+                    if (window.gtag) {
+                        gtag('event', 'slide_view', {
+                            'slide_title': '{{.Slide.Title}}',
+                            'slide_slug': '{{.Slide.Slug}}'
+                        });
+                    }
 
-        // Analytics - track slide views
-        if (window.gtag) {
-            gtag('event', 'slide_view', {
-                'slide_title': '{{.Slide.Title}}',
-                'slide_slug': '{{.Slide.Slug}}'
-            });
-        }
-
-        // Track slide changes for analytics
-        Reveal.on('slidechanged', function(event) {
-            if (window.gtag) {
-                gtag('event', 'slide_change', {
-                    'slide_title': '{{.Slide.Title}}',
-                    'slide_index': event.indexh + '-' + event.indexv
-                });
-            }
+                    // Track slide changes for analytics
+                    Reveal.on('slidechanged', function(event) {
+                        if (window.gtag) {
+                            gtag('event', 'slide_change', {
+                                'slide_title': '{{.Slide.Title}}',
+                                'slide_index': event.indexh + '-' + event.indexv
+                            });
+                        }
+                    });
+                }
+            }, 100);
         });
     </script>
 </body>

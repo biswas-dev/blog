@@ -132,14 +132,14 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex items-center justify-end space-x-2">
                                         <!-- Edit Button -->
-                                        <button onclick="editCategory({{.ID}}, '{{.Name}}')"
+                                        <button onclick="editCategory({{.ID}}, {{.Name | js}})"
                                                 class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                             </svg>
                                         </button>
                                         <!-- Delete Button -->
-                                        <button onclick="deleteCategory({{.ID}}, '{{.Name}}')"
+                                        <button onclick="deleteCategory({{.ID}}, {{.Name | js}})"
                                                 id="delete-btn-{{.ID}}"
                                                 class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-2"
                                                 {{if index $.PostCounts .ID}}{{if gt (index $.PostCounts .ID) 0}}disabled title="Cannot delete category with posts"{{end}}{{end}}>
@@ -311,13 +311,16 @@ document.getElementById('create-form').addEventListener('submit', async function
     setButtonLoading('create-btn', 'create-spinner', 'create-text', true, 'Create Category');
     
     try {
-        const response = await fetch('/api/categories', {
+        const formData = new FormData();
+        formData.append('name', name);
+        
+        const response = await fetch('/admin/categories', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer secretToken' // TODO: Get from session
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ name: name })
+            body: formData
         });
         
         if (response.ok) {
@@ -326,8 +329,13 @@ document.getElementById('create-form').addEventListener('submit', async function
             nameInput.value = '';
             addCategoryToTable(category);
         } else {
-            const error = await response.text();
-            showMessage(`Failed to create category: ${error}`, 'error');
+            try {
+                const errorData = await response.json();
+                showMessage(`Failed to create category: ${errorData.error || 'Unknown error'}`, 'error');
+            } catch {
+                const error = await response.text();
+                showMessage(`Failed to create category: ${error}`, 'error');
+            }
         }
     } catch (error) {
         showMessage(`Error: ${error.message}`, 'error');
@@ -338,11 +346,14 @@ document.getElementById('create-form').addEventListener('submit', async function
 
 // Edit category functionality
 function editCategory(id, name) {
+    console.log('editCategory called with:', { id, name });
     currentEditingId = id;
     const modal = document.getElementById('edit-modal');
     const nameInput = document.getElementById('edit-name');
     
+    console.log('nameInput element:', nameInput);
     nameInput.value = name;
+    console.log('nameInput.value set to:', nameInput.value);
     modal.classList.remove('hidden');
     nameInput.focus();
 }
@@ -355,6 +366,8 @@ document.getElementById('edit-form').addEventListener('submit', async function(e
     const nameInput = document.getElementById('edit-name');
     const name = nameInput.value.trim();
     
+    console.log('Form submission - nameInput:', nameInput, 'raw value:', nameInput.value, 'trimmed:', name);
+    
     if (!name) {
         showMessage('Category name is required', 'error');
         return;
@@ -363,13 +376,16 @@ document.getElementById('edit-form').addEventListener('submit', async function(e
     setButtonLoading('update-btn', 'update-spinner', 'update-text', true, 'Update Category');
     
     try {
-        const response = await fetch(`/api/categories/${currentEditingId}`, {
-            method: 'PUT',
+        const formData = new FormData();
+        formData.append('name', name);
+        
+        const response = await fetch(`/admin/categories/${currentEditingId}`, {
+            method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer secretToken' // TODO: Get from session
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ name: name })
+            body: formData
         });
         
         if (response.ok) {
@@ -378,8 +394,13 @@ document.getElementById('edit-form').addEventListener('submit', async function(e
             updateCategoryInTable(currentEditingId, category.name);
             closeEditModal();
         } else {
-            const error = await response.text();
-            showMessage(`Failed to update category: ${error}`, 'error');
+            try {
+                const errorData = await response.json();
+                showMessage(`Failed to update category: ${errorData.error || 'Unknown error'}`, 'error');
+            } catch {
+                const error = await response.text();
+                showMessage(`Failed to update category: ${error}`, 'error');
+            }
         }
     } catch (error) {
         showMessage(`Error: ${error.message}`, 'error');
@@ -409,10 +430,11 @@ async function confirmDelete() {
     setButtonLoading('confirm-delete-btn', 'delete-spinner', 'delete-text', true, 'Delete Category');
     
     try {
-        const response = await fetch(`/api/categories/${currentDeletingId}`, {
-            method: 'DELETE',
+        const response = await fetch(`/admin/categories/${currentDeletingId}/delete`, {
+            method: 'POST',
             headers: {
-                'Authorization': 'Bearer secretToken' // TODO: Get from session
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             }
         });
         
@@ -421,8 +443,13 @@ async function confirmDelete() {
             removeCategoryFromTable(currentDeletingId);
             closeDeleteModal();
         } else {
-            const error = await response.text();
-            showMessage(`Failed to delete category: ${error}`, 'error');
+            try {
+                const errorData = await response.json();
+                showMessage(`Failed to delete category: ${errorData.error || 'Unknown error'}`, 'error');
+            } catch {
+                const error = await response.text();
+                showMessage(`Failed to delete category: ${error}`, 'error');
+            }
         }
     } catch (error) {
         showMessage(`Error: ${error.message}`, 'error');
@@ -493,13 +520,13 @@ function addCategoryToTable(category) {
         </td>
         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
             <div class="flex items-center justify-end space-x-2">
-                <button onclick="editCategory(${category.id}, '${category.name}')"
+                <button onclick="editCategory(${category.id}, ${JSON.stringify(category.name)})"
                         class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
                 </button>
-                <button onclick="deleteCategory(${category.id}, '${category.name}')"
+                <button onclick="deleteCategory(${category.id}, ${JSON.stringify(category.name)})"
                         id="delete-btn-${category.id}"
                         class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

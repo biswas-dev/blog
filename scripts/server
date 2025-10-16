@@ -1645,14 +1645,14 @@ case ${1:-help} in
     test-playwright)
         print_header "Running Playwright tests"
         load_env
-        node tests/playwright/test_admin_nav_playwright.js
+        npx playwright test --timeout=10000
         ;;
     test-all)
         print_header "Running All Tests"
         load_env
         go test -v ./tests/go || exit 1
         echo ""
-        node tests/playwright/test_admin_nav_playwright.js || exit 1
+        npx playwright test --timeout=10000 || exit 1
         print_success "All tests passed"
         ;;
     docker-build)

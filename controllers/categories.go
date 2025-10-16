@@ -6,12 +6,36 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/utils"
 	"anshumanbiswas.com/blog/views"
 	"github.com/go-chi/chi/v5"
 )
+
+// Helper function to detect AJAX requests
+func isAjaxRequest(r *http.Request) bool {
+	// Check for explicit AJAX headers
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		return true
+	}
+	
+	// Check Accept header for JSON
+	accept := strings.ToLower(r.Header.Get("Accept"))
+	if strings.Contains(accept, "application/json") && !strings.Contains(accept, "text/html") {
+		return true
+	}
+	
+	// Check Content-Type for JSON
+	contentType := strings.ToLower(r.Header.Get("Content-Type"))
+	if strings.Contains(contentType, "application/json") {
+		return true
+	}
+	
+	// Default to false (treat as regular form submission)
+	return false
+}
 
 type Categories struct {
 	CategoryService *models.CategoryService
@@ -204,6 +228,26 @@ func (c *Categories) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 
 // CreateCategoryForm - POST /admin/categories
 func (c *Categories) CreateCategoryForm(w http.ResponseWriter, r *http.Request) {
+	// Check authentication
+	user, err := utils.IsUserLoggedIn(r, c.SessionService)
+	if err != nil || user == nil {
+		if isAjaxRequest(r) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	// Check if user is admin
+	if !models.IsAdmin(user.Role) {
+		if isAjaxRequest(r) {
+			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		return
+	}
+
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Invalid form data", http.StatusBadRequest)
 		return
@@ -211,22 +255,59 @@ func (c *Categories) CreateCategoryForm(w http.ResponseWriter, r *http.Request) 
 
 	name := r.Form.Get("name")
 	if name == "" {
+		if isAjaxRequest(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Category name is required"})
+			return
+		}
 		http.Redirect(w, r, "/admin/categories?message=Category+name+is+required", http.StatusFound)
 		return
 	}
 
-	_, err := c.CategoryService.Create(name)
+	category, err := c.CategoryService.Create(name)
 	if err != nil {
 		log.Printf("Error creating category: %v", err)
+		if isAjaxRequest(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create category"})
+			return
+		}
 		http.Redirect(w, r, "/admin/categories?message=Failed+to+create+category", http.StatusFound)
 		return
 	}
 
+	if isAjaxRequest(r) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(category)
+		return
+	}
 	http.Redirect(w, r, "/admin/categories?message=Category+created+successfully", http.StatusFound)
 }
 
 // UpdateCategoryForm - POST /admin/categories/{id}
 func (c *Categories) UpdateCategoryForm(w http.ResponseWriter, r *http.Request) {
+	// Check authentication
+	user, err := utils.IsUserLoggedIn(r, c.SessionService)
+	if err != nil || user == nil {
+		if isAjaxRequest(r) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	// Check if user is admin
+	if !models.IsAdmin(user.Role) {
+		if isAjaxRequest(r) {
+			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		return
+	}
+
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -241,22 +322,59 @@ func (c *Categories) UpdateCategoryForm(w http.ResponseWriter, r *http.Request) 
 
 	name := r.Form.Get("name")
 	if name == "" {
+		if isAjaxRequest(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Category name is required"})
+			return
+		}
 		http.Redirect(w, r, "/admin/categories?message=Category+name+is+required", http.StatusFound)
 		return
 	}
 
-	_, err = c.CategoryService.Update(id, name)
+	category, err := c.CategoryService.Update(id, name)
 	if err != nil {
 		log.Printf("Error updating category: %v", err)
+		if isAjaxRequest(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update category"})
+			return
+		}
 		http.Redirect(w, r, "/admin/categories?message=Failed+to+update+category", http.StatusFound)
 		return
 	}
 
+	if isAjaxRequest(r) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(category)
+		return
+	}
 	http.Redirect(w, r, "/admin/categories?message=Category+updated+successfully", http.StatusFound)
 }
 
 // DeleteCategoryForm - POST /admin/categories/{id}/delete
 func (c *Categories) DeleteCategoryForm(w http.ResponseWriter, r *http.Request) {
+	// Check authentication
+	user, err := utils.IsUserLoggedIn(r, c.SessionService)
+	if err != nil || user == nil {
+		if isAjaxRequest(r) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	// Check if user is admin
+	if !models.IsAdmin(user.Role) {
+		if isAjaxRequest(r) {
+			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		return
+	}
+
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -267,9 +385,20 @@ func (c *Categories) DeleteCategoryForm(w http.ResponseWriter, r *http.Request) 
 	err = c.CategoryService.Delete(id)
 	if err != nil {
 		log.Printf("Error deleting category: %v", err)
+		if isAjaxRequest(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete category"})
+			return
+		}
 		http.Redirect(w, r, "/admin/categories?message=Failed+to+delete+category", http.StatusFound)
 		return
 	}
 
+	if isAjaxRequest(r) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": "Category deleted successfully"})
+		return
+	}
 	http.Redirect(w, r, "/admin/categories?message=Category+deleted+successfully", http.StatusFound)
 }
