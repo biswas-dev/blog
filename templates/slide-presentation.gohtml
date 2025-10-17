@@ -289,10 +289,18 @@
         .reveal.full-screen,
         html:fullscreen,
         body:fullscreen,
-        .reveal:fullscreen,
-        :-webkit-full-screen,
-        :-webkit-full-screen-ancestor,
-        :-moz-full-screen,
+        .reveal:fullscreen {
+            --slide-padding-top-current: var(--slide-padding-top-fullscreen);
+        }
+
+        :-webkit-full-screen {
+            --slide-padding-top-current: var(--slide-padding-top-fullscreen);
+        }
+
+        :-moz-full-screen {
+            --slide-padding-top-current: var(--slide-padding-top-fullscreen);
+        }
+
         :-ms-fullscreen {
             --slide-padding-top-current: var(--slide-padding-top-fullscreen);
         }

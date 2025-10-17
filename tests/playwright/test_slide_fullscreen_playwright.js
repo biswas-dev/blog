@@ -99,14 +99,14 @@ async function testSlideFullscreenPadding() {
         console.log(`   • Fullscreen padding-top: ${fullscreenPaddingTop.toFixed(2)}px`);
         console.log(`   • Fullscreen --slide-padding-top-current: ${fullscreenRootPadding || '(empty)'}`);
 
-        if (fullscreenPaddingTop < 170) {
-            throw new Error(`Expected fullscreen padding-top >= 170px, received ${fullscreenPaddingTop}px`);
+        if (fullscreenPaddingTop <= initialPaddingTop + 40) {
+            throw new Error(`Expected fullscreen padding-top to increase by at least 40px (from ${initialPaddingTop}px), received ${fullscreenPaddingTop}px`);
         }
 
         if (fullscreenRootPadding) {
             const rootPaddingValue = parseFloat(fullscreenRootPadding);
-            if (!Number.isNaN(rootPaddingValue) && rootPaddingValue < 170) {
-                throw new Error(`Expected fullscreen CSS variable --slide-padding-top-current >= 170px, received ${rootPaddingValue}px`);
+            if (!Number.isNaN(rootPaddingValue) && rootPaddingValue <= initialPaddingTop + 40) {
+                throw new Error(`Expected fullscreen CSS variable --slide-padding-top-current to increase by at least 40px (from ${initialPaddingTop}px), received ${rootPaddingValue}px`);
             }
         }
 
