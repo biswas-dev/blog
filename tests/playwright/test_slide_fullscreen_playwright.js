@@ -86,17 +86,28 @@ async function testSlideFullscreenPadding() {
         await firstSectionLocator.waitFor({ timeout: 5000 });
 
         const initialPaddingTop = await firstSectionLocator.evaluate(node => parseFloat(getComputedStyle(node).paddingTop));
+        const initialRootPadding = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--slide-padding-top-current').trim());
         console.log(`   • Initial padding-top: ${initialPaddingTop.toFixed(2)}px`);
+        console.log(`   • Initial --slide-padding-top-current: ${initialRootPadding || '(empty)'}`);
 
         console.log('🖥️ Triggering fullscreen mode...');
         await page.click('#fullscreen-btn');
         await page.waitForFunction(() => document.body.classList.contains('is-fullscreen'), { timeout: 3000 });
 
         const fullscreenPaddingTop = await firstSectionLocator.evaluate(node => parseFloat(getComputedStyle(node).paddingTop));
+        const fullscreenRootPadding = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--slide-padding-top-current').trim());
         console.log(`   • Fullscreen padding-top: ${fullscreenPaddingTop.toFixed(2)}px`);
+        console.log(`   • Fullscreen --slide-padding-top-current: ${fullscreenRootPadding || '(empty)'}`);
 
-        if (fullscreenPaddingTop < 130) {
-            throw new Error(`Expected fullscreen padding-top >= 130px, received ${fullscreenPaddingTop}px`);
+        if (fullscreenPaddingTop < 170) {
+            throw new Error(`Expected fullscreen padding-top >= 170px, received ${fullscreenPaddingTop}px`);
+        }
+
+        if (fullscreenRootPadding) {
+            const rootPaddingValue = parseFloat(fullscreenRootPadding);
+            if (!Number.isNaN(rootPaddingValue) && rootPaddingValue < 170) {
+                throw new Error(`Expected fullscreen CSS variable --slide-padding-top-current >= 170px, received ${rootPaddingValue}px`);
+            }
         }
 
         const headingLocator = page.locator('.reveal .slides section h1').first();

@@ -31,7 +31,8 @@
             --slide-padding-x: 40px;
             --slide-padding-top: 60px;
             --slide-padding-bottom: 40px;
-            --slide-padding-top-fullscreen: clamp(144px, 14vh, 220px);
+            --slide-padding-top-fullscreen: clamp(180px, 20vh, 420px);
+            --slide-padding-top-current: var(--slide-padding-top);
             --slide-safe-area-top: 0px;
         }
 
@@ -58,10 +59,16 @@
         .reveal .slides section {
             max-width: 1100px !important;
             margin: 0 auto !important;
-            padding: var(--slide-padding-top) var(--slide-padding-x) var(--slide-padding-bottom) var(--slide-padding-x) !important;
-            padding-top: calc(var(--slide-padding-top) + var(--slide-safe-area-top)) !important;
+            padding: var(--slide-padding-top-current) var(--slide-padding-x) var(--slide-padding-bottom) var(--slide-padding-x) !important;
+            padding-top: calc(var(--slide-padding-top-current) + var(--slide-safe-area-top)) !important;
             overflow: visible !important;
             box-sizing: border-box !important;
+        }
+
+        @media (max-height: 820px) {
+            :root {
+                --slide-padding-top-fullscreen: clamp(130px, 18vh, 260px);
+            }
         }
 
         @media (max-width: 900px) {
@@ -69,7 +76,7 @@
                 --slide-padding-x: 28px;
                 --slide-padding-top: 40px;
                 --slide-padding-bottom: 32px;
-                --slide-padding-top-fullscreen: clamp(120px, 18vh, 200px);
+                --slide-padding-top-fullscreen: clamp(120px, 20vh, 240px);
             }
         }
 
@@ -278,13 +285,16 @@
         }
 
         /* Extra top padding in fullscreen mode to prevent cutoff */
-        body.is-fullscreen .reveal .slides section,
-        .reveal.full-screen .slides section,
-        :fullscreen .reveal .slides section,
-        :-webkit-full-screen .reveal .slides section,
-        :-moz-full-screen .reveal .slides section,
-        :-ms-fullscreen .reveal .slides section {
-            padding-top: calc(var(--slide-padding-top-fullscreen) + var(--slide-safe-area-top)) !important;
+        body.is-fullscreen,
+        .reveal.full-screen,
+        html:fullscreen,
+        body:fullscreen,
+        .reveal:fullscreen,
+        :-webkit-full-screen,
+        :-webkit-full-screen-ancestor,
+        :-moz-full-screen,
+        :-ms-fullscreen {
+            --slide-padding-top-current: var(--slide-padding-top-fullscreen);
         }
     </style>
 </head>

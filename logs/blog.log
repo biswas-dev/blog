@@ -30,3 +30,12 @@ DEBUG HOME: User logged in: anchoo2kewl, Email: anchoo2kewl@gmail.com, Role: 2, 
 2025/10/16 20:52:17 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 32343B in 78.499208ms
 2025/10/16 20:52:17 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 32343B in 71.563667ms
 2025/10/16 20:57:24 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:57684 - 200 32343B in 95.662916ms
+Posts fetched successfully! Count: 5
+DEBUG HOME: User logged in: anchoo2kewl, Email: anchoo2kewl@gmail.com, Role: 2, IsAdmin: true
+2025/10/16 21:06:04 "GET http://localhost:22222/ HTTP/1.1" from [::1]:60625 - 200 196955B in 96.239834ms
+2025/10/16 21:06:07 "GET http://localhost:22222/slides HTTP/1.1" from [::1]:60625 - 200 38985B in 96.319959ms
+2025/10/16 21:06:10 "GET http://localhost:22222/slides/demo-presentation HTTP/1.1" from [::1]:60625 - 200 11837B in 68.035ms
+2025/10/16 21:06:20 "GET http://localhost:22222/slides/demo-presentation HTTP/1.1" from [::1]:60722 - 200 11347B in 7.046666ms
+2025/10/16 21:06:20 "GET http://localhost:22222/static/favicon.svg HTTP/1.1" from [::1]:60722 - 200 1944B in 2.134292ms
+2025/10/16 21:06:20 "GET http://localhost:22222/apple-touch-icon-precomposed.png HTTP/1.1" from [::1]:60723 - 404 1125B in 3.992125ms
+2025/10/16 21:06:21 "GET http://localhost:22222/apple-touch-icon.png HTTP/1.1" from [::1]:60723 - 404 1125B in 81.125µs
