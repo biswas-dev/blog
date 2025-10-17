@@ -9,3 +9,7 @@ Signups Disabled ...
 2025/10/16 20:43:49 "GET http://localhost:22222/static/favicon.svg HTTP/1.1" from [::1]:52965 - 200 1944B in 4.506292ms
 2025/10/16 20:43:50 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 95.724333ms
 2025/10/16 20:43:50 "GET http://localhost:22222/static/favicon.svg HTTP/1.1" from [::1]:52965 - 200 1944B in 156.208µs
+2025/10/16 20:48:24 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 74.45475ms
+2025/10/16 20:48:24 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 86.050084ms
+2025/10/16 20:48:26 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 93.255875ms
+2025/10/16 20:48:27 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 92.520041ms
