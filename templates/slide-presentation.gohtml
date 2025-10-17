@@ -28,6 +28,17 @@
             --r-heading1-size: 2.0em;
             --r-heading2-size: 1.6em;
             --r-heading3-size: 1.35em;
+            --slide-padding-x: 40px;
+            --slide-padding-top: 60px;
+            --slide-padding-bottom: 40px;
+            --slide-padding-top-fullscreen: clamp(144px, 14vh, 220px);
+            --slide-safe-area-top: 0px;
+        }
+
+        @supports (padding: env(safe-area-inset-top)) {
+            :root {
+                --slide-safe-area-top: env(safe-area-inset-top);
+            }
         }
 
         /* Ensure full viewport usage and no clipping */
@@ -47,9 +58,25 @@
         .reveal .slides section {
             max-width: 1100px !important;
             margin: 0 auto !important;
-            padding: 60px 40px 40px 40px !important;
+            padding: var(--slide-padding-top) var(--slide-padding-x) var(--slide-padding-bottom) var(--slide-padding-x) !important;
+            padding-top: calc(var(--slide-padding-top) + var(--slide-safe-area-top)) !important;
             overflow: visible !important;
             box-sizing: border-box !important;
+        }
+
+        @media (max-width: 900px) {
+            :root {
+                --slide-padding-x: 28px;
+                --slide-padding-top: 40px;
+                --slide-padding-bottom: 32px;
+                --slide-padding-top-fullscreen: clamp(120px, 18vh, 200px);
+            }
+        }
+
+        @media (max-width: 640px) {
+            :root {
+                --slide-padding-x: 20px;
+            }
         }
 
         /* Ensure slides container uses flexbox for proper centering */
@@ -151,13 +178,6 @@
             box-sizing: border-box;
         }
         
-        /* Responsive adjustments for smaller screens */
-        @media (max-width: 900px) {
-            .reveal .slides section { 
-                padding: 0 36px 48px 36px !important; 
-            }
-        }
-        
         footer.tiny { 
             position: fixed; 
             bottom: 8px; 
@@ -190,7 +210,7 @@
         /* Custom navigation overlay */
         .presentation-nav {
             position: fixed;
-            top: 20px;
+            top: calc(20px + var(--slide-safe-area-top));
             right: 20px;
             z-index: 100;
             display: flex;
@@ -257,20 +277,14 @@
             height: 100% !important;
         }
 
-        /* Responsive padding for smaller screens */
-        @media (max-width: 900px) {
-            .reveal .slides section {
-                padding: 0 20px 30px 20px !important;
-            }
-        }
-
         /* Extra top padding in fullscreen mode to prevent cutoff */
+        body.is-fullscreen .reveal .slides section,
         .reveal.full-screen .slides section,
         :fullscreen .reveal .slides section,
         :-webkit-full-screen .reveal .slides section,
         :-moz-full-screen .reveal .slides section,
         :-ms-fullscreen .reveal .slides section {
-            padding-top: 100px !important;
+            padding-top: calc(var(--slide-padding-top-fullscreen) + var(--slide-safe-area-top)) !important;
         }
     </style>
 </head>
@@ -336,10 +350,40 @@
     <script>
         // Fullscreen functionality
         document.getElementById('fullscreen-btn').addEventListener('click', function() {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
+            const exitFullscreen = () => {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            };
+
+            const requestFullscreen = (element) => {
+                if (element.requestFullscreen) {
+                    element.requestFullscreen();
+                } else if (element.webkitRequestFullscreen) {
+                    element.webkitRequestFullscreen();
+                } else if (element.mozRequestFullScreen) {
+                    element.mozRequestFullScreen();
+                } else if (element.msRequestFullscreen) {
+                    element.msRequestFullscreen();
+                }
+            };
+
+            const target = document.documentElement;
+            if (
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement
+            ) {
+                exitFullscreen();
             } else {
-                document.documentElement.requestFullscreen();
+                requestFullscreen(target);
             }
         });
 
@@ -349,27 +393,39 @@
             setTimeout(function() {
                 if (window.Reveal) {
                     // Update fullscreen button on fullscreen change
-                    document.addEventListener('fullscreenchange', function() {
+                    const fullscreenEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+                    const updateFullscreenState = () => {
                         const btn = document.getElementById('fullscreen-btn');
-                        const svg = btn.querySelector('svg path');
-                        const sections = document.querySelectorAll('.reveal .slides section');
-
-                        if (document.fullscreenElement) {
-                            svg.setAttribute('d', 'M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM8 21a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM3 8a1 1 0 011-1h2a1 1 0 110 2H4a1 1 0 01-1-1zM21 8a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z');
-                            btn.title = 'Exit Fullscreen';
-                            // Add extra top padding in fullscreen
-                            sections.forEach(section => {
-                                section.style.paddingTop = '120px';
-                            });
-                        } else {
-                            svg.setAttribute('d', 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4');
-                            btn.title = 'Toggle Fullscreen';
-                            // Restore original padding
-                            sections.forEach(section => {
-                                section.style.paddingTop = '60px';
-                            });
+                        if (!btn) {
+                            return;
                         }
+
+                        const svg = btn.querySelector('svg path');
+                        const isFullscreen = Boolean(
+                            document.fullscreenElement ||
+                            document.webkitFullscreenElement ||
+                            document.mozFullScreenElement ||
+                            document.msFullscreenElement
+                        );
+
+                        document.body.classList.toggle('is-fullscreen', isFullscreen);
+
+                        if (svg) {
+                            if (isFullscreen) {
+                                svg.setAttribute('d', 'M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM8 21a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM3 8a1 1 0 011-1h2a1 1 0 110 2H4a1 1 0 01-1-1zM21 8a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z');
+                                btn.title = 'Exit Fullscreen';
+                            } else {
+                                svg.setAttribute('d', 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4');
+                                btn.title = 'Toggle Fullscreen';
+                            }
+                        }
+                    };
+
+                    fullscreenEvents.forEach(eventName => {
+                        document.addEventListener(eventName, updateFullscreenState);
                     });
+
+                    updateFullscreenState();
 
                     // Analytics - track slide views
                     if (window.gtag) {

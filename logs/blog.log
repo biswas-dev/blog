@@ -13,3 +13,20 @@ Signups Disabled ...
 2025/10/16 20:48:24 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 86.050084ms
 2025/10/16 20:48:26 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 93.255875ms
 2025/10/16 20:48:27 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 92.520041ms
+2025/10/16 20:49:07 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 31853B in 90.691458ms
+2025/10/16 20:49:33 "GET http://localhost:22222/slides HTTP/1.1" from [::1]:52965 - 200 28121B in 101.4505ms
+2025/10/16 20:49:36 "GET http://localhost:22222/signin HTTP/1.1" from [::1]:52965 - 200 14531B in 963.083µs
+Session exists. Updating ...
+2025/10/16 20:50:10 "POST http://localhost:22222/signin HTTP/1.1" from [::1]:52965 - 302 0B in 129.688542ms
+Posts fetched successfully! Count: 5
+DEBUG HOME: User logged in: anchoo2kewl, Email: anchoo2kewl@gmail.com, Role: 2, IsAdmin: true
+2025/10/16 20:50:10 "GET http://localhost:22222/ HTTP/1.1" from [::1]:52965 - 200 196955B in 61.215584ms
+2025/10/16 20:50:16 "GET http://localhost:22222/admin/slides/new HTTP/1.1" from [::1]:52965 - 200 41282B in 77.775958ms
+2025/10/16 20:50:20 "GET http://localhost:22222/admin/slides HTTP/1.1" from [::1]:52965 - 200 62777B in 81.487208ms
+2025/10/16 20:50:34 "GET http://localhost:22222/slides HTTP/1.1" from [::1]:52965 - 200 38985B in 78.402ms
+2025/10/16 20:50:36 "GET http://localhost:22222/admin/slides/5/edit HTTP/1.1" from [::1]:52965 - 200 75034B in 75.704625ms
+2025/10/16 20:52:07 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 32343B in 73.529458ms
+2025/10/16 20:52:17 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 32343B in 73.301291ms
+2025/10/16 20:52:17 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 32343B in 78.499208ms
+2025/10/16 20:52:17 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52965 - 200 32343B in 71.563667ms
+2025/10/16 20:57:24 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:57684 - 200 32343B in 95.662916ms
