@@ -352,12 +352,22 @@
                     document.addEventListener('fullscreenchange', function() {
                         const btn = document.getElementById('fullscreen-btn');
                         const svg = btn.querySelector('svg path');
+                        const sections = document.querySelectorAll('.reveal .slides section');
+
                         if (document.fullscreenElement) {
                             svg.setAttribute('d', 'M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM8 21a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM3 8a1 1 0 011-1h2a1 1 0 110 2H4a1 1 0 01-1-1zM21 8a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z');
                             btn.title = 'Exit Fullscreen';
+                            // Add extra top padding in fullscreen
+                            sections.forEach(section => {
+                                section.style.paddingTop = '120px';
+                            });
                         } else {
                             svg.setAttribute('d', 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4');
                             btn.title = 'Toggle Fullscreen';
+                            // Restore original padding
+                            sections.forEach(section => {
+                                section.style.paddingTop = '60px';
+                            });
                         }
                     });
 
