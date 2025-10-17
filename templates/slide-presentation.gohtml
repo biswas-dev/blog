@@ -47,12 +47,16 @@
         .reveal .slides section {
             max-width: 1100px !important;
             margin: 0 auto !important;
-            padding: 40px 40px 40px 40px !important;
+            padding: 60px 40px 40px 40px !important;
             overflow: visible !important;
             box-sizing: border-box !important;
-            top: 0 !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
+        }
+
+        /* Ensure slides container uses flexbox for proper centering */
+        .reveal .slides {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: center !important;
         }
         
         /* Typography styles from slide content */
