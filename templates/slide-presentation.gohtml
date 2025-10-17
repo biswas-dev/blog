@@ -263,6 +263,15 @@
                 padding: 0 20px 30px 20px !important;
             }
         }
+
+        /* Extra top padding in fullscreen mode to prevent cutoff */
+        .reveal.full-screen .slides section,
+        :fullscreen .reveal .slides section,
+        :-webkit-full-screen .reveal .slides section,
+        :-moz-full-screen .reveal .slides section,
+        :-ms-fullscreen .reveal .slides section {
+            padding-top: 100px !important;
+        }
     </style>
 </head>
 
