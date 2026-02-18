@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Trigger production webhook
         run: |
-          echo "=== Deploying Blog to PRODUCTION (sonar.taskai.cc) ==="
+          echo "=== Deploying Blog to PRODUCTION (anshumanbiswas.com) ==="
           PAYLOAD='{"repository":{"full_name":"anchoo2kewl/blog"},"ref":"refs/heads/main"}'
           SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac '${{ secrets.PRODUCTION_WEBHOOK_SECRET }}' | awk '{print $2}')
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -42,7 +42,7 @@ jobs:
         run: |
           echo "-> Checking blog health..."
           for i in $(seq 1 30); do
-            if curl -sf https://sonar.taskai.cc > /dev/null 2>&1; then
+            if curl -sf https://anshumanbiswas.com > /dev/null 2>&1; then
               echo "OK: Blog is healthy"
               break
             fi
@@ -55,4 +55,4 @@ jobs:
 
           echo ""
           echo "=== Production deployment completed! ==="
-          echo "URL: https://sonar.taskai.cc"
+          echo "URL: https://anshumanbiswas.com"
