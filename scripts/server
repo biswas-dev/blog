@@ -1267,19 +1267,23 @@ deploy_to_production() {
     local DOMAIN="sonar.taskai.cc"
     local commit_message="${1:-Deploy: automated commit before deployment}"
     
-    # Step 1: Commit any changes on production server first
+    # Step 1: Commit any changes on production server first (if directory exists)
     print_status "Checking for changes on production server..."
-    ssh "$SERVER" "cd '$DEPLOY_PATH' && if [ -n \"\$(git status --porcelain)\" ]; then
-        echo 'Production changes detected, committing...'
-        git add .
-        git commit -m 'Production: commit uploaded files and changes
+    ssh "$SERVER" "if [ -d '$DEPLOY_PATH' ]; then
+        cd '$DEPLOY_PATH' && if [ -n \"\$(git status --porcelain)\" ]; then
+            echo 'Production changes detected, committing...'
+            git add .
+            git commit -m 'Production: commit uploaded files and changes
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>' || echo 'Commit failed or no changes'
-        git push origin main || echo 'Push from production failed'
+            git push origin main || echo 'Push from production failed'
+        else
+            echo 'No changes on production server'
+        fi
     else
-        echo 'No changes on production server'
+        echo 'Production directory does not exist yet - will be created during deployment'
     fi"
     
     # Step 2: Pull any changes from remote (including production uploads)
