@@ -108,7 +108,10 @@ APP_DISABLE_SIGNUP=true  # disable public signups
 
 ## Deployment
 
-Automated deployment via GitHub Actions and webhook integration. Push to main triggers CI tests, SonarQube analysis, and auto-deployment to production.
+Automated deployment via GitHub Actions and webhook integration. Pushing to main triggers:
+- CI tests (unit + E2E)
+- SonarQube code quality analysis
+- Automatic deployment to production server
 
 ## Contributing
 
