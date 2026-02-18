@@ -106,6 +106,10 @@ API_TOKEN                # required for API endpoints
 APP_DISABLE_SIGNUP=true  # disable public signups
 ```
 
+## Deployment
+
+Automated deployment via GitHub Actions and webhook integration. Push to main triggers CI tests, SonarQube analysis, and auto-deployment to production.
+
 ## Contributing
 
 Issues and PRs are welcome. Please include clear steps to reproduce and target minimal, focused changes where possible.
