@@ -1643,3 +1643,35 @@ html:not(.dark) .token.important,
 html:not(.dark) .token.variable {
   color: #ea580c !important;
 }
+
+/* Figure and Caption Styling */
+.image-gallery figure {
+  margin: 2.5rem 0;
+  text-align: center;
+}
+
+.image-gallery figure img {
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-width: 100%;
+  height: auto;
+}
+
+.dark .image-gallery figure img {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+figcaption {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.75rem;
+  letter-spacing: 0.025em;
+  text-align: center;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.dark figcaption {
+  color: #9ca3af;
+}
