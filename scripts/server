@@ -23,7 +23,7 @@ DOCKER_CONTAINER_NAME="pg"
 DB_VOLUME_NAME="postgres-volume"
 
 # Remote production settings
-REMOTE_SERVER="ubuntu@anshumanbiswas.com"
+REMOTE_SERVER="ubuntu@sonar.taskai.cc"
 REMOTE_DEPLOY_PATH="/home/ubuntu/projects/blog"
 REMOTE_DB_CONTAINER="blog-postgres"
 REMOTE_DOCKER_CONTAINER="blog-app"
@@ -120,7 +120,7 @@ show_help() {
     echo "  test-all               Run Go + Playwright tests"
     echo ""
     echo -e "${YELLOW}Deployment Commands:${NC}"
-    echo "  deploy [commit_msg]    Deploy to production server (ubuntu@anshumanbiswas.com)"
+    echo "  deploy [commit_msg]    Deploy to production server (ubuntu@sonar.taskai.cc)"
     echo "                         Optional commit message for uncommitted changes"
     echo ""
     echo -e "${YELLOW}Examples:${NC}"
@@ -1261,10 +1261,10 @@ show_categories() {
 # Deployment function
 deploy_to_production() {
     print_header "Deploying to Production Server"
-    
-    local SERVER="ubuntu@anshumanbiswas.com"
+
+    local SERVER="ubuntu@sonar.taskai.cc"
     local DEPLOY_PATH="/home/ubuntu/projects/blog"
-    local DOMAIN="anshumanbiswas.com"
+    local DOMAIN="sonar.taskai.cc"
     local commit_message="${1:-Deploy: automated commit before deployment}"
     
     # Step 1: Commit any changes on production server first
@@ -1326,7 +1326,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" || {
 set -e
 
 DEPLOY_PATH="/home/ubuntu/projects/blog"
-DOMAIN="anshumanbiswas.com"
+DOMAIN="sonar.taskai.cc"
 REPO_URL="git@github.com:anchoo2kewl/blog.git"
 
 # Colors
@@ -1524,7 +1524,7 @@ print_status "Configuring nginx..."
 sudo tee /etc/nginx/sites-available/blog > /dev/null << 'NGINXEOF'
 server {
     listen 80;
-    server_name anshumanbiswas.com www.anshumanbiswas.com;
+    server_name sonar.taskai.cc www.sonar.taskai.cc;
 
     client_max_body_size 2M;
 
@@ -1546,7 +1546,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 # Setup SSL with Let's Encrypt
 print_status "Setting up SSL certificate with Let's Encrypt..."
-sudo certbot --nginx -d anshumanbiswas.com -d www.anshumanbiswas.com --non-interactive --agree-tos --email ubuntu@anshumanbiswas.com || {
+sudo certbot --nginx -d sonar.taskai.cc -d www.sonar.taskai.cc --non-interactive --agree-tos --email ubuntu@sonar.taskai.cc || {
     print_warning "SSL certificate setup failed, but deployment continues..."
 }
 
@@ -1571,11 +1571,11 @@ EOF
     # Verify deployment
     print_status "Verifying deployment..."
     sleep 5
-    
-    if curl -f -s "https://anshumanbiswas.com" >/dev/null 2>&1; then
-        print_success "✅ Deployment successful! Blog is accessible at https://anshumanbiswas.com"
-    elif curl -f -s "http://anshumanbiswas.com" >/dev/null 2>&1; then
-        print_warning "⚠️  Blog is accessible at http://anshumanbiswas.com but SSL might need time to propagate"
+
+    if curl -f -s "https://sonar.taskai.cc" >/dev/null 2>&1; then
+        print_success "✅ Deployment successful! Blog is accessible at https://sonar.taskai.cc"
+    elif curl -f -s "http://sonar.taskai.cc" >/dev/null 2>&1; then
+        print_warning "⚠️  Blog is accessible at http://sonar.taskai.cc but SSL might need time to propagate"
     else
         print_error "❌ Deployment verification failed - site not responding"
         return 1

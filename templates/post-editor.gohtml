@@ -11,67 +11,71 @@
     <div class="editor-layout" style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 1.5rem !important; width: 100% !important; flex-wrap: nowrap !important;">
       
       <!-- Sidebar on top with categories, slug, and featured image -->
-      <div class="editor-sidebar" style="display: flex !important; flex-direction: column !important; gap: 1rem !important; padding: 1.5rem !important; border-radius: 0.75rem !important; box-sizing: border-box !important; flex: 0 0 320px !important; width: 320px !important; min-width: 320px !important; max-width: 320px !important; position: sticky !important; top: 1rem !important; align-self: flex-start !important;">
-        <div style="flex: 1; min-width: 200px;">
-        Slug
-          <input type="text" name="slug" placeholder="Slug (optional)" class="form-input w-full" value="{{.Post.Slug}}" />
-        </div>
-        <div style="flex: 1; min-width: 200px;">
-        Feature Image
-          <input type="text" name="featured_image_url" id="featured-url" placeholder="Featured Image URL" class="form-input w-full" value="{{.Post.FeaturedImageURL}}" />
-          <div class="cover-upload-section mt-2">
-            <div id="current-cover-preview" class="current-cover-preview" style="display: {{if .Post.FeaturedImageURL}}block{{else}}none{{end}};">
-              <img id="current-cover-img" src="{{.Post.FeaturedImageURL}}" alt="Current featured image" />
-              <button type="button" id="remove-cover-btn" class="remove-cover-btn" aria-label="Remove featured image">&times;</button>
-            </div>
-            <div id="cover-upload-zone" class="cover-drop-zone">
-              <div class="cover-drop-content">
-                <svg class="upload-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                <div class="cover-upload-text">Drop image here or click Upload</div>
+      <div class="editor-sidebar" style="display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; border-radius: 0.75rem !important; box-sizing: border-box !important; flex: 0 0 320px !important; width: 320px !important; min-width: 320px !important; max-width: 320px !important; position: sticky !important; top: 1rem !important; align-self: flex-start !important; overflow: hidden !important;">
+        <!-- Scrollable content area -->
+        <div class="sidebar-scrollable-content" style="flex: 1 1 auto; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+          <div style="flex: 0 0 auto; min-width: 200px;">
+          Slug
+            <input type="text" name="slug" placeholder="Slug (optional)" class="form-input w-full" value="{{.Post.Slug}}" />
+          </div>
+          <div style="flex: 0 0 auto; min-width: 200px;">
+          Feature Image
+            <input type="text" name="featured_image_url" id="featured-url" placeholder="Featured Image URL" class="form-input w-full" value="{{.Post.FeaturedImageURL}}" />
+            <div class="cover-upload-section mt-2">
+              <div id="current-cover-preview" class="current-cover-preview" style="display: {{if .Post.FeaturedImageURL}}block{{else}}none{{end}};">
+                <img id="current-cover-img" src="{{.Post.FeaturedImageURL}}" alt="Current featured image" />
+                <button type="button" id="remove-cover-btn" class="remove-cover-btn" aria-label="Remove featured image">&times;</button>
+              </div>
+              <div id="cover-upload-zone" class="cover-drop-zone">
+                <div class="cover-drop-content">
+                  <svg class="upload-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                  <div class="cover-upload-text">Drop image here or click Upload</div>
+                </div>
+              </div>
+              <div class="cover-upload-controls">
+                <input type="file" id="cover-upload" accept="image/*" style="display:none" />
+                <button type="button" id="upload-new-cover-btn" class="btn btn-secondary">Upload New</button>
+                <button type="button" id="choose-existing-cover-btn" class="btn">Choose Existing</button>
               </div>
             </div>
-            <div class="cover-upload-controls">
-              <input type="file" id="cover-upload" accept="image/*" style="display:none" />
-              <button type="button" id="upload-new-cover-btn" class="btn btn-secondary">Upload New</button>
-              <button type="button" id="choose-existing-cover-btn" class="btn">Choose Existing</button>
+          </div>
+          <div style="flex: 0 0 auto; min-width: 250px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Categories <span class="text-red-500">*</span>
+            </label>
+            <div class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-2 max-h-32 overflow-y-auto">
+              {{if .Categories}}
+                {{range .Categories}}
+                <label class="flex items-center space-x-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 cursor-pointer">
+                  <input type="checkbox"
+                         name="categories"
+                         value="{{.ID}}"
+                         class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                         {{$catID := .ID}}{{range $.SelectedCategories}}{{if eq . $catID}}checked{{end}}{{end}}>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">{{.Name}}</span>
+                </label>
+                {{end}}
+              {{else}}
+                <p class="text-sm text-gray-500 dark:text-gray-400">No categories available</p>
+              {{end}}
             </div>
           </div>
-        </div>
-        <div style="flex: 1; min-width: 250px;">
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Categories <span class="text-red-500">*</span>
-          </label>
-          <div class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-2 max-h-32 overflow-y-auto">
-            {{if .Categories}}
-              {{range .Categories}}
-              <label class="flex items-center space-x-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 cursor-pointer">
-                <input type="checkbox" 
-                       name="categories" 
-                       value="{{.ID}}"
-                       class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                       {{$catID := .ID}}{{range $.SelectedCategories}}{{if eq . $catID}}checked{{end}}{{end}}>
-                <span class="text-sm text-gray-700 dark:text-gray-300">{{.Name}}</span>
-              </label>
-              {{end}}
-            {{else}}
-              <p class="text-sm text-gray-500 dark:text-gray-400">No categories available</p>
-            {{end}}
+          <div style="flex: 0 0 auto;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Publish</label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" name="is_published" {{if .Post.IsPublished}}checked{{end}}
+                     class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+              <span class="text-sm text-gray-700 dark:text-gray-300">Published</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer mt-2">
+              <input type="checkbox" name="featured" {{if .Post.Featured}}checked{{end}}
+                     class="rounded border-gray-300 text-yellow-600 shadow-sm focus:border-yellow-300 focus:ring focus:ring-yellow-200 focus:ring-opacity-50">
+              <span class="text-sm text-gray-700 dark:text-gray-300">Featured</span>
+            </label>
           </div>
         </div>
-        <div style="flex: 0 0 auto;">
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Publish</label>
-          <label class="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" name="is_published" {{if .Post.IsPublished}}checked{{end}} 
-                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-            <span class="text-sm text-gray-700 dark:text-gray-300">Published</span>
-          </label>
-          <label class="flex items-center space-x-2 cursor-pointer mt-2">
-            <input type="checkbox" name="featured" {{if .Post.Featured}}checked{{end}} 
-                   class="rounded border-gray-300 text-yellow-600 shadow-sm focus:border-yellow-300 focus:ring focus:ring-yellow-200 focus:ring-opacity-50">
-            <span class="text-sm text-gray-700 dark:text-gray-300">Featured</span>
-          </label>
-        </div>
-        <div class="mt-4">
+        <!-- Fixed button area at bottom -->
+        <div class="sidebar-button-area" style="flex: 0 0 auto; padding: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
           <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px 24px; font-size: 16px; font-weight: 600;">
             {{if eq .Mode "edit"}}Update Post{{else}}Create Post{{end}}
           </button>
@@ -216,6 +220,10 @@ section.editor-container div.editor-layout div.editor-sidebar {
   border-color: #374151 !important;
 }
 
+.dark .sidebar-button-area {
+  border-top-color: #374151 !important;
+}
+
 /* DESKTOP LAYOUT - Override inline styles for desktop */
 @media screen and (min-width: 768px) {
   /* Layout container */
@@ -247,10 +255,22 @@ section.editor-container div.editor-layout div.editor-sidebar {
     position: sticky !important;
     top: 1rem !important;
     max-height: calc(100vh - 2rem) !important;
-    overflow-y: auto !important;
+    overflow: hidden !important;
     order: 2 !important;
     align-self: flex-start !important;
     margin-left: 0 !important;
+  }
+
+  /* Ensure scrollable content area takes remaining space */
+  .sidebar-scrollable-content {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    max-height: none !important;
+  }
+
+  /* Keep button fixed at bottom */
+  .sidebar-button-area {
+    flex: 0 0 auto !important;
   }
   
   /* Alternative - use class + attribute selector */
