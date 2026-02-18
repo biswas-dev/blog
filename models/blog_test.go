@@ -612,3 +612,93 @@ func TestPreviewContentRaw_MixedContent(t *testing.T) {
 		})
 	}
 }
+
+func TestPreviewContentRaw_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name:    "empty string",
+			content: "",
+			want:    "",
+		},
+		{
+			name:    "only whitespace",
+			content: "   \n\n   \n   ",
+			want:    "",
+		},
+		{
+			name:    "more tag at start",
+			content: "<more-->Rest of content",
+			want:    "",
+		},
+		{
+			name:    "more tag with content before",
+			content: "Before<more-->After",
+			want:    "Before",
+		},
+		{
+			name:    "single word",
+			content: "Hello",
+			want:    "Hello",
+		},
+		{
+			name:    "newlines only",
+			content: "\n\n\n",
+			want:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := previewContentRaw(tt.content)
+			if result != tt.want {
+				t.Errorf("previewContentRaw(%q) = %q, want %q", tt.content, result, tt.want)
+			}
+		})
+	}
+}
+
+func TestPreviewContentRaw_SpecificCoverage(t *testing.T) {
+	// Test to ensure findContentBeforeMoreTag returns empty string when no tag
+	t.Run("no more tag returns empty from findContentBeforeMoreTag", func(t *testing.T) {
+		content := "Regular content without any special tags"
+		result := previewContentRaw(content)
+		// Should still process normally
+		if result == "" {
+			t.Error("Expected non-empty result for content without more tag")
+		}
+	})
+
+	// Test word truncation with exactly one word fitting
+	t.Run("truncation with single fitting word", func(t *testing.T) {
+		// Create content where only first word fits within limit
+		longSecondWord := strings.Repeat("x", 200)
+		content := "First " + longSecondWord
+		result := previewContentRaw(content)
+
+		if !strings.Contains(result, "First") {
+			t.Error("Expected 'First' to be in truncated result")
+		}
+		if !strings.Contains(result, "...") {
+			t.Error("Expected ellipsis in truncated result")
+		}
+	})
+
+	// Test line length calculation edge case
+	t.Run("multi-line with exact boundary", func(t *testing.T) {
+		// Create lines that add up to just under 150 chars
+		line1 := strings.Repeat("a ", 25) // ~50 chars
+		line2 := strings.Repeat("b ", 25) // ~50 chars
+		line3 := strings.Repeat("c ", 25) // ~50 chars
+		content := line1 + "\n\n" + line2 + "\n\n" + line3
+		result := previewContentRaw(content)
+
+		// Should include at least the first two lines
+		if !strings.Contains(result, "a") {
+			t.Error("Expected first line in result")
+		}
+	})
+}
