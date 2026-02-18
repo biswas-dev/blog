@@ -448,7 +448,7 @@ func TestPreviewContentRaw_ShortContent(t *testing.T) {
 		},
 		{
 			name:    "exactly at limit",
-			content: "x" + strings.Repeat("a", 148) + "x", // Exactly 150 chars
+			content: strings.Repeat("word ", 30), // ~150 chars with spaces
 		},
 	}
 
