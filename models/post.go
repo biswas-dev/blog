@@ -302,24 +302,23 @@ func stripHTML(s string) string {
 // Markdown structure (numbers, bullets, headings) by cutting on paragraph/line
 // boundaries rather than stripping formatting markers first.
 func previewContentRaw(content string) string {
-	// Check for read-more markers and find their positions
-	moreIdx1 := strings.Index(content, "<more-->")
-	moreIdx2 := strings.Index(content, "&lt;more--&gt;")
-	
+	// Check for read-more markers (with and without space before -->)
+	markers := []string{
+		"<more-->",
+		"<more -->",
+		"&lt;more--&gt;",
+		"&lt;more --&gt;",
+	}
+
 	// Find the earliest more tag position
 	moreIdx := -1
-	if moreIdx1 != -1 && moreIdx2 != -1 {
-		if moreIdx1 < moreIdx2 {
-			moreIdx = moreIdx1
-		} else {
-			moreIdx = moreIdx2
+	for _, marker := range markers {
+		idx := strings.Index(content, marker)
+		if idx != -1 && (moreIdx == -1 || idx < moreIdx) {
+			moreIdx = idx
 		}
-	} else if moreIdx1 != -1 {
-		moreIdx = moreIdx1
-	} else if moreIdx2 != -1 {
-		moreIdx = moreIdx2
 	}
-	
+
 	// If we found a more tag, use content up to that point
 	if moreIdx != -1 {
 		contentBeforeMore := strings.TrimSpace(content[:moreIdx])

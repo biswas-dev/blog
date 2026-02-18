@@ -42,3 +42,7 @@ DEBUG HOME: User logged in: anchoo2kewl, Email: anchoo2kewl@gmail.com, Role: 2, 
 2025/10/16 21:19:29 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:65136 - 200 32343B in 96.139ms
 2025/10/16 21:19:31 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:65136 - 200 32343B in 66.951709ms
 2025/10/16 21:19:32 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:65136 - 200 32343B in 80.268125ms
+2025/10/16 21:45:48 "GET http://localhost:22222/slides HTTP/1.1" from [::1]:57231 - 200 38985B in 91.466792ms
+2025/10/16 21:45:49 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:57231 - 200 32343B in 93.119833ms
+2025/10/16 21:47:24 "GET http://localhost:22222/admin/slides/5/edit HTTP/1.1" from [::1]:57231 - 200 75034B in 81.056542ms
+2025/10/16 23:13:31 "GET http://localhost:22222/slides/vibe-coding-to-production-mastering-cursor-ai HTTP/1.1" from [::1]:52695 - 200 32343B in 77.096125ms

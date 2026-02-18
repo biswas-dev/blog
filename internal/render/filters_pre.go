@@ -35,9 +35,9 @@ func stripStyleSnippets(content string) string {
 	})
 }
 
-// 3) Remove <more--> marker (first occurrence)
+// 3) Remove <more--> marker (first occurrence, with or without space)
 func replaceMoreTag(content string) string {
-	markers := []string{"<more-->", "&lt;more--&gt;"}
+	markers := []string{"<more-->", "<more -->", "&lt;more--&gt;", "&lt;more --&gt;"}
 	for _, mk := range markers {
 		if idx := strings.Index(content, mk); idx != -1 {
 			return content[:idx] + content[idx+len(mk):]
