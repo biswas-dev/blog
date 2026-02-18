@@ -1663,15 +1663,22 @@ html:not(.dark) .token.variable {
 
 figcaption {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.6875rem; /* Smaller: 11px */
+  font-style: italic;
   color: #6b7280;
-  margin-top: 0.75rem;
-  letter-spacing: 0.025em;
+  margin-top: 1rem;
+  letter-spacing: 0.02em;
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.6;
   font-weight: 400;
+  opacity: 0.85;
+  padding: 0 1rem;
+  border-top: 1px solid rgba(229, 231, 235, 0.3);
+  padding-top: 0.75rem;
 }
 
 .dark figcaption {
   color: #9ca3af;
+  border-top-color: rgba(75, 85, 99, 0.3);
+  opacity: 0.80;
 }
