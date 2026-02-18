@@ -82,7 +82,7 @@ func (ss *SessionService) GetSession(userID int) (int, error) {
 	err := row.Scan(&session.ID, &session.UserID, &session.TokenHash, &session.CreatedAt)
 
 	if err != nil {
-		fmt.Errorf("User %d does not exist. Cannot create token: %w", userID, err)
+		return 0, fmt.Errorf("User %d does not exist. Cannot create token: %w", userID, err)
 	}
 	return session.ID, nil
 }
