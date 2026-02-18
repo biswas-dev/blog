@@ -52,6 +52,17 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Install golang-migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/local/bin/
+          migrate -version
+
+      - name: Run database migrations
+        run: |
+          migrate -source file://migrations \
+            -database "postgresql://blog:testpass@localhost:5433/blog?sslmode=disable" up
+
       - name: Build
         run: go build -o tmp/blog
 
