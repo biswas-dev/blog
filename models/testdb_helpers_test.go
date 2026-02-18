@@ -51,6 +51,9 @@ func SetupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("failed to ping database: %v", err)
 	}
 
+	// Seed default roles (required for foreign key constraints)
+	SeedRoles(t, db)
+
 	// Register cleanup
 	t.Cleanup(func() {
 		db.Close()
@@ -75,6 +78,33 @@ func TxSetup(t *testing.T, db *sql.DB) *sql.Tx {
 	})
 
 	return tx
+}
+
+// SeedRoles ensures the default roles exist in the database.
+func SeedRoles(t *testing.T, db *sql.DB) {
+	t.Helper()
+
+	roles := []struct {
+		id   int
+		name string
+	}{
+		{RoleCommenter, "Commenter"},
+		{RoleAdministrator, "Administrator"},
+		{RoleEditor, "Editor"},
+		{RoleViewer, "Viewer"},
+	}
+
+	for _, role := range roles {
+		// Insert role if it doesn't exist
+		_, err := db.Exec(`
+			INSERT INTO roles (role_id, role_name)
+			VALUES ($1, $2)
+			ON CONFLICT (role_id) DO NOTHING
+		`, role.id, role.name)
+		if err != nil {
+			t.Logf("Note: Could not seed role %s: %v (may already exist)", role.name, err)
+		}
+	}
 }
 
 // SeedUser creates a test user and returns the user ID.
