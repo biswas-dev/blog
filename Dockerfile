@@ -26,5 +26,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /main .
 FROM gcr.io/distroless/static-debian11 as production
 
 COPY --from=base /main .
+COPY --from=base /go/src/blog/static ./static
+COPY --from=base /go/src/blog/templates ./templates
+COPY --from=base /go/src/blog/themes ./themes
+COPY --from=base /go/src/blog/css ./css
 
 CMD ["./main", "--listen-addr", ":22222"]
