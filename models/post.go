@@ -302,78 +302,66 @@ func stripHTML(s string) string {
 // Markdown structure (numbers, bullets, headings) by cutting on paragraph/line
 // boundaries rather than stripping formatting markers first.
 func previewContentRaw(content string) string {
-	// Check for read-more markers (with and without space before -->)
-	markers := []string{
-		"<more-->",
-		"<more -->",
-		"&lt;more--&gt;",
-		"&lt;more --&gt;",
+	// Check for read-more marker first
+	if previewBeforeMore := findContentBeforeMoreTag(content); previewBeforeMore != "" {
+		return previewBeforeMore
 	}
 
-	// Find the earliest more tag position
+	// No more tag found, extract preview by length
+	return extractPreviewByLength(content)
+}
+
+// findContentBeforeMoreTag finds and returns content before the <more--> tag
+func findContentBeforeMoreTag(content string) string {
+	markers := []string{"<more-->", "<more -->", "&lt;more--&gt;", "&lt;more --&gt;"}
+
 	moreIdx := -1
 	for _, marker := range markers {
-		idx := strings.Index(content, marker)
-		if idx != -1 && (moreIdx == -1 || idx < moreIdx) {
+		if idx := strings.Index(content, marker); idx != -1 && (moreIdx == -1 || idx < moreIdx) {
 			moreIdx = idx
 		}
 	}
 
-	// If we found a more tag, use content up to that point
 	if moreIdx != -1 {
-		contentBeforeMore := strings.TrimSpace(content[:moreIdx])
-		// Return the markdown content before the more tag - it will be rendered later
-		return contentBeforeMore
+		return strings.TrimSpace(content[:moreIdx])
 	}
-	
-	// No more tag found, render the content first then extract preview
-	rendered := RenderContent(content)
-	
-	// Convert rendered HTML to plain text for length calculation
-	plainText := stripHTML(rendered)
-	
-	// If rendered content is short enough, return the original markdown
+	return ""
+}
+
+// extractPreviewByLength extracts a preview of the content limited to maxChars
+func extractPreviewByLength(content string) string {
 	const maxChars = 150
+
+	rendered := RenderContent(content)
+	plainText := stripHTML(rendered)
+
 	if len(plainText) <= maxChars {
 		return strings.TrimSpace(content)
 	}
-	
-	// Find a good breaking point in the original markdown
-	// Look for paragraph breaks, sentence ends, or word boundaries
+
+	// Build preview from lines
+	return buildPreviewFromLines(content, maxChars)
+}
+
+// buildPreviewFromLines builds a preview by iterating through lines
+func buildPreviewFromLines(content string, maxChars int) string {
 	lines := strings.Split(content, "\n")
 	var result strings.Builder
 	var currentLength int
 
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
+		if line = strings.TrimSpace(line); line == "" {
 			continue
 		}
 
-		// Estimate plain text length of this line
 		lineText := stripHTML(RenderContent(line))
 
-		// If this is the first line and it's already too long, truncate it
+		// Handle first line that's too long
 		if result.Len() == 0 && len(lineText) > maxChars {
-			// Find a word boundary to break at
-			words := strings.Fields(line)
-			var truncated strings.Builder
-			var wordLen int
-			for _, word := range words {
-				wordPlain := stripHTML(RenderContent(word))
-				if wordLen + len(wordPlain) + 1 > maxChars {
-					break
-				}
-				if truncated.Len() > 0 {
-					truncated.WriteString(" ")
-				}
-				truncated.WriteString(word)
-				wordLen += len(wordPlain) + 1
-			}
-			return strings.TrimSpace(truncated.String()) + "..."
+			return truncateFirstLine(line, maxChars)
 		}
 
-		if currentLength + len(lineText) > maxChars {
+		if currentLength+len(lineText) > maxChars {
 			break
 		}
 
@@ -385,6 +373,27 @@ func previewContentRaw(content string) string {
 	}
 
 	return strings.TrimSpace(result.String())
+}
+
+// truncateFirstLine truncates a long first line at word boundary
+func truncateFirstLine(line string, maxChars int) string {
+	words := strings.Fields(line)
+	var truncated strings.Builder
+	var wordLen int
+
+	for _, word := range words {
+		wordPlain := stripHTML(RenderContent(word))
+		if wordLen+len(wordPlain)+1 > maxChars {
+			break
+		}
+		if truncated.Len() > 0 {
+			truncated.WriteString(" ")
+		}
+		truncated.WriteString(word)
+		wordLen += len(wordPlain) + 1
+	}
+
+	return strings.TrimSpace(truncated.String()) + "..."
 }
 
 func (pp *PostService) Create(userID int, categoryID int, title, content string, isPublished bool, featured bool, featuredImageURL string, slug string) (*Post, error) {
