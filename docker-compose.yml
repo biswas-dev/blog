@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: blog-postgres
+    environment:
+      - POSTGRES_USER=blog
+      - POSTGRES_PASSWORD=secureprodpassword123
+      - POSTGRES_DB=blog
+    volumes:
+      - blog-postgres-data:/var/lib/postgresql/data
+    networks:
+      - blog-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blog-app
+    ports:
+      - "22222:22222"
+    volumes:
+      # Mount uploads directory to persist user-uploaded files across rebuilds
+      - blog-uploads:/static/uploads
+    environment:
+      - PG_USER=blog
+      - PG_PASSWORD=secureprodpassword123
+      - PG_DB=blog
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - APP_DISABLE_SIGNUP=true
+      - API_TOKEN=productionSecretToken456
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - blog-network
+    restart: unless-stopped
+
+volumes:
+  blog-postgres-data:
+    external: true
+  blog-uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/ubuntu/projects/blog/static/uploads
+
+networks:
+  blog-network:
+    driver: bridge
