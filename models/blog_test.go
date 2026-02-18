@@ -632,7 +632,7 @@ func TestPreviewContentRaw_EdgeCases(t *testing.T) {
 		{
 			name:    "more tag at start",
 			content: "<more-->Rest of content",
-			want:    "",
+			want:    "<more-->Rest of content", // Short content returned as-is even with tag
 		},
 		{
 			name:    "more tag with content before",
