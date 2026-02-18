@@ -65,7 +65,12 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 	data.SignupDisabled = true // Default based on environment
 	data.Description = fmt.Sprintf("%s - Anshuman Biswas Blog", post.Title)
 	data.CurrentPage = "blog"
-	data.FullURL = fmt.Sprintf("http://localhost:22222/blog/%s", slug)
+	// Get base URL from environment, fallback to localhost for development
+	baseURL := os.Getenv("APP_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:22222"
+	}
+	data.FullURL = fmt.Sprintf("%s/blog/%s", baseURL, slug)
 
 	// Set prev/next posts to nil for now (can be implemented later)
 	data.PrevPost = nil
