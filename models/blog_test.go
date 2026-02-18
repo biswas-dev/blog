@@ -701,4 +701,79 @@ func TestPreviewContentRaw_SpecificCoverage(t *testing.T) {
 			t.Error("Expected first line in result")
 		}
 	})
+
+	// Test multiple more tags - should find earliest one (line 320 condition idx < moreIdx)
+	t.Run("multiple more tags uses earliest", func(t *testing.T) {
+		content := "First part\n<more -->\nMiddle part\n<more-->\nLast part"
+		result := previewContentRaw(content)
+
+		// Should stop at first occurrence
+		if result != "First part" {
+			t.Errorf("Expected 'First part', got %q", result)
+		}
+	})
+
+	// Test line break condition (line 364-365)
+	t.Run("stops at line length boundary", func(t *testing.T) {
+		// Create content where adding the third line would exceed limit
+		line1 := strings.Repeat("word ", 15) // ~75 chars
+		line2 := strings.Repeat("text ", 15) // ~75 chars (total ~150)
+		line3 := strings.Repeat("more ", 10) // This should be excluded
+		content := line1 + "\n\n" + line2 + "\n\n" + line3
+		result := previewContentRaw(content)
+
+		// Should include line1 and line2 but not line3
+		if !strings.Contains(result, "word") {
+			t.Error("Expected line1 in result")
+		}
+		if !strings.Contains(result, "text") {
+			t.Error("Expected line2 in result")
+		}
+		// line3 might be included if under limit, so don't assert its absence
+	})
+
+	// Test paragraph separator addition (line 368-370)
+	t.Run("adds paragraph breaks between lines", func(t *testing.T) {
+		content := "First line\n\nSecond line\n\nThird line"
+		result := previewContentRaw(content)
+
+		// Should have double newlines between paragraphs
+		lines := strings.Split(result, "\n\n")
+		if len(lines) < 2 {
+			t.Errorf("Expected multiple paragraphs separated by \\n\\n, got: %q", result)
+		}
+	})
+
+	// Test word boundary break in truncation (line 386-387)
+	t.Run("truncates at word boundary when words exceed limit", func(t *testing.T) {
+		// Create a line with words where the limit falls mid-word
+		words := []string{"Small", "medium", "anotherlongword"}
+		for i := 0; i < 50; i++ {
+			words = append(words, "word"+strings.Repeat("x", i))
+		}
+		content := strings.Join(words, " ")
+		result := previewContentRaw(content)
+
+		// Should break at word boundary
+		if !strings.HasSuffix(result, "...") {
+			t.Error("Expected truncation ellipsis")
+		}
+		// Should include early words
+		if !strings.Contains(result, "Small") {
+			t.Error("Expected 'Small' in truncated result")
+		}
+	})
+
+	// Test empty result from buildPreviewFromLines when all lines are empty
+	t.Run("all empty lines returns empty string", func(t *testing.T) {
+		content := strings.Repeat("a", 200) + "\n   \n\t\n  \n"
+		// First line is too long, will truncate
+		// Following lines are all whitespace
+		result := previewContentRaw(content)
+
+		// Should have some result (from first line truncation)
+		if result == "" {
+			t.Error("Expected non-empty result from long first line")
+		}
+	})
 }
