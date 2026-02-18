@@ -343,27 +343,47 @@ func previewContentRaw(content string) string {
 	lines := strings.Split(content, "\n")
 	var result strings.Builder
 	var currentLength int
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// Estimate plain text length of this line
 		lineText := stripHTML(RenderContent(line))
-		
+
+		// If this is the first line and it's already too long, truncate it
+		if result.Len() == 0 && len(lineText) > maxChars {
+			// Find a word boundary to break at
+			words := strings.Fields(line)
+			var truncated strings.Builder
+			var wordLen int
+			for _, word := range words {
+				wordPlain := stripHTML(RenderContent(word))
+				if wordLen + len(wordPlain) + 1 > maxChars {
+					break
+				}
+				if truncated.Len() > 0 {
+					truncated.WriteString(" ")
+				}
+				truncated.WriteString(word)
+				wordLen += len(wordPlain) + 1
+			}
+			return strings.TrimSpace(truncated.String()) + "..."
+		}
+
 		if currentLength + len(lineText) > maxChars {
 			break
 		}
-		
+
 		if result.Len() > 0 {
 			result.WriteString("\n\n")
 		}
 		result.WriteString(line)
 		currentLength += len(lineText)
 	}
-	
+
 	return strings.TrimSpace(result.String())
 }
 

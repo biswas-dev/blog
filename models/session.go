@@ -82,7 +82,11 @@ func (ss *SessionService) GetSession(userID int) (int, error) {
 	err := row.Scan(&session.ID, &session.UserID, &session.TokenHash, &session.CreatedAt)
 
 	if err != nil {
-		return 0, fmt.Errorf("User %d does not exist. Cannot create token: %w", userID, err)
+		// If no session exists, return 0 (not an error - this is expected for new users)
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("error fetching session: %w", err)
 	}
 	return session.ID, nil
 }
