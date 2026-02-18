@@ -232,7 +232,7 @@ func TestFormatFriendlyDate(t *testing.T) {
 		},
 		{
 			name:     "custom timezone format",
-			dateStr:  "2024-12-25T00:00:00.000000Z+00:00",
+			dateStr:  "2024-12-25T00:00:00.000000+00:00",
 			contains: "December",
 		},
 		{
