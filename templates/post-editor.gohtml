@@ -1902,69 +1902,69 @@ document.addEventListener('DOMContentLoaded', function() {
   color: #374151;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .cover-upload-section {
-    border-color: #374151;
-    background: #1f2937;
-  }
-  
-  .current-cover-preview {
-    background: #374151;
-  }
-  
-  .existing-image-item {
-    border-color: #374151;
-    background: #1f2937;
-  }
-  
-  .existing-image-item:hover {
-    border-color: #3b82f6;
-  }
-  
-  .no-images {
-    color: #9ca3af;
-  }
-  
-  .upload-drop-zone {
-    border-color: #374151;
-    background: #1f2937;
-  }
-  
-  .upload-drop-zone:hover, .upload-drop-zone.drag-over {
-    border-color: #3b82f6;
-    background: #1e3a8a;
-  }
-  
-  .upload-title {
-    color: #f9fafb;
-  }
-  
-  .upload-subtitle {
-    color: #9ca3af;
-  }
-  
-  .upload-icon {
-    color: #9ca3af;
-  }
-  
-  .cover-drop-zone {
-    border-color: #374151;
-    background: #1f2937;
-  }
-  
-  .cover-drop-zone:hover, .cover-drop-zone.drag-over {
-    border-color: #3b82f6;
-    background: #1e3a8a;
-  }
-  
-  .cover-upload-text {
-    color: #f9fafb;
-  }
-  
-  .upload-icon-small {
-    color: #9ca3af;
-  }
+/* Dark mode support - using class-based dark mode to match site */
+.dark .cover-upload-section {
+  border-color: #374151;
+  background: #1f2937;
+}
+
+.dark .current-cover-preview {
+  background: #374151;
+}
+
+.dark .existing-image-item {
+  border-color: #374151;
+  background: #1f2937;
+}
+
+.dark .existing-image-item:hover {
+  border-color: #3b82f6;
+}
+
+.dark .no-images {
+  color: #9ca3af;
+}
+
+.dark .upload-drop-zone {
+  border-color: #374151;
+  background: #1f2937;
+}
+
+.dark .upload-drop-zone:hover,
+.dark .upload-drop-zone.drag-over {
+  border-color: #3b82f6;
+  background: #1e3a8a;
+}
+
+.dark .upload-title {
+  color: #f9fafb;
+}
+
+.dark .upload-subtitle {
+  color: #9ca3af;
+}
+
+.dark .upload-icon {
+  color: #9ca3af;
+}
+
+.dark .cover-drop-zone {
+  border-color: #374151;
+  background: #1f2937;
+}
+
+.dark .cover-drop-zone:hover,
+.dark .cover-drop-zone.drag-over {
+  border-color: #3b82f6;
+  background: #1e3a8a;
+}
+
+.dark .cover-upload-text {
+  color: #f9fafb;
+}
+
+.dark .upload-icon-small {
+  color: #9ca3af;
 }
 </style>
 
