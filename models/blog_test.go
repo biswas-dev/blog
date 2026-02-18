@@ -388,3 +388,227 @@ func TestBlogService_GetBlogPostBySlug_CaseInsensitivity(t *testing.T) {
 		t.Log("Note: Slug lookup is case-sensitive (expected behavior)")
 	}
 }
+
+// Test helper functions for preview generation
+func TestPreviewContentRaw_MoreTagVariations(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name:     "more tag with no space",
+			content:  "First paragraph\n\n<more-->\n\nSecond paragraph",
+			expected: "First paragraph",
+		},
+		{
+			name:     "more tag with space",
+			content:  "First paragraph\n\n<more -->\n\nSecond paragraph",
+			expected: "First paragraph",
+		},
+		{
+			name:     "HTML encoded more tag",
+			content:  "First paragraph\n\n&lt;more--&gt;\n\nSecond paragraph",
+			expected: "First paragraph",
+		},
+		{
+			name:     "HTML encoded more tag with space",
+			content:  "First paragraph\n\n&lt;more --&gt;\n\nSecond paragraph",
+			expected: "First paragraph",
+		},
+		{
+			name:     "multiple more tags - uses first",
+			content:  "First\n<more-->\nMiddle\n<more -->\nLast",
+			expected: "First",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := previewContentRaw(tt.content)
+			if result != tt.expected {
+				t.Errorf("previewContentRaw() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPreviewContentRaw_ShortContent(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "very short content",
+			content: "Short text",
+		},
+		{
+			name:    "content under 150 chars",
+			content: "This is a medium length content that is under the 150 character limit and should be returned as-is without truncation.",
+		},
+		{
+			name:    "exactly at limit",
+			content: "x" + strings.Repeat("a", 148) + "x", // Exactly 150 chars
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := previewContentRaw(tt.content)
+			// Should return original content trimmed
+			expected := strings.TrimSpace(tt.content)
+			if result != expected {
+				t.Errorf("previewContentRaw() = %q, want %q", result, expected)
+			}
+		})
+	}
+}
+
+func TestPreviewContentRaw_EmptyLines(t *testing.T) {
+	content := "First line\n\n\n\nSecond line after empty lines\n\n\nThird line"
+	result := previewContentRaw(content)
+
+	// Should skip empty lines and concatenate with double newlines
+	if !strings.Contains(result, "First line") {
+		t.Error("Expected result to contain 'First line'")
+	}
+	if !strings.Contains(result, "Second line") {
+		t.Error("Expected result to contain 'Second line'")
+	}
+}
+
+func TestPreviewContentRaw_FirstLineTruncation(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		checkStr string
+	}{
+		{
+			name:     "single very long line with spaces",
+			content:  strings.Repeat("word ", 100), // Way over 150 chars
+			checkStr: "...",
+		},
+		{
+			name:     "long line with markdown",
+			content:  "**" + strings.Repeat("bold word ", 50) + "**",
+			checkStr: "...",
+		},
+		{
+			name:     "long URL-like content",
+			content:  "Check out https://example.com/" + strings.Repeat("verylongpath/", 20),
+			checkStr: "...",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := previewContentRaw(tt.content)
+
+			// Should be truncated at word boundary with ellipsis
+			if !strings.HasSuffix(result, tt.checkStr) {
+				t.Errorf("Expected truncated content to end with %q, got %q", tt.checkStr, result)
+			}
+
+			// Should be much shorter than original
+			if len(result) >= len(tt.content) {
+				t.Errorf("Expected truncated length < original, got %d >= %d", len(result), len(tt.content))
+			}
+		})
+	}
+}
+
+func TestPreviewContentRaw_MultiLineBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "multiple short lines",
+			content: "Line 1\n\nLine 2\n\nLine 3\n\nLine 4\n\nLine 5",
+		},
+		{
+			name:    "lines with varying length",
+			content: "Short\n\nThis is a medium length line\n\nAnother line here\n\nAnd more content",
+		},
+		{
+			name:    "lines that together exceed limit",
+			content: strings.Repeat("Medium line of text here. ", 3) + "\n\n" + strings.Repeat("Another line. ", 3),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := previewContentRaw(tt.content)
+
+			// Should stop when approaching limit
+			rendered := RenderContent(result)
+			plainText := stripHTML(rendered)
+
+			// Result should not be drastically longer than limit
+			if len(plainText) > 200 {
+				t.Errorf("Expected preview to be reasonably short, got %d chars", len(plainText))
+			}
+
+			// Should preserve line breaks between paragraphs
+			if strings.Contains(result, "\n\n") && len(strings.Split(tt.content, "\n\n")) > 1 {
+				if !strings.Contains(result, "\n\n") {
+					t.Error("Expected paragraph breaks to be preserved")
+				}
+			}
+		})
+	}
+}
+
+func TestPreviewContentRaw_WordBoundaries(t *testing.T) {
+	// Test that truncation happens at word boundaries
+	longWord := strings.Repeat("supercalifragilisticexpialidocious", 10)
+	content := "Start " + longWord + " end"
+
+	result := previewContentRaw(content)
+
+	// Should include "Start" and truncate before or within the long word
+	if !strings.Contains(result, "Start") {
+		t.Error("Expected result to contain 'Start'")
+	}
+
+	// Should have ellipsis indicating truncation
+	if !strings.Contains(result, "...") {
+		t.Error("Expected result to contain '...' for truncation")
+	}
+}
+
+func TestPreviewContentRaw_MixedContent(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "markdown with lists",
+			content: "# Heading\n\n- Item 1\n- Item 2 with more text\n- Item 3\n\nParagraph after list",
+		},
+		{
+			name:    "markdown with code",
+			content: "Introduction\n\n```go\nfunc main() {}\n```\n\nMore text after code",
+		},
+		{
+			name:    "markdown with links",
+			content: "Check out [this link](https://example.com) and [another](https://test.com) for more info",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := previewContentRaw(tt.content)
+
+			// Should return some content
+			if result == "" {
+				t.Error("Expected non-empty result")
+			}
+
+			// Should be shorter than or equal to original
+			if len(result) > len(tt.content) {
+				t.Errorf("Expected result <= original length, got %d > %d", len(result), len(tt.content))
+			}
+		})
+	}
+}
