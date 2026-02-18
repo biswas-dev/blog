@@ -141,8 +141,8 @@ func TestSessionService_GetSession(t *testing.T) {
 	t.Run("get non-existent session", func(t *testing.T) {
 		// Try to get session for user without session
 		sessionID, err := sessionService.GetSession(user.UserID)
-		if err == nil {
-			t.Error("Expected error when getting non-existent session")
+		if err != nil {
+			t.Errorf("GetSession() should not error for non-existent session, got error: %v", err)
 		}
 		if sessionID != 0 {
 			t.Errorf("Expected session ID 0 for non-existent session, got %d", sessionID)
@@ -287,8 +287,11 @@ func TestSessionService_Logout(t *testing.T) {
 
 	// Verify session was deleted from database
 	sessionID, err := sessionService.GetSession(user.UserID)
-	if err == nil {
-		t.Errorf("Session should not exist after logout, but found session ID %d", sessionID)
+	if err != nil {
+		t.Errorf("GetSession() error = %v", err)
+	}
+	if sessionID != 0 {
+		t.Errorf("Session should not exist after logout (expected ID 0), but found session ID %d", sessionID)
 	}
 }
 
