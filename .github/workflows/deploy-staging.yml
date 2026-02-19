@@ -84,12 +84,15 @@ jobs:
             docker run -d --name blog-staging \\
               -p 22222:22222 \\
               --restart unless-stopped \\
-              -e PG_HOST=localhost \\
+              --link blog-postgres:postgres \\
+              -e PG_HOST=blog-postgres \\
               -e PG_PORT=5432 \\
               -e PG_USER=blog \\
               -e PG_PASSWORD='$PG_PASSWORD' \\
               -e PG_DB=blog \\
               -e SESSION_SECRET='$SESSION_SECRET' \\
+              -e API_TOKEN='$SESSION_SECRET' \\
+              -e APP_PORT=22222 \\
               -v ~/blog-staging/uploads:/uploads \\
               blog-staging:latest
 
