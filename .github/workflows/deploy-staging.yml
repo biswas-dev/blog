@@ -37,6 +37,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for git describe
+
+      - name: Set version information
+        id: version
+        run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-${GITHUB_SHA::8}")
+          GIT_COMMIT=${GITHUB_SHA}
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
+
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "GIT_COMMIT=$GIT_COMMIT" >> $GITHUB_OUTPUT
+          echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "GO_VERSION=go$GO_VERSION" >> $GITHUB_OUTPUT
+
+          echo "🏷️  Version: $VERSION"
+          echo "📝 Commit: $GIT_COMMIT"
+          echo "🕐 Build Time: $BUILD_TIME"
+          echo "🔧 Go Version: go$GO_VERSION"
 
       - name: Deploy to Staging server
         env:
@@ -46,6 +66,10 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          GIT_COMMIT: ${{ steps.version.outputs.GIT_COMMIT }}
+          BUILD_TIME: ${{ steps.version.outputs.BUILD_TIME }}
+          GO_VERSION: ${{ steps.version.outputs.GO_VERSION }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
@@ -96,6 +120,12 @@ jobs:
             export PG_PASSWORD='$PG_PASSWORD'
             export SESSION_SECRET='$SESSION_SECRET'
             export BLOG_UPLOADS_PATH="/home/ubuntu/blog-staging/static/uploads"
+
+            # Set version information for build
+            export VERSION='$VERSION'
+            export GIT_COMMIT='$GIT_COMMIT'
+            export BUILD_TIME='$BUILD_TIME'
+            export GO_VERSION='$GO_VERSION'
 
             echo "🛑 Stopping existing containers..."
             docker compose down || true

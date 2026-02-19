@@ -15,15 +15,30 @@ RUN go mod tidy
 ARG TARGETPLATFORM
 ARG TARGETARCH
 ARG TARGETVARIANT
+
+# Version information for build-time injection
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+ARG GO_VERSION=unknown
+
 RUN printf "I'm building for TARGETPLATFORM=${TARGETPLATFORM}" \
     && printf ", TARGETARCH=${TARGETARCH}" \
     && printf ", TARGETVARIANT=${TARGETVARIANT} \n" \
     && printf "With uname -s : " && uname -s \
     && printf "and  uname -m : " && uname -m
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /main .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
+    -ldflags="-X 'anshumanbiswas.com/blog/version.Version=${VERSION}' \
+              -X 'anshumanbiswas.com/blog/version.GitCommit=${GIT_COMMIT}' \
+              -X 'anshumanbiswas.com/blog/version.BuildTime=${BUILD_TIME}' \
+              -X 'anshumanbiswas.com/blog/version.GoVersion=${GO_VERSION}'" \
+    -o /main .
 
-FROM gcr.io/distroless/static-debian11 as production
+FROM alpine:latest as production
+
+# Install PostgreSQL client for database backup/restore functionality
+RUN apk add --no-cache postgresql-client ca-certificates
 
 COPY --from=base /main .
 COPY --from=base /go/src/blog/static ./static

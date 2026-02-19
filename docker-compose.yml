@@ -21,6 +21,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - VERSION=${VERSION:-dev}
+        - GIT_COMMIT=${GIT_COMMIT:-unknown}
+        - BUILD_TIME=${BUILD_TIME:-unknown}
+        - GO_VERSION=${GO_VERSION:-unknown}
     container_name: blog-app
     ports:
       - "127.0.0.1:22222:22222"
