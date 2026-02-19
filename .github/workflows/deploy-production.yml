@@ -43,6 +43,7 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
           SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
         run: |
@@ -54,7 +55,7 @@ jobs:
           echo "🚀 Deploying Blog to Production server..."
           echo "Commit: $COMMIT_SHA"
 
-          # Deploy to Production server
+          # Deploy to Production server using docker-compose
           ssh -i ~/.ssh/deploy_key ubuntu@31.97.102.48 "bash -s" << EOF
             set -e
 
@@ -73,31 +74,45 @@ jobs:
               git checkout $COMMIT_SHA
             fi
 
-            echo "🔨 Building Docker image..."
-            docker build -t blog-production:$COMMIT_SHA -t blog-production:latest .
+            # Ensure Docker volume exists
+            docker volume inspect blog-postgres-data >/dev/null 2>&1 || docker volume create blog-postgres-data
 
-            echo "🛑 Stopping existing container..."
-            docker stop blog-production || true
-            docker rm blog-production || true
+            # Setup nginx configuration
+            echo "⚙️  Configuring nginx..."
+            chmod +x scripts/setup-nginx-production.sh
+            ./scripts/setup-nginx-production.sh
 
-            echo "🚀 Starting new container..."
-            docker run -d --name blog-production \\
-              -p 22222:22222 \\
-              --restart unless-stopped \\
-              -e PG_HOST=localhost \\
-              -e PG_PORT=5432 \\
-              -e PG_USER=blog \\
-              -e PG_PASSWORD='$PG_PASSWORD' \\
-              -e PG_DB=blog \\
-              -e SESSION_SECRET='$SESSION_SECRET' \\
-              -v ~/blog-production/uploads:/uploads \\
-              blog-production:latest
+            # Setup Cloudflare Origin Certificate (if API token is available)
+            if [ ! -z "$CF_API_TOKEN" ]; then
+              echo "🔐 Setting up Cloudflare Origin Certificate..."
+              chmod +x scripts/setup-cloudflare-ssl.sh
+              sudo CF_API_TOKEN='$CF_API_TOKEN' ./scripts/setup-cloudflare-ssl.sh anshumanbiswas.com || echo "⚠️  SSL setup skipped, using existing certificate"
+            fi
+
+            # Update environment variables in docker-compose.yml
+            export PG_PASSWORD='$PG_PASSWORD'
+            export SESSION_SECRET='$SESSION_SECRET'
+
+            echo "🛑 Stopping existing containers..."
+            docker compose down || true
+
+            echo "🔨 Building and starting containers with docker-compose..."
+            docker compose up -d --build
+
+            echo "🔄 Reloading nginx to apply SSL certificate..."
+            sudo systemctl reload nginx || echo "⚠️  Nginx reload skipped"
+
+            echo "⏳ Waiting for postgres to be healthy..."
+            sleep 10
+
+            echo "🔐 Ensuring postgres password is synchronized..."
+            docker exec blog-postgres psql -U blog -d blog -c "ALTER USER blog WITH PASSWORD '\$PG_PASSWORD';" || echo "Database not yet initialized, password will be set on first init"
 
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
 
             echo "✅ Deployment complete!"
-            docker ps --filter "name=blog-production" --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+            docker compose ps
           EOF
 
       - name: Verify deployment
@@ -105,8 +120,8 @@ jobs:
           echo "⏳ Waiting for application to start..."
           sleep 10
 
-          echo "🔍 Testing Production endpoint..."
-          curl -f http://31.97.102.48:22222 || {
+          echo "🔍 Testing Production endpoint via nginx..."
+          curl -f -H "Host: anshumanbiswas.com" http://31.97.102.48 || {
             echo "❌ Health check failed"
             exit 1
           }
@@ -122,5 +137,4 @@ jobs:
           echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Access:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Direct: http://31.97.102.48:22222" >> $GITHUB_STEP_SUMMARY
           echo "- Public: https://anshumanbiswas.com" >> $GITHUB_STEP_SUMMARY

@@ -38,78 +38,54 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to UAT server
+      - name: Checkout infrastructure repository
+        uses: actions/checkout@v4
+        with:
+          repository: anchoo2kewl/biswas-infrastructure
+          path: biswas-infrastructure
+          ssh-key: ${{ secrets.INFRA_SSH_PRIVATE_KEY }}
+
+      - name: Setup SSH key for deployment
         env:
           SSH_PRIVATE_KEY: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
-          PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
-          SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
-          COMMIT_SHA: ${{ github.sha }}
-          BRANCH: ${{ github.ref_name }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan 92.4.83.28 >> ~/.ssh/known_hosts
 
-          echo "🚀 Deploying Blog to UAT server via Ansible..."
-          echo "Commit: $COMMIT_SHA"
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
 
-          # Deploy using Ansible playbook
+      - name: Deploy to UAT using Ansible
+        env:
+          PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
+          SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
           cd biswas-infrastructure/ansible
 
-          # Deploy the blog application
-          ssh -i ~/.ssh/deploy_key ubuntu@92.4.83.28 "bash -s" << EOF
-            set -e
+          echo "🚀 Deploying Blog to UAT via Ansible..."
+          echo "Commit: $COMMIT_SHA"
 
-            # Create deployment directory for blog
-            mkdir -p ~/blog-uat
-            cd ~/blog-uat
-
-            # Clone or pull latest code
-            if [ -d ".git" ]; then
-              echo "📦 Pulling latest code..."
-              git fetch origin
-              git reset --hard $COMMIT_SHA
-            else
-              echo "📦 Cloning repository..."
-              git clone https://github.com/anchoo2kewl/blog.git .
-              git checkout $COMMIT_SHA
-            fi
-
-            echo "🔨 Building Docker image (native ARM64)..."
-            docker build -t blog-uat:$COMMIT_SHA -t blog-uat:latest .
-
-            echo "🛑 Stopping existing container..."
-            docker stop blog-uat || true
-            docker rm blog-uat || true
-
-            echo "🚀 Starting new container..."
-            docker run -d --name blog-uat \\
-              -p 22223:22222 \\
-              --restart unless-stopped \\
-              -e PG_HOST=localhost \\
-              -e PG_PORT=5432 \\
-              -e PG_USER=blog \\
-              -e PG_PASSWORD='$PG_PASSWORD' \\
-              -e PG_DB=blog \\
-              -e SESSION_SECRET='$SESSION_SECRET' \\
-              -v ~/blog-uat/uploads:/uploads \\
-              blog-uat:latest
-
-            echo "🧹 Cleaning up old images..."
-            docker image prune -f --filter "until=24h"
-
-            echo "✅ Deployment complete!"
-            docker ps --filter "name=blog-uat" --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
-          EOF
+          ansible-playbook \
+            -i inventory/uat.yml \
+            playbooks/deploy-blog-uat.yml \
+            -e "commit_sha=$COMMIT_SHA" \
+            -e "pg_password=$PG_PASSWORD" \
+            -e "session_secret=$SESSION_SECRET" \
+            -e "cf_api_token=$CF_API_TOKEN"
 
       - name: Verify deployment
         run: |
           echo "⏳ Waiting for application to start..."
           sleep 10
 
-          echo "🔍 Testing UAT endpoint..."
-          curl -f http://92.4.83.28:22223 || {
+          echo "🔍 Testing UAT endpoint via nginx..."
+          curl -f -H "Host: uat.anshumanbiswas.com" http://92.4.83.28 || {
             echo "❌ Health check failed"
             exit 1
           }
@@ -123,8 +99,7 @@ jobs:
           echo "- **Server:** 92.4.83.28" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build:** Native ARM64 (built on server)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed via:** Ansible" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Access:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend: http://92.4.83.28:22223" >> $GITHUB_STEP_SUMMARY
           echo "- Public: https://uat.anshumanbiswas.com" >> $GITHUB_STEP_SUMMARY
