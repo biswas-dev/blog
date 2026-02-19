@@ -41,6 +41,8 @@ jobs:
       - name: Deploy to Staging server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
+          SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
         run: |
@@ -82,12 +84,12 @@ jobs:
             docker run -d --name blog-staging \\
               -p 22222:22222 \\
               --restart unless-stopped \\
-              -e PG_HOST=\${PG_HOST:-localhost} \\
-              -e PG_PORT=\${PG_PORT:-5432} \\
-              -e PG_USER=\${PG_USER:-blog} \\
-              -e PG_PASSWORD=\${PG_PASSWORD} \\
-              -e PG_DB=\${PG_DB:-blog} \\
-              -e SESSION_SECRET=\${SESSION_SECRET} \\
+              -e PG_HOST=localhost \\
+              -e PG_PORT=5432 \\
+              -e PG_USER=blog \\
+              -e PG_PASSWORD='$PG_PASSWORD' \\
+              -e PG_DB=blog \\
+              -e SESSION_SECRET='$SESSION_SECRET' \\
               -v ~/blog-staging/uploads:/uploads \\
               blog-staging:latest
 
