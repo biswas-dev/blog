@@ -89,9 +89,13 @@ jobs:
               sudo CF_API_TOKEN='$CF_API_TOKEN' ./scripts/setup-cloudflare-ssl.sh staging.anshumanbiswas.com || echo "⚠️  SSL setup skipped, using existing certificate"
             fi
 
+            # Create uploads directory if it doesn't exist
+            mkdir -p static/uploads
+
             # Update environment variables in docker-compose.yml
             export PG_PASSWORD='$PG_PASSWORD'
             export SESSION_SECRET='$SESSION_SECRET'
+            export BLOG_UPLOADS_PATH="/home/ubuntu/blog-staging/static/uploads"
 
             echo "🛑 Stopping existing containers..."
             docker compose down || true
