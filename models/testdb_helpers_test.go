@@ -30,7 +30,7 @@ func SetupTestDB(t *testing.T) *sql.DB {
 	}
 	dbPassword := os.Getenv("PG_PASSWORD")
 	if dbPassword == "" {
-		dbPassword = "1234"
+		dbPassword = "testpass"
 	}
 	dbName := os.Getenv("PG_DB")
 	if dbName == "" {
