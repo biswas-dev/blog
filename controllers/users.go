@@ -116,12 +116,12 @@ func (u Users) UploadImage(w http.ResponseWriter, r *http.Request) {
 	buff := make([]byte, 512)
 	n, _ := file.Read(buff)
 	filetype := http.DetectContentType(buff[:n])
-	allowed := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}
+	allowed := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}
 	ext, ok := allowed[filetype]
 	if !ok {
 		// fallback to extension from filename if content-type sniff fails
 		ext = strings.ToLower(filepath.Ext(header.Filename))
-		ok = ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp"
+		ok = ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp" || ext == ".svg"
 		if !ok {
 			http.Error(w, "Unsupported file type", http.StatusBadRequest)
 			return
@@ -234,12 +234,12 @@ func (u Users) UploadMultipleImages(w http.ResponseWriter, r *http.Request) {
 		buff := make([]byte, 512)
 		n, _ := file.Read(buff)
 		filetype := http.DetectContentType(buff[:n])
-		allowed := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}
+		allowed := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}
 		ext, ok := allowed[filetype]
 		if !ok {
 			// fallback to extension from filename if content-type sniff fails
 			ext = strings.ToLower(filepath.Ext(fileHeader.Filename))
-			ok = ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp"
+			ok = ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp" || ext == ".svg"
 			if !ok {
 				errors = append(errors, fmt.Sprintf("Unsupported file type for %s", fileHeader.Filename))
 				continue

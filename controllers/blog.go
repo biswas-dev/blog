@@ -116,7 +116,7 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 			}
 			name := e.Name()
 			low := strings.ToLower(name)
-			if strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") || strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".gif") || strings.HasSuffix(low, ".webp") {
+			if strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") || strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".gif") || strings.HasSuffix(low, ".webp") || strings.HasSuffix(low, ".svg") {
 				return "/static/uploads/featured/" + post.Slug + "/" + name
 			}
 		}
