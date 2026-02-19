@@ -298,9 +298,16 @@ func main() {
 		http.ServeFile(w, r, "./static/favicon.svg")
 	})
 
-	// Serve static files from ./static/ directory
+	// Serve static files from ./static/ directory with proper content-type for SVG
 	staticFileServer := http.FileServer(http.Dir("./static/"))
-	r.Handle("/static/*", http.StripPrefix("/static/", staticFileServer))
+	r.Handle("/static/*", http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set correct content-type for SVG files
+		if strings.HasSuffix(r.URL.Path, ".svg") {
+			w.Header().Set("Content-Type", "image/svg+xml")
+			w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+		}
+		staticFileServer.ServeHTTP(w, r)
+	})))
 
 	// Keep legacy CSS route for backward compatibility
 	cssFileServer := http.FileServer(http.Dir("./css/"))
