@@ -5,9 +5,9 @@
     "test": "npm run test:go && npm run test:playwright"
   },
   "dependencies": {
-    "playwright": "^1.55.0"
+    "playwright": "^1.55.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.0"
+    "@playwright/test": "^1.55.1"
   }
 }

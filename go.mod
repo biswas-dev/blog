@@ -1,6 +1,6 @@
 module anshumanbiswas.com/blog
 
-go 1.21.0
+go 1.23.0
 
 require (
 	github.com/go-chi/chi/v5 v5.0.10
@@ -18,5 +18,5 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.8.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.13.0
+	golang.org/x/crypto v0.35.0
 )
