@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile
     container_name: blog-app
     ports:
-      - "22222:22222"
+      - "127.0.0.1:22222:22222"
     volumes:
       # Mount uploads directory to persist user-uploaded files across rebuilds
       - blog-uploads:/static/uploads

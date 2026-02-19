@@ -86,8 +86,11 @@ jobs:
             echo "🔨 Building and starting containers with docker-compose..."
             docker compose up -d --build
 
-            echo "⏳ Waiting for containers to be healthy..."
+            echo "⏳ Waiting for postgres to be healthy..."
             sleep 10
+
+            echo "🔐 Ensuring postgres password is synchronized..."
+            docker exec blog-postgres psql -U blog -d blog -c "ALTER USER blog WITH PASSWORD '\$PG_PASSWORD';" || echo "Database not yet initialized, password will be set on first init"
 
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
