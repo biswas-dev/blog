@@ -10,23 +10,18 @@ func TestAPITokenCreation(t *testing.T) {
 	db := SetupTestDB(t)
 	apiTokenService := &APITokenService{DB: db}
 
-	// Check if user ID 1 exists
-	if !UserExists(t, db, 1) {
-		// Create a test user for the test
-		userService := &UserService{DB: db}
-		user, err := userService.Create("test@example.com", "testuser", "password123", RoleCommenter)
-		if err != nil {
-			t.Fatalf("Failed to create test user: %v", err)
-		}
-		t.Cleanup(func() {
-			CleanupUser(t, db, user.UserID)
-		})
-
-		// Use the created user's ID for the test
-		testAPITokenCreationForUser(t, apiTokenService, user.UserID)
-	} else {
-		testAPITokenCreationForUser(t, apiTokenService, 1)
+	// Always create a fresh test user for this test
+	userService := &UserService{DB: db}
+	user, err := userService.Create("test-apitoken@example.com", "testuser", "password123", RoleCommenter)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
 	}
+	t.Cleanup(func() {
+		CleanupUser(t, db, user.UserID)
+	})
+
+	// Use the created user's ID for the test
+	testAPITokenCreationForUser(t, apiTokenService, user.UserID)
 }
 
 func testAPITokenCreationForUser(t *testing.T, apiTokenService *APITokenService, userID int) {
