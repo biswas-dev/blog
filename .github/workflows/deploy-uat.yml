@@ -38,24 +38,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Checkout infrastructure repo
-        uses: actions/checkout@v4
-        with:
-          repository: anchoo2kewl/biswas-infrastructure
-          path: biswas-infrastructure
-          token: ${{ secrets.GH_PAT }}
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install Ansible
-        run: |
-          python -m pip install --upgrade pip
-          pip install ansible
-
-      - name: Deploy to UAT using Ansible
+      - name: Deploy to UAT server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
           COMMIT_SHA: ${{ github.sha }}
