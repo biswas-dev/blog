@@ -1,17 +1,17 @@
-name: Deploy to Production
+name: Deploy to Staging
 
 on:
   push:
-    branches: [ uat ]  # Only UAT branch can deploy to Production
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       environment:
         description: 'Environment to deploy'
         required: true
-        default: 'production'
+        default: 'staging'
         type: choice
         options:
-          - production
+          - staging
 
 jobs:
   security-scan:
@@ -30,7 +30,7 @@ jobs:
           exit-code: '1'  # Fail if vulnerabilities found
           ignore-unfixed: true
 
-  deploy-production:
+  deploy-staging:
     needs: security-scan  # Only deploy if security scan passes
     runs-on: ubuntu-latest
 
@@ -38,29 +38,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Production server
+      - name: Deploy to Staging server
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
-          SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan 31.97.102.48 >> ~/.ssh/known_hosts
+          ssh-keyscan 129.213.82.37 >> ~/.ssh/known_hosts
 
-          echo "🚀 Deploying Blog to Production server..."
+          echo "🚀 Deploying Blog to Staging server..."
           echo "Commit: $COMMIT_SHA"
 
-          # Deploy to Production server
-          ssh -i ~/.ssh/deploy_key ubuntu@31.97.102.48 "bash -s" << EOF
+          # Deploy to Staging server
+          ssh -i ~/.ssh/deploy_key ubuntu@129.213.82.37 "bash -s" << EOF
             set -e
 
             # Create deployment directory
-            mkdir -p ~/blog-production
-            cd ~/blog-production
+            mkdir -p ~/blog-staging
+            cd ~/blog-staging
 
             # Clone or pull latest code
             if [ -d ".git" ]; then
@@ -74,30 +72,30 @@ jobs:
             fi
 
             echo "🔨 Building Docker image..."
-            docker build -t blog-production:$COMMIT_SHA -t blog-production:latest .
+            docker build -t blog-staging:$COMMIT_SHA -t blog-staging:latest .
 
             echo "🛑 Stopping existing container..."
-            docker stop blog-production || true
-            docker rm blog-production || true
+            docker stop blog-staging || true
+            docker rm blog-staging || true
 
             echo "🚀 Starting new container..."
-            docker run -d --name blog-production \\
+            docker run -d --name blog-staging \\
               -p 22222:22222 \\
               --restart unless-stopped \\
-              -e PG_HOST=localhost \\
-              -e PG_PORT=5432 \\
-              -e PG_USER=blog \\
-              -e PG_PASSWORD='$PG_PASSWORD' \\
-              -e PG_DB=blog \\
-              -e SESSION_SECRET='$SESSION_SECRET' \\
-              -v ~/blog-production/uploads:/uploads \\
-              blog-production:latest
+              -e PG_HOST=\${PG_HOST:-localhost} \\
+              -e PG_PORT=\${PG_PORT:-5432} \\
+              -e PG_USER=\${PG_USER:-blog} \\
+              -e PG_PASSWORD=\${PG_PASSWORD} \\
+              -e PG_DB=\${PG_DB:-blog} \\
+              -e SESSION_SECRET=\${SESSION_SECRET} \\
+              -v ~/blog-staging/uploads:/uploads \\
+              blog-staging:latest
 
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
 
             echo "✅ Deployment complete!"
-            docker ps --filter "name=blog-production" --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+            docker ps --filter "name=blog-staging" --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
           EOF
 
       - name: Verify deployment
@@ -105,8 +103,8 @@ jobs:
           echo "⏳ Waiting for application to start..."
           sleep 10
 
-          echo "🔍 Testing Production endpoint..."
-          curl -f http://31.97.102.48:22222 || {
+          echo "🔍 Testing Staging endpoint..."
+          curl -f http://129.213.82.37:22222 || {
             echo "❌ Health check failed"
             exit 1
           }
@@ -115,12 +113,13 @@ jobs:
 
       - name: Deployment summary
         run: |
-          echo "## 🚀 Production Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Staging Deployment Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Server:** 31.97.102.48" >> $GITHUB_STEP_SUMMARY
+          echo "- **Server:** 129.213.82.37" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Domain:** staging.anshumanbiswas.com" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Access:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Direct: http://31.97.102.48:22222" >> $GITHUB_STEP_SUMMARY
-          echo "- Public: https://anshumanbiswas.com" >> $GITHUB_STEP_SUMMARY
+          echo "- Direct: http://129.213.82.37:22222" >> $GITHUB_STEP_SUMMARY
+          echo "- Public: https://staging.anshumanbiswas.com (via Cloudflare)" >> $GITHUB_STEP_SUMMARY
