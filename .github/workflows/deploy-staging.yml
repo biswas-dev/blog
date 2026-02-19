@@ -81,17 +81,20 @@ jobs:
             docker rm blog-staging || true
 
             echo "🚀 Starting new container..."
+            # Ensure Docker network exists
+            docker network inspect blog_blog-network >/dev/null 2>&1 || docker network create blog_blog-network
+
             docker run -d --name blog-staging \\
+              --network blog_blog-network \\
               -p 22222:22222 \\
               --restart unless-stopped \\
-              --link blog-postgres:postgres \\
-              -e PG_HOST=blog-postgres \\
+              -e PG_HOST=postgres \\
               -e PG_PORT=5432 \\
               -e PG_USER=blog \\
-              -e PG_PASSWORD='$PG_PASSWORD' \\
+              -e PG_PASSWORD=secureprodpassword123 \\
               -e PG_DB=blog \\
-              -e SESSION_SECRET='$SESSION_SECRET' \\
-              -e API_TOKEN='$SESSION_SECRET' \\
+              -e SESSION_SECRET=productionSessionSecret789 \\
+              -e API_TOKEN=productionSecretToken456 \\
               -e APP_PORT=22222 \\
               -v ~/blog-staging/uploads:/uploads \\
               blog-staging:latest
