@@ -54,7 +54,7 @@ jobs:
           echo "🚀 Deploying Blog to Staging server..."
           echo "Commit: $COMMIT_SHA"
 
-          # Deploy to Staging server
+          # Deploy to Staging server using docker-compose
           ssh -i ~/.ssh/deploy_key ubuntu@129.213.82.37 "bash -s" << EOF
             set -e
 
@@ -73,37 +73,27 @@ jobs:
               git checkout $COMMIT_SHA
             fi
 
-            echo "🔨 Building Docker image..."
-            docker build -t blog-staging:$COMMIT_SHA -t blog-staging:latest .
+            # Ensure Docker volume exists
+            docker volume inspect blog-postgres-data >/dev/null 2>&1 || docker volume create blog-postgres-data
 
-            echo "🛑 Stopping existing container..."
-            docker stop blog-staging || true
-            docker rm blog-staging || true
+            # Update environment variables in docker-compose.yml
+            export PG_PASSWORD='$PG_PASSWORD'
+            export SESSION_SECRET='$SESSION_SECRET'
 
-            echo "🚀 Starting new container..."
-            # Ensure Docker network exists
-            docker network inspect blog_blog-network >/dev/null 2>&1 || docker network create blog_blog-network
+            echo "🛑 Stopping existing containers..."
+            docker compose down || true
 
-            docker run -d --name blog-staging \\
-              --network blog_blog-network \\
-              -p 22222:22222 \\
-              --restart unless-stopped \\
-              -e PG_HOST=postgres \\
-              -e PG_PORT=5432 \\
-              -e PG_USER=blog \\
-              -e PG_PASSWORD=secureprodpassword123 \\
-              -e PG_DB=blog \\
-              -e SESSION_SECRET=productionSessionSecret789 \\
-              -e API_TOKEN=productionSecretToken456 \\
-              -e APP_PORT=22222 \\
-              -v ~/blog-staging/uploads:/uploads \\
-              blog-staging:latest
+            echo "🔨 Building and starting containers with docker-compose..."
+            docker compose up -d --build
+
+            echo "⏳ Waiting for containers to be healthy..."
+            sleep 10
 
             echo "🧹 Cleaning up old images..."
             docker image prune -f --filter "until=24h"
 
             echo "✅ Deployment complete!"
-            docker ps --filter "name=blog-staging" --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+            docker compose ps
           EOF
 
       - name: Verify deployment
@@ -111,8 +101,8 @@ jobs:
           echo "⏳ Waiting for application to start..."
           sleep 10
 
-          echo "🔍 Testing Staging endpoint..."
-          curl -f http://129.213.82.37:22222 || {
+          echo "🔍 Testing Staging endpoint via nginx..."
+          curl -f -H "Host: staging.anshumanbiswas.com" http://129.213.82.37 || {
             echo "❌ Health check failed"
             exit 1
           }
@@ -129,5 +119,4 @@ jobs:
           echo "- **Domain:** staging.anshumanbiswas.com" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Access:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Direct: http://129.213.82.37:22222" >> $GITHUB_STEP_SUMMARY
           echo "- Public: https://staging.anshumanbiswas.com (via Cloudflare)" >> $GITHUB_STEP_SUMMARY

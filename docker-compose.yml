@@ -4,7 +4,7 @@ services:
     container_name: blog-postgres
     environment:
       - POSTGRES_USER=blog
-      - POSTGRES_PASSWORD=secureprodpassword123
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-secureprodpassword123}
       - POSTGRES_DB=blog
     volumes:
       - blog-postgres-data:/var/lib/postgresql/data
@@ -29,12 +29,13 @@ services:
       - blog-uploads:/static/uploads
     environment:
       - PG_USER=blog
-      - PG_PASSWORD=secureprodpassword123
+      - PG_PASSWORD=${PG_PASSWORD:-secureprodpassword123}
       - PG_DB=blog
       - PG_HOST=postgres
       - PG_PORT=5432
       - APP_DISABLE_SIGNUP=true
-      - API_TOKEN=productionSecretToken456
+      - API_TOKEN=${API_TOKEN:-productionSecretToken456}
+      - SESSION_SECRET=${SESSION_SECRET:-productionSessionSecret789}
     depends_on:
       postgres:
         condition: service_healthy
