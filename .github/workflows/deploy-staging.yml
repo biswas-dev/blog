@@ -134,6 +134,9 @@ jobs:
             echo "🛑 Stopping existing containers..."
             docker compose down || true
 
+            echo "🧹 Cleaning up any stale containers..."
+            docker rm -f blog-postgres blog-app 2>/dev/null || true
+
             echo "🔨 Building and starting containers with docker-compose..."
             docker compose up -d --build
 
