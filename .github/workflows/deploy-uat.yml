@@ -106,7 +106,7 @@ jobs:
             -e "build_time=${{ steps.version.outputs.BUILD_TIME }}" \
             -e "go_version=${{ steps.version.outputs.GO_VERSION }}" \
             -e "app_env=uat" \
-            -e "deploy_branch=${{ github.head_ref }}"
+            -e "deploy_branch=${{ github.base_ref || 'uat' }}"
 
       - name: Verify deployment
         run: |
