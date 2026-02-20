@@ -1,8 +1,9 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [ uat ]  # Only UAT branch can deploy to Production
+  pull_request:
+    types: [ closed ]
+    branches: [ production ]  # PR merged to production branch triggers deployment
   workflow_dispatch:
     inputs:
       environment:
@@ -16,6 +17,7 @@ on:
 jobs:
   security-scan:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,6 +35,7 @@ jobs:
   deploy-production:
     needs: security-scan  # Only deploy if security scan passes
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
@@ -126,6 +129,10 @@ jobs:
             export GIT_COMMIT='$GIT_COMMIT'
             export BUILD_TIME='$BUILD_TIME'
             export GO_VERSION='$GO_VERSION'
+
+            # Set deployment context
+            export APP_ENV='production'
+            export DEPLOY_BRANCH='$BRANCH'
 
             echo "🛑 Stopping existing containers..."
             docker compose down || true

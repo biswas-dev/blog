@@ -41,6 +41,8 @@ services:
       - APP_DISABLE_SIGNUP=true
       - API_TOKEN=${API_TOKEN:-productionSecretToken456}
       - SESSION_SECRET=${SESSION_SECRET:-productionSessionSecret789}
+      - APP_ENV=${APP_ENV:-development}
+      - DEPLOY_BRANCH=${DEPLOY_BRANCH:-unknown}
     depends_on:
       postgres:
         condition: service_healthy

@@ -127,6 +127,10 @@ jobs:
             export BUILD_TIME='$BUILD_TIME'
             export GO_VERSION='$GO_VERSION'
 
+            # Set deployment context
+            export APP_ENV='staging'
+            export DEPLOY_BRANCH='$BRANCH'
+
             echo "🛑 Stopping existing containers..."
             docker compose down || true
 
