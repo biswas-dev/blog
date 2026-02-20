@@ -36,6 +36,7 @@ jobs:
     needs: security-scan  # Only deploy if security scan passes
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    environment: uat
 
     steps:
       - name: Checkout code
