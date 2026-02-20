@@ -65,6 +65,7 @@ jobs:
           PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
           SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -120,6 +121,7 @@ jobs:
             # Update environment variables in docker-compose.yml
             export PG_PASSWORD='$PG_PASSWORD'
             export SESSION_SECRET='$SESSION_SECRET'
+            export API_TOKEN='$BLOG_API_TOKEN'
             export BLOG_UPLOADS_PATH="/home/ubuntu/blog-staging/static/uploads"
 
             # Set version information for build
