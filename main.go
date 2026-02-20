@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"anshumanbiswas.com/blog/controllers"
 	authmw "anshumanbiswas.com/blog/middleware"
@@ -29,6 +30,9 @@ func getAppPort() string {
 }
 
 func main() {
+	// Track application start time for uptime calculation
+	startTime := time.Now()
+
 	sugar := sugarLog()
 
 	apiToken := os.Getenv("API_TOKEN")
@@ -106,6 +110,12 @@ func main() {
 		DB: DB,
 	}
 
+	// Initialize SystemService
+	systemService := models.NewSystemService(DB, "migrations", startTime)
+
+	// Initialize DatabaseBackupService
+	databaseBackupService := models.NewDatabaseBackupService(DB)
+
 	// Setup our controllers
 	usersC := controllers.Users{
 		UserService:     &userService,
@@ -132,6 +142,13 @@ func main() {
 		SlideService:    &slideService,
 		SessionService:  &sessionService,
 		CategoryService: &categoryService,
+	}
+
+	// Initialize System controller
+	systemC := controllers.System{
+		SystemService:         systemService,
+		DatabaseBackupService: databaseBackupService,
+		SessionService:        &sessionService,
 	}
 
 	usersC.Templates.New = views.Must(views.ParseFS(
@@ -191,6 +208,10 @@ func main() {
 	slidesC.Templates.SlidePresentation = views.Must(views.ParseFS(
 		templates.FS, "slide-presentation.gohtml", "tailwind.gohtml"))
 
+	// Initialize System templates
+	systemC.Templates.Dashboard = views.Must(views.ParseFS(
+		templates.FS, "admin-system.gohtml", "tailwind.gohtml"))
+
 	r.Get("/", usersC.Home)
 	r.Get("/admin/posts", usersC.AdminPosts)
 	r.Get("/admin/posts/new", usersC.NewPost)
@@ -224,6 +245,12 @@ func main() {
 	r.Post("/admin/slides/{slideID}", slidesC.UpdateSlide)
 	r.Post("/admin/slides/{slideID}/delete", slidesC.DeleteSlide)
 	r.Post("/admin/slides/preview", slidesC.PreviewSlide)
+
+	// System Information Routes
+	r.Get("/admin/system", systemC.Dashboard)
+	r.Get("/api/admin/system", systemC.GetSystemInfoJSON)
+	r.Get("/api/admin/db/export", systemC.ExportDatabase)
+	r.Post("/api/admin/db/import", systemC.ImportDatabase)
 
 	r.Get("/users/me", usersC.CurrentUser)
 	r.Post("/users/password", usersC.UpdatePassword)
