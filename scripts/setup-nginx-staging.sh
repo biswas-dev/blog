@@ -42,6 +42,9 @@ server {
 }
 EOF
 
+# Remove default site to avoid SSL conflicts
+sudo rm -f /etc/nginx/sites-enabled/default
+
 # Enable site if not already enabled
 if [ ! -L "/etc/nginx/sites-enabled/${DOMAIN}" ]; then
     echo "🔗 Enabling nginx site..."
