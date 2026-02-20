@@ -176,13 +176,10 @@ func (s *SystemService) getDeploymentInfo() DeploymentInfo {
 		lastDeployTime = version.BuildTime
 	}
 
-	// Try to extract branch from git commit (if available in git metadata)
-	if version.GitCommit != "unknown" {
-		// In a real deployment, this could read from a deployment metadata file
-		branch = os.Getenv("DEPLOY_BRANCH")
-		if branch == "" {
-			branch = "unknown"
-		}
+	// Get branch from environment variable
+	branch = os.Getenv("DEPLOY_BRANCH")
+	if branch == "" {
+		branch = "unknown"
 	}
 
 	return DeploymentInfo{
