@@ -1,9 +1,8 @@
 name: Deploy to UAT
 
 on:
-  pull_request:
-    types: [ closed ]
-    branches: [ uat ]  # PR merged to uat branch triggers deployment
+  push:
+    branches: [ uat ]
   workflow_dispatch:
     inputs:
       environment:
@@ -17,7 +16,6 @@ on:
 jobs:
   security-scan:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,7 +33,6 @@ jobs:
   deploy-uat:
     needs: security-scan  # Only deploy if security scan passes
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
