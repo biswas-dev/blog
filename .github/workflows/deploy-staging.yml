@@ -162,12 +162,15 @@ jobs:
             docker compose build
 
             echo "🧹 Final cleanup before starting containers..."
-            docker compose down --remove-orphans 2>/dev/null || true
-            # Kill ALL containers with these names, regardless of project
+            # Stop and remove ALL containers with these names, regardless of project
             for c in blog-postgres blog-app; do
-              docker rm -f \$(docker ps -aq --filter "name=^\${c}\$") 2>/dev/null || true
+              docker stop \$c 2>/dev/null || true
               docker rm -f \$c 2>/dev/null || true
+              # Also catch any with partial name matches
+              docker ps -aq --filter "name=\$c" | xargs -r docker rm -f 2>/dev/null || true
             done
+            # Remove any leftover networks
+            docker network rm blog-staging_blog-network 2>/dev/null || true
             sleep 2
 
             echo "🚀 Starting containers..."
