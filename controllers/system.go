@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -250,6 +251,33 @@ func (s *System) ListExternalSystems(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(systems)
 }
 
+// GetExternalSystem returns a single external system with headers (API key masked)
+func (s *System) GetExternalSystem(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		return
+	}
+
+	system, err := s.ExternalSystemService.GetByID(id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("System not found: %v", err), http.StatusNotFound)
+		return
+	}
+
+	// Mask the API key - only indicate if one is set
+	if system.APIKey != "" {
+		system.APIKey = ""
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(system)
+}
+
 // CreateExternalSystem registers a new external blog instance
 func (s *System) CreateExternalSystem(w http.ResponseWriter, r *http.Request) {
 	user, ok := s.requireAdmin(w, r)
@@ -271,6 +299,12 @@ func (s *System) CreateExternalSystem(w http.ResponseWriter, r *http.Request) {
 	if input.Name == "" || input.BaseURL == "" {
 		http.Error(w, "Name and base_url are required", http.StatusBadRequest)
 		return
+	}
+
+	// Sanitize header keys - strip trailing colons and whitespace
+	for i := range input.CustomHeaders {
+		input.CustomHeaders[i].Key = strings.TrimRight(strings.TrimSpace(input.CustomHeaders[i].Key), ":")
+		input.CustomHeaders[i].Value = strings.TrimSpace(input.CustomHeaders[i].Value)
 	}
 
 	system, err := s.ExternalSystemService.Create(input.Name, input.BaseURL, input.APIKey, input.CustomHeaders, user.UserID)
@@ -311,6 +345,12 @@ func (s *System) UpdateExternalSystem(w http.ResponseWriter, r *http.Request) {
 	if input.Name == "" || input.BaseURL == "" {
 		http.Error(w, "Name and base_url are required", http.StatusBadRequest)
 		return
+	}
+
+	// Sanitize header keys - strip trailing colons and whitespace
+	for i := range input.CustomHeaders {
+		input.CustomHeaders[i].Key = strings.TrimRight(strings.TrimSpace(input.CustomHeaders[i].Key), ":")
+		input.CustomHeaders[i].Value = strings.TrimSpace(input.CustomHeaders[i].Value)
 	}
 
 	system, err := s.ExternalSystemService.Update(id, input.Name, input.BaseURL, input.APIKey, input.CustomHeaders)

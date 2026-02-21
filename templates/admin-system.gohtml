@@ -337,15 +337,24 @@
                             </button>
                         </div>
                     </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button onclick="closeSystemModal()"
-                                class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                            Cancel
+                    <!-- Test Connection Result (inline in modal) -->
+                    <div id="modal-test-result" class="hidden p-3 rounded-md text-sm"></div>
+
+                    <div class="mt-6 flex justify-between">
+                        <button onclick="testConnectionFromModal()" id="modal-test-btn"
+                                class="hidden px-4 py-2 border border-green-300 dark:border-green-600 rounded-md text-sm font-medium text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20">
+                            Test Connection
                         </button>
-                        <button onclick="saveSystem()" id="modal-save-btn"
-                                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                            Save
-                        </button>
+                        <div class="flex space-x-3">
+                            <button onclick="closeSystemModal()"
+                                    class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                                Cancel
+                            </button>
+                            <button onclick="saveSystem()" id="modal-save-btn"
+                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                                Save
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -441,6 +450,7 @@ function showMessage(message, type = 'success') {
     }
 
     container.classList.remove('hidden');
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     setTimeout(() => {
         container.classList.add('hidden');
@@ -580,6 +590,8 @@ function openAddSystemModal() {
     document.getElementById('modal-base-url').value = '';
     document.getElementById('modal-api-key').value = '';
     document.getElementById('modal-api-key-hint').classList.add('hidden');
+    document.getElementById('modal-test-btn').classList.add('hidden');
+    document.getElementById('modal-test-result').classList.add('hidden');
     document.getElementById('modal-headers').innerHTML = '';
     addHeaderRow();
     document.getElementById('system-modal').classList.remove('hidden');
@@ -590,21 +602,63 @@ async function openEditSystemModal(id) {
     document.getElementById('modal-system-id').value = id;
     document.getElementById('modal-api-key').value = '';
     document.getElementById('modal-api-key-hint').classList.remove('hidden');
-
-    // Load systems list to get name and URL (credentials not returned in list)
-    try {
-        const resp = await fetch('/api/admin/external-systems');
-        const systems = await resp.json();
-        const sys = systems.find(s => s.id === id);
-        if (sys) {
-            document.getElementById('modal-name').value = sys.name;
-            document.getElementById('modal-base-url').value = sys.base_url;
-        }
-    } catch (e) { /* ignore */ }
-
+    document.getElementById('modal-test-btn').classList.remove('hidden');
+    document.getElementById('modal-test-result').classList.add('hidden');
     document.getElementById('modal-headers').innerHTML = '';
-    addHeaderRow();
+
+    // Load full system details including custom headers
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}`);
+        const sys = await resp.json();
+        if (sys) {
+            document.getElementById('modal-name').value = sys.name || '';
+            document.getElementById('modal-base-url').value = sys.base_url || '';
+            // Populate saved custom headers
+            if (sys.custom_headers && sys.custom_headers.length > 0) {
+                sys.custom_headers.forEach(h => addHeaderRow(h.key, h.value));
+            } else {
+                addHeaderRow();
+            }
+        } else {
+            addHeaderRow();
+        }
+    } catch (e) {
+        addHeaderRow();
+    }
+
     document.getElementById('system-modal').classList.remove('hidden');
+}
+
+async function testConnectionFromModal() {
+    const id = document.getElementById('modal-system-id').value;
+    if (!id) return;
+
+    const btn = document.getElementById('modal-test-btn');
+    const resultDiv = document.getElementById('modal-test-result');
+    btn.disabled = true;
+    btn.textContent = 'Testing...';
+    resultDiv.classList.add('hidden');
+
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}/test`, { method: 'POST' });
+        const result = await resp.json();
+
+        resultDiv.classList.remove('hidden');
+        if (result.success) {
+            resultDiv.className = 'p-3 rounded-md text-sm bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200';
+            resultDiv.textContent = result.message;
+        } else {
+            resultDiv.className = 'p-3 rounded-md text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
+            resultDiv.textContent = result.message;
+        }
+    } catch (e) {
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'p-3 rounded-md text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
+        resultDiv.textContent = 'Test failed: ' + e.message;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Test Connection';
+    }
 }
 
 function closeSystemModal() {
@@ -628,7 +682,7 @@ function addHeaderRow(key, value) {
 function getHeadersFromModal() {
     const headers = [];
     document.querySelectorAll('#modal-headers > div').forEach(row => {
-        const key = row.querySelector('.header-key').value.trim();
+        let key = row.querySelector('.header-key').value.trim().replace(/:+$/, '');
         const value = row.querySelector('.header-value').value.trim();
         if (key) headers.push({ key, value });
     });
@@ -694,13 +748,29 @@ async function deleteSystem(id, name) {
 }
 
 async function testConnection(id) {
-    showMessage('Testing connection...', 'success');
+    // Find the button that was clicked and update it
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Testing...';
+
     try {
         const resp = await fetch(`/api/admin/external-systems/${id}/test`, { method: 'POST' });
         const result = await resp.json();
+        btn.textContent = result.success ? 'Connected!' : 'Failed!';
+        btn.className = btn.className.replace(/border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300/,
+            result.success ? 'border-green-300 dark:border-green-600 text-green-700 dark:text-green-300' : 'border-red-300 dark:border-red-600 text-red-700 dark:text-red-300');
         showMessage(result.message, result.success ? 'success' : 'error');
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            btn.className = btn.className.replace(/border-(green|red)-300 dark:border-(green|red)-600 text-(green|red)-700 dark:text-(green|red)-300/,
+                'border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300');
+        }, 3000);
     } catch (e) {
         showMessage('Test failed: ' + e.message, 'error');
+        btn.textContent = originalText;
+        btn.disabled = false;
     }
 }
 

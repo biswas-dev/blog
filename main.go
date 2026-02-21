@@ -267,6 +267,7 @@ func main() {
 
 	// External Systems Routes
 	r.Get("/api/admin/external-systems", systemC.ListExternalSystems)
+	r.Get("/api/admin/external-systems/{id}", systemC.GetExternalSystem)
 	r.Post("/api/admin/external-systems", systemC.CreateExternalSystem)
 	r.Put("/api/admin/external-systems/{id}", systemC.UpdateExternalSystem)
 	r.Delete("/api/admin/external-systems/{id}", systemC.DeleteExternalSystem)
