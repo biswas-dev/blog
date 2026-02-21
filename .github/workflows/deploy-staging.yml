@@ -144,7 +144,7 @@ jobs:
 
             echo "🧹 Cleaning up Docker build cache and unused images to free disk space..."
             docker builder prune -af || true
-            docker image prune -af || true
+            docker image prune -f || true
 
             echo "🔨 Building image..."
             docker compose build
