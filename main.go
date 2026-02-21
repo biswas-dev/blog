@@ -232,6 +232,7 @@ func main() {
 	r.Post("/admin/posts/from-file", usersC.CreatePostFromFile)
 	r.Get("/admin/posts/{postID}/edit", usersC.EditPost)
 	r.Post("/admin/posts/{postID}", usersC.UpdatePost)
+	r.Delete("/api/admin/posts", usersC.DeletePosts)
 	r.Post("/admin/uploads", usersC.UploadImage)
 	r.Post("/admin/uploads/multiple", usersC.UploadMultipleImages)
 	r.Get("/admin/uploads/list", usersC.ListUploadedImages)

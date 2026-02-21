@@ -869,6 +869,49 @@ func (u Users) AdminPosts(w http.ResponseWriter, r *http.Request) {
 	u.Templates.AdminPosts.Execute(w, r, data)
 }
 
+// DeletePosts handles deleting one or more posts (JSON API)
+func (u Users) DeletePosts(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	var input struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(input.IDs) == 0 {
+		http.Error(w, "No post IDs provided", http.StatusBadRequest)
+		return
+	}
+
+	deleted := 0
+	var errors []string
+	for _, id := range input.IDs {
+		if err := u.PostService.Delete(id); err != nil {
+			errors = append(errors, fmt.Sprintf("post %d: %v", id, err))
+		} else {
+			deleted++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"deleted": deleted,
+		"errors":  errors,
+	})
+}
+
 // UserPosts shows posts for the current user
 func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 	user, err := u.isUserLoggedIn(r)

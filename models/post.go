@@ -470,6 +470,32 @@ func (pp *PostService) Update(id int, categoryID int, title, content string, isP
 	return err
 }
 
+// Delete removes a post by ID and cleans up its uploaded images
+func (ps PostService) Delete(postID int) error {
+	// Get the post slug first for image cleanup
+	var slug string
+	err := ps.DB.QueryRow("SELECT slug FROM posts WHERE post_id = $1", postID).Scan(&slug)
+	if err != nil {
+		return fmt.Errorf("post not found: %w", err)
+	}
+
+	// Delete the post from database (cascades to post_categories)
+	_, err = ps.DB.Exec("DELETE FROM posts WHERE post_id = $1", postID)
+	if err != nil {
+		return fmt.Errorf("delete post: %w", err)
+	}
+
+	// Clean up uploaded images
+	if slug != "" {
+		for _, subdir := range []string{"featured", "post"} {
+			dir := filepath.Join("static", "uploads", subdir, slug)
+			os.RemoveAll(dir)
+		}
+	}
+
+	return nil
+}
+
 // RenderContent converts markdown content to HTML using the default renderer
 func RenderContent(content string) string {
 	renderer := render.NewRenderer(render.DefaultOptions())
