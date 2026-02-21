@@ -172,14 +172,29 @@ jobs:
 
             echo "📦 Running database migrations..."
             if [ -d "migrations" ] && ls migrations/*.up.sql 1>/dev/null 2>&1; then
+              # Bootstrap: if schema_migrations doesn't exist but tables do, set version to 6
+              HAS_SCHEMA_TABLE=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='schema_migrations')" 2>/dev/null || echo "f")
+              HAS_USERS_TABLE=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='users')" 2>/dev/null || echo "f")
+
+              if [ "\$HAS_SCHEMA_TABLE" = "f" ] && [ "\$HAS_USERS_TABLE" = "t" ]; then
+                echo "📋 Bootstrapping schema_migrations table (existing DB detected)..."
+                docker run --rm \
+                  --network container:blog-postgres \
+                  -v \$(pwd)/migrations:/migrations \
+                  migrate/migrate \
+                  -path=/migrations \
+                  -database "postgres://blog:\$PG_PASSWORD@localhost:5432/blog?sslmode=disable" \
+                  force 6
+                echo "✅ Set migration version to 6"
+              fi
+
               docker run --rm \
                 --network container:blog-postgres \
                 -v \$(pwd)/migrations:/migrations \
                 migrate/migrate \
                 -path=/migrations \
                 -database "postgres://blog:\$PG_PASSWORD@localhost:5432/blog?sslmode=disable" \
-                up || echo "⚠️  Migration failed or already up-to-date"
-              echo "✅ Migrations applied"
+                up && echo "✅ Migrations applied" || echo "⚠️  No new migrations to apply"
             else
               echo "⚠️  No migration files found, skipping"
             fi
