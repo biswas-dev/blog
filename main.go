@@ -144,11 +144,24 @@ func main() {
 		CategoryService: &categoryService,
 	}
 
+	// Initialize ExternalSystemService and SyncClient
+	externalSystemService := models.ExternalSystemService{
+		DB: DB,
+	}
+
+	syncClient := models.SyncClient{
+		PostService:           &postService,
+		CategoryService:       &categoryService,
+		ExternalSystemService: &externalSystemService,
+	}
+
 	// Initialize System controller
 	systemC := controllers.System{
 		SystemService:         systemService,
 		DatabaseBackupService: databaseBackupService,
 		SessionService:        &sessionService,
+		ExternalSystemService: &externalSystemService,
+		SyncClient:            &syncClient,
 	}
 
 	usersC.Templates.New = views.Must(views.ParseFS(
@@ -251,6 +264,16 @@ func main() {
 	r.Get("/api/admin/system", systemC.GetSystemInfoJSON)
 	r.Get("/api/admin/db/export", systemC.ExportDatabase)
 	r.Post("/api/admin/db/import", systemC.ImportDatabase)
+
+	// External Systems Routes
+	r.Get("/api/admin/external-systems", systemC.ListExternalSystems)
+	r.Post("/api/admin/external-systems", systemC.CreateExternalSystem)
+	r.Put("/api/admin/external-systems/{id}", systemC.UpdateExternalSystem)
+	r.Delete("/api/admin/external-systems/{id}", systemC.DeleteExternalSystem)
+	r.Post("/api/admin/external-systems/{id}/test", systemC.TestExternalConnection)
+	r.Post("/api/admin/external-systems/{id}/sync/preview", systemC.PreviewSync)
+	r.Post("/api/admin/external-systems/{id}/sync/execute", systemC.ExecuteSync)
+	r.Get("/api/admin/external-systems/{id}/sync/logs", systemC.GetSyncLogs)
 
 	r.Get("/users/me", usersC.CurrentUser)
 	r.Post("/users/password", usersC.UpdatePassword)
