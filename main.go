@@ -116,13 +116,19 @@ func main() {
 	// Initialize DatabaseBackupService
 	databaseBackupService := models.NewDatabaseBackupService(DB)
 
+	// Initialize CloudinaryService
+	cloudinaryService := models.CloudinaryService{
+		DB: DB,
+	}
+
 	// Setup our controllers
 	usersC := controllers.Users{
-		UserService:     &userService,
-		SessionService:  &sessionService,
-		PostService:     &postService,
-		APITokenService: &apiTokenService,
-		CategoryService: &categoryService,
+		UserService:       &userService,
+		SessionService:    &sessionService,
+		PostService:       &postService,
+		APITokenService:   &apiTokenService,
+		CategoryService:   &categoryService,
+		CloudinaryService: &cloudinaryService,
 	}
 
 	// Initialize Blog controller
@@ -162,6 +168,7 @@ func main() {
 		SessionService:        &sessionService,
 		ExternalSystemService: &externalSystemService,
 		SyncClient:            &syncClient,
+		CloudinaryService:     &cloudinaryService,
 	}
 
 	usersC.Templates.New = views.Must(views.ParseFS(
@@ -276,6 +283,14 @@ func main() {
 	r.Post("/api/admin/external-systems/{id}/sync/preview", systemC.PreviewSync)
 	r.Post("/api/admin/external-systems/{id}/sync/execute", systemC.ExecuteSync)
 	r.Get("/api/admin/external-systems/{id}/sync/logs", systemC.GetSyncLogs)
+
+	// Cloudinary Settings Routes
+	r.Get("/api/admin/cloudinary", systemC.GetCloudinarySettings)
+	r.Post("/api/admin/cloudinary", systemC.SaveCloudinarySettings)
+	r.Delete("/api/admin/cloudinary", systemC.DeleteCloudinarySettings)
+	r.Post("/api/admin/cloudinary/test", systemC.TestCloudinaryConnection)
+	r.Post("/api/admin/cloudinary/signature", systemC.GetCloudinarySignature)
+	r.Get("/api/admin/upload-config", usersC.GetUploadConfig)
 
 	r.Get("/users/me", usersC.CurrentUser)
 	r.Post("/users/password", usersC.UpdatePassword)

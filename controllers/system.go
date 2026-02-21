@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -16,12 +17,14 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+
 type System struct {
 	SystemService         *models.SystemService
 	DatabaseBackupService *models.DatabaseBackupService
 	SessionService        *models.SessionService
 	ExternalSystemService *models.ExternalSystemService
 	SyncClient            *models.SyncClient
+	CloudinaryService     *models.CloudinaryService
 	Templates             struct {
 		Dashboard Template
 	}
@@ -564,4 +567,202 @@ func (s *System) GetSyncLogs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(logs)
+}
+
+// --- Cloudinary Settings Handlers ---
+
+// GetCloudinarySettings returns current Cloudinary settings (secret omitted)
+func (s *System) GetCloudinarySettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	settings, err := s.CloudinaryService.Get()
+	if err != nil {
+		log.Printf("Error getting cloudinary settings: %v", err)
+		http.Error(w, "Failed to get cloudinary settings", http.StatusInternalServerError)
+		return
+	}
+
+	if settings == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"configured": false,
+		})
+		return
+	}
+
+	// Never expose the API secret
+	settings.APISecret = ""
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"configured": true,
+		"settings":   settings,
+	})
+}
+
+// SaveCloudinarySettings saves or updates Cloudinary credentials
+func (s *System) SaveCloudinarySettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	var input struct {
+		CloudName string `json:"cloud_name"`
+		APIKey    string `json:"api_key"`
+		APISecret string `json:"api_secret"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if input.CloudName == "" || input.APIKey == "" {
+		http.Error(w, "cloud_name and api_key are required", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.CloudinaryService.Save(input.CloudName, input.APIKey, input.APISecret); err != nil {
+		log.Printf("Error saving cloudinary settings: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Cloudinary settings saved",
+	})
+}
+
+// DeleteCloudinarySettings removes Cloudinary credentials
+func (s *System) DeleteCloudinarySettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	if err := s.CloudinaryService.Delete(); err != nil {
+		log.Printf("Error deleting cloudinary settings: %v", err)
+		http.Error(w, "Failed to delete cloudinary settings", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Cloudinary settings removed",
+	})
+}
+
+// TestCloudinaryConnection tests connectivity to Cloudinary using Basic auth against the ping endpoint
+func (s *System) TestCloudinaryConnection(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	settings, err := s.CloudinaryService.Get()
+	if err != nil || settings == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Cloudinary not configured",
+		})
+		return
+	}
+
+	// Ping Cloudinary API: GET https://api.cloudinary.com/v1_1/{cloud_name}/ping with Basic auth
+	pingURL := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/ping", settings.CloudName)
+	req, err := http.NewRequest("GET", pingURL, nil)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Failed to create request: %v", err),
+		})
+		return
+	}
+	req.SetBasicAuth(settings.APIKey, settings.APISecret)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		s.CloudinaryService.UpdateHealthStatus("error", settings.ConsecutiveFailures+1)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Connection failed: %v", err),
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+
+	if resp.StatusCode == http.StatusOK {
+		s.CloudinaryService.UpdateHealthStatus("healthy", 0)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"message": "Connection successful",
+		})
+	} else {
+		s.CloudinaryService.UpdateHealthStatus("error", settings.ConsecutiveFailures+1)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Cloudinary returned status %d: %s", resp.StatusCode, string(body)),
+		})
+	}
+}
+
+// GetCloudinarySignature generates a signed upload signature for client-side uploads
+func (s *System) GetCloudinarySignature(w http.ResponseWriter, r *http.Request) {
+	// Allow editors too (not just admins) since they upload images
+	user, err := utils.IsUserLoggedIn(r, s.SessionService)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !models.CanEditPosts(user.Role) && !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	settings, err := s.CloudinaryService.Get()
+	if err != nil || settings == nil {
+		http.Error(w, "Cloudinary not configured", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		Folder    string `json:"folder"`
+		Timestamp string `json:"timestamp"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if input.Timestamp == "" {
+		input.Timestamp = fmt.Sprintf("%d", time.Now().Unix())
+	}
+
+	// Build params to sign
+	params := map[string]string{
+		"timestamp": input.Timestamp,
+	}
+	if input.Folder != "" {
+		params["folder"] = input.Folder
+	}
+
+	signature := models.GenerateSignature(params, settings.APISecret)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"signature":  signature,
+		"timestamp":  input.Timestamp,
+		"api_key":    settings.APIKey,
+		"cloud_name": settings.CloudName,
+	})
 }
