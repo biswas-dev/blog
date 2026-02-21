@@ -323,7 +323,7 @@ func (sc *SyncClient) ExecutePull(system *ExternalSystem, userID int) (*SyncResu
 			continue
 		}
 
-		// Download featured image if present
+		// Download featured image if it's a local path (Cloudinary URLs pass through as-is)
 		featuredImageURL := rp.FeaturedImageURL
 		if featuredImageURL != "" && strings.HasPrefix(featuredImageURL, "/static/uploads/") {
 			localURL, err := sc.downloadImage(remoteBaseURL, featuredImageURL, rp.Slug, "featured", system)
@@ -335,8 +335,11 @@ func (sc *SyncClient) ExecutePull(system *ExternalSystem, userID int) (*SyncResu
 			}
 		}
 
-		// Download and rewrite inline images in content
-		content := sc.downloadAndRewriteContentImages(rp.Content, remoteBaseURL, rp.Slug, system)
+		// Download and rewrite inline images only for local paths (Cloudinary URLs pass through as-is)
+		content := rp.Content
+		if strings.Contains(content, "/static/uploads/") {
+			content = sc.downloadAndRewriteContentImages(content, remoteBaseURL, rp.Slug, system)
+		}
 
 		// Create the post locally with the pulling user as author
 		_, err := sc.PostService.Create(

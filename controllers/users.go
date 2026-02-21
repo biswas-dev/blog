@@ -82,11 +82,12 @@ type Users struct {
 		APIAccess  Template
 		PostEditor Template
 	}
-	UserService     *models.UserService
-	SessionService  *models.SessionService
-	PostService     *models.PostService
-	APITokenService *models.APITokenService
-	CategoryService *models.CategoryService
+	UserService       *models.UserService
+	SessionService    *models.SessionService
+	PostService       *models.PostService
+	APITokenService   *models.APITokenService
+	CategoryService   *models.CategoryService
+	CloudinaryService *models.CloudinaryService
 }
 
 // UploadImage handles image uploads (cover or inline). Returns JSON {url}
@@ -670,6 +671,34 @@ func (u Users) DeleteImage(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"status": "deleted", "path": imagePath}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// GetUploadConfig returns upload configuration so the editor JS knows whether to use Cloudinary or local uploads
+func (u Users) GetUploadConfig(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !models.CanEditPosts(user.Role) && !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	resp := map[string]interface{}{
+		"cloudinary_enabled": false,
+	}
+
+	if u.CloudinaryService != nil && u.CloudinaryService.IsConfigured() {
+		settings, err := u.CloudinaryService.Get()
+		if err == nil && settings != nil {
+			resp["cloudinary_enabled"] = true
+			resp["cloud_name"] = settings.CloudName
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (u Users) isUserLoggedIn(r *http.Request) (*models.User, error) {
