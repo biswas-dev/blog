@@ -338,15 +338,32 @@ function closeDeleteModal() {
     deleteType = 'single';
 }
 
-document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-    if (deleteType === 'single') {
-        // TODO: Implement single delete functionality
-        alert(`Delete post ${deleteTarget} functionality not implemented yet`);
-    } else if (deleteType === 'bulk') {
-        // TODO: Implement bulk delete functionality  
-        alert(`Bulk delete ${deleteTarget.length} posts functionality not implemented yet`);
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+    const ids = deleteType === 'single' ? [parseInt(deleteTarget)] : deleteTarget.map(id => parseInt(id));
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+
+    try {
+        const resp = await fetch('/api/admin/posts', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids })
+        });
+        const result = await resp.json();
+        if (result.deleted > 0) {
+            window.location.reload();
+        } else if (result.errors && result.errors.length > 0) {
+            alert('Delete failed: ' + result.errors.join(', '));
+            closeDeleteModal();
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+        closeDeleteModal();
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Delete';
     }
-    closeDeleteModal();
 });
 
 // Close modal when clicking outside
