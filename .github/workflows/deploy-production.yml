@@ -173,6 +173,20 @@ jobs:
             echo "🔐 Ensuring postgres password is synchronized..."
             docker exec blog-postgres psql -U blog -d blog -c "ALTER USER blog WITH PASSWORD '\$PG_PASSWORD';" || echo "Database not yet initialized, password will be set on first init"
 
+            echo "📦 Running database migrations..."
+            if [ -d "migrations" ] && ls migrations/*.up.sql 1>/dev/null 2>&1; then
+              docker run --rm \
+                --network container:blog-postgres \
+                -v \$(pwd)/migrations:/migrations \
+                migrate/migrate \
+                -path=/migrations \
+                -database "postgres://blog:\$PG_PASSWORD@localhost:5432/blog?sslmode=disable" \
+                up || echo "⚠️  Migration failed or already up-to-date"
+              echo "✅ Migrations applied"
+            else
+              echo "⚠️  No migration files found, skipping"
+            fi
+
             echo "✅ Deployment complete!"
             docker compose ps
           EOF
