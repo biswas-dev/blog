@@ -50,8 +50,9 @@ func buildRequest(method, url string, body io.Reader, system *ExternalSystem) (*
 	}
 
 	for _, h := range system.CustomHeaders {
-		if h.Key != "" {
-			req.Header.Set(h.Key, h.Value)
+		key := strings.TrimRight(strings.TrimSpace(h.Key), ":")
+		if key != "" {
+			req.Header.Set(key, strings.TrimSpace(h.Value))
 		}
 	}
 

@@ -604,20 +604,28 @@ async function openEditSystemModal(id) {
     document.getElementById('modal-api-key-hint').classList.remove('hidden');
     document.getElementById('modal-test-btn').classList.remove('hidden');
     document.getElementById('modal-test-result').classList.add('hidden');
-
-    // Load systems list to get name and URL (credentials not returned in list)
-    try {
-        const resp = await fetch('/api/admin/external-systems');
-        const systems = await resp.json();
-        const sys = systems.find(s => s.id === id);
-        if (sys) {
-            document.getElementById('modal-name').value = sys.name;
-            document.getElementById('modal-base-url').value = sys.base_url;
-        }
-    } catch (e) { /* ignore */ }
-
     document.getElementById('modal-headers').innerHTML = '';
-    addHeaderRow();
+
+    // Load full system details including custom headers
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}`);
+        const sys = await resp.json();
+        if (sys) {
+            document.getElementById('modal-name').value = sys.name || '';
+            document.getElementById('modal-base-url').value = sys.base_url || '';
+            // Populate saved custom headers
+            if (sys.custom_headers && sys.custom_headers.length > 0) {
+                sys.custom_headers.forEach(h => addHeaderRow(h.key, h.value));
+            } else {
+                addHeaderRow();
+            }
+        } else {
+            addHeaderRow();
+        }
+    } catch (e) {
+        addHeaderRow();
+    }
+
     document.getElementById('system-modal').classList.remove('hidden');
 }
 
@@ -674,7 +682,7 @@ function addHeaderRow(key, value) {
 function getHeadersFromModal() {
     const headers = [];
     document.querySelectorAll('#modal-headers > div').forEach(row => {
-        const key = row.querySelector('.header-key').value.trim();
+        let key = row.querySelector('.header-key').value.trim().replace(/:+$/, '');
         const value = row.querySelector('.header-value').value.trim();
         if (key) headers.push({ key, value });
     });
