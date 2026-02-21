@@ -144,14 +144,21 @@ jobs:
 
             echo "🧹 Cleaning up any stale containers..."
             docker rm -f blog-postgres blog-app 2>/dev/null || true
-            sleep 2
 
             echo "🧹 Cleaning up Docker build cache and unused images to free disk space..."
             docker builder prune -af || true
             docker image prune -af || true
 
-            echo "🔨 Building and starting containers with docker-compose..."
-            docker compose up -d --build
+            echo "🔨 Building image..."
+            docker compose build
+
+            echo "🧹 Final cleanup before starting containers..."
+            docker compose down --remove-orphans 2>/dev/null || true
+            docker rm -f blog-postgres blog-app 2>/dev/null || true
+            sleep 2
+
+            echo "🚀 Starting containers..."
+            docker compose up -d
 
             echo "🔄 Reloading nginx to apply SSL certificate..."
             sudo systemctl reload nginx || echo "⚠️  Nginx reload skipped"
