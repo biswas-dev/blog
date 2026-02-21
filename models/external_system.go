@@ -109,7 +109,7 @@ func (es *ExternalSystemService) Create(name, baseURL, apiKey string, headers []
 	query := `
 		INSERT INTO external_systems (name, base_url, api_key_encrypted, api_key_nonce, custom_headers_encrypted, custom_headers_nonce, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, name, base_url, is_active, created_by, created_at, updated_at`
+		RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
 
 	err = es.DB.QueryRow(query, name, baseURL, apiKeyEnc, apiKeyNonce, headersEnc, headersNonce, createdBy).Scan(
 		&system.ID, &system.Name, &system.BaseURL, &system.IsActive, &system.CreatedBy, &system.CreatedAt, &system.UpdatedAt,
@@ -123,9 +123,11 @@ func (es *ExternalSystemService) Create(name, baseURL, apiKey string, headers []
 
 // GetAll returns all external systems without decrypting credentials
 func (es *ExternalSystemService) GetAll() ([]ExternalSystem, error) {
-	var systems []ExternalSystem
+	systems := []ExternalSystem{}
 	query := `
-		SELECT id, name, base_url, is_active, last_sync_at, last_sync_status, last_sync_message, created_by, created_at, updated_at
+		SELECT id, name, base_url, is_active, last_sync_at,
+		       COALESCE(last_sync_status, ''), COALESCE(last_sync_message, ''),
+		       COALESCE(created_by, 0), created_at, updated_at
 		FROM external_systems
 		ORDER BY name ASC`
 
@@ -138,7 +140,8 @@ func (es *ExternalSystemService) GetAll() ([]ExternalSystem, error) {
 	for rows.Next() {
 		var s ExternalSystem
 		err := rows.Scan(
-			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.LastSyncAt, &s.LastSyncStatus, &s.LastSyncMessage,
+			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.LastSyncAt,
+			&s.LastSyncStatus, &s.LastSyncMessage,
 			&s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
@@ -166,7 +169,8 @@ func (es *ExternalSystemService) GetByID(id int) (*ExternalSystem, error) {
 
 	query := `
 		SELECT id, name, base_url, api_key_encrypted, api_key_nonce, custom_headers_encrypted, custom_headers_nonce,
-		       is_active, last_sync_at, last_sync_status, last_sync_message, created_by, created_at, updated_at
+		       is_active, last_sync_at, COALESCE(last_sync_status, ''), COALESCE(last_sync_message, ''),
+		       COALESCE(created_by, 0), created_at, updated_at
 		FROM external_systems WHERE id = $1`
 
 	err = es.DB.QueryRow(query, id).Scan(
@@ -218,7 +222,7 @@ func (es *ExternalSystemService) Update(id int, name, baseURL, apiKey string, he
 		query := `
 			UPDATE external_systems SET name = $1, base_url = $2, updated_at = CURRENT_TIMESTAMP
 			WHERE id = $3
-			RETURNING id, name, base_url, is_active, created_by, created_at, updated_at`
+			RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
 		s := &ExternalSystem{}
 		err = es.DB.QueryRow(query, name, baseURL, id).Scan(
 			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
@@ -262,7 +266,7 @@ func (es *ExternalSystemService) Update(id int, name, baseURL, apiKey string, he
 			SET name = $1, base_url = $2, api_key_encrypted = $3, api_key_nonce = $4,
 			    custom_headers_encrypted = $5, custom_headers_nonce = $6, updated_at = CURRENT_TIMESTAMP
 			WHERE id = $7
-			RETURNING id, name, base_url, is_active, created_by, created_at, updated_at`
+			RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
 		err = es.DB.QueryRow(query, name, baseURL, apiKeyEnc, apiKeyNonce, headersEnc, headersNonce, id).Scan(
 			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
 		)
@@ -271,7 +275,7 @@ func (es *ExternalSystemService) Update(id int, name, baseURL, apiKey string, he
 			UPDATE external_systems
 			SET name = $1, base_url = $2, api_key_encrypted = $3, api_key_nonce = $4, updated_at = CURRENT_TIMESTAMP
 			WHERE id = $5
-			RETURNING id, name, base_url, is_active, created_by, created_at, updated_at`
+			RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
 		err = es.DB.QueryRow(query, name, baseURL, apiKeyEnc, apiKeyNonce, id).Scan(
 			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
 		)
@@ -280,7 +284,7 @@ func (es *ExternalSystemService) Update(id int, name, baseURL, apiKey string, he
 			UPDATE external_systems
 			SET name = $1, base_url = $2, custom_headers_encrypted = $3, custom_headers_nonce = $4, updated_at = CURRENT_TIMESTAMP
 			WHERE id = $5
-			RETURNING id, name, base_url, is_active, created_by, created_at, updated_at`
+			RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
 		err = es.DB.QueryRow(query, name, baseURL, headersEnc, headersNonce, id).Scan(
 			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
 		)
@@ -362,7 +366,7 @@ func (es *ExternalSystemService) GetSyncLogs(systemID, limit int) ([]SyncLog, er
 	var logs []SyncLog
 	query := `
 		SELECT id, external_system_id, direction, content_type, status, items_synced, items_skipped, items_failed,
-		       COALESCE(error_message, ''), initiated_by, started_at, completed_at
+		       COALESCE(error_message, ''), COALESCE(initiated_by, 0), started_at, completed_at
 		FROM sync_logs
 		WHERE external_system_id = $1
 		ORDER BY started_at DESC
