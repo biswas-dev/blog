@@ -151,7 +151,11 @@ jobs:
 
             echo "🧹 Final cleanup before starting containers..."
             docker compose down --remove-orphans 2>/dev/null || true
-            docker rm -f blog-postgres blog-app 2>/dev/null || true
+            # Kill ALL containers with these names, regardless of project
+            for c in blog-postgres blog-app; do
+              docker rm -f \$(docker ps -aq --filter "name=^\${c}\$") 2>/dev/null || true
+              docker rm -f \$c 2>/dev/null || true
+            done
             sleep 2
 
             echo "🚀 Starting containers..."
