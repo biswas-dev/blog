@@ -66,6 +66,9 @@ jobs:
           SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -100,6 +103,9 @@ jobs:
               git checkout $COMMIT_SHA
             fi
 
+            # Login to Docker Hub to avoid rate limits
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin || echo "⚠️  Docker Hub login failed, continuing with anonymous pulls"
+
             # Ensure Docker volume exists
             docker volume inspect blog-postgres-data >/dev/null 2>&1 || docker volume create blog-postgres-data
 
@@ -123,6 +129,7 @@ jobs:
             export SESSION_SECRET='$SESSION_SECRET'
             export API_TOKEN='$BLOG_API_TOKEN'
             export BLOG_UPLOADS_PATH="/home/ubuntu/blog-staging/static/uploads"
+            export ENCRYPTION_KEY='$ENCRYPTION_KEY'
 
             # Set version information for build
             export VERSION='$VERSION'
@@ -135,13 +142,36 @@ jobs:
             export DEPLOY_BRANCH='$BRANCH'
 
             echo "🛑 Stopping existing containers..."
-            docker compose down || true
+            docker compose down --remove-orphans || true
 
             echo "🧹 Cleaning up any stale containers..."
             docker rm -f blog-postgres blog-app 2>/dev/null || true
 
-            echo "🔨 Building and starting containers with docker-compose..."
-            docker compose up -d --build
+            echo "🧹 Cleaning up Docker resources if disk space is low..."
+            DISK_USAGE=\$(df / | tail -1 | awk '{print \$5}' | tr -d '%')
+            echo "Current disk usage: \${DISK_USAGE}%"
+            if [ "\$DISK_USAGE" -gt 80 ]; then
+              echo "Disk usage above 80%, cleaning up old build cache and dangling images..."
+              docker builder prune -f --filter "until=48h" || true
+              docker image prune -f || true
+            else
+              echo "Disk usage OK, skipping aggressive cleanup"
+            fi
+
+            echo "🔨 Building image..."
+            docker compose build
+
+            echo "🧹 Final cleanup before starting containers..."
+            docker compose down --remove-orphans 2>/dev/null || true
+            # Kill ALL containers with these names, regardless of project
+            for c in blog-postgres blog-app; do
+              docker rm -f \$(docker ps -aq --filter "name=^\${c}\$") 2>/dev/null || true
+              docker rm -f \$c 2>/dev/null || true
+            done
+            sleep 2
+
+            echo "🚀 Starting containers..."
+            docker compose up -d
 
             echo "🔄 Reloading nginx to apply SSL certificate..."
             sudo systemctl reload nginx || echo "⚠️  Nginx reload skipped"
@@ -152,8 +182,52 @@ jobs:
             echo "🔐 Ensuring postgres password is synchronized..."
             docker exec blog-postgres psql -U blog -d blog -c "ALTER USER blog WITH PASSWORD '\$PG_PASSWORD';" || echo "Database not yet initialized, password will be set on first init"
 
-            echo "🧹 Cleaning up old images..."
-            docker image prune -f --filter "until=24h"
+            echo "📦 Running database migrations..."
+            if [ -d "migrations" ] && ls migrations/*.up.sql 1>/dev/null 2>&1; then
+              # Ensure schema_migrations table exists
+              docker exec blog-postgres psql -U blog -d blog -c "
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                  version bigint NOT NULL PRIMARY KEY,
+                  dirty boolean NOT NULL DEFAULT false
+                );" 2>/dev/null
+
+              # Bootstrap: if tables exist but no version tracked, set to 6
+              CURRENT_VERSION=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_migrations" 2>/dev/null || echo "0")
+              CURRENT_VERSION=\$(echo "\$CURRENT_VERSION" | tr -d ' ')
+              HAS_USERS=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='users')" 2>/dev/null || echo "f")
+
+              if [ "\$HAS_USERS" = "t" ] && [ "\$CURRENT_VERSION" -lt 6 ] 2>/dev/null; then
+                echo "📋 Bootstrapping: existing DB detected at version \$CURRENT_VERSION, setting to 6"
+                docker exec blog-postgres psql -U blog -d blog -c "DELETE FROM schema_migrations; INSERT INTO schema_migrations (version, dirty) VALUES (6, false);"
+              fi
+
+              # Re-read version after potential bootstrap
+              CURRENT_VERSION=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_migrations" 2>/dev/null || echo "0")
+              CURRENT_VERSION=\$(echo "\$CURRENT_VERSION" | tr -d ' ')
+              echo "Current migration version: \$CURRENT_VERSION"
+
+              # Apply pending migrations
+              APPLIED=0
+              for f in \$(ls migrations/*.up.sql | sort); do
+                FILE_VERSION=\$(basename "\$f" | grep -o '^[0-9]*')
+                if [ "\$FILE_VERSION" -gt "\$CURRENT_VERSION" ] 2>/dev/null; then
+                  echo "Applying migration \$FILE_VERSION..."
+                  docker cp "\$f" blog-postgres:/tmp/migration.sql
+                  if docker exec blog-postgres psql -U blog -d blog -f /tmp/migration.sql; then
+                    docker exec blog-postgres psql -U blog -d blog -c "DELETE FROM schema_migrations; INSERT INTO schema_migrations (version, dirty) VALUES (\$FILE_VERSION, false);"
+                    echo "✅ Migration \$FILE_VERSION applied"
+                    APPLIED=\$((APPLIED + 1))
+                  else
+                    echo "❌ Migration \$FILE_VERSION failed"
+                    docker exec blog-postgres psql -U blog -d blog -c "DELETE FROM schema_migrations; INSERT INTO schema_migrations (version, dirty) VALUES (\$FILE_VERSION, true);"
+                    break
+                  fi
+                fi
+              done
+              [ "\$APPLIED" -eq 0 ] && echo "✅ All migrations up to date" || echo "✅ Applied \$APPLIED migration(s)"
+            else
+              echo "⚠️  No migration files found, skipping"
+            fi
 
             echo "✅ Deployment complete!"
             docker compose ps

@@ -311,16 +311,14 @@ document.getElementById('create-form').addEventListener('submit', async function
     setButtonLoading('create-btn', 'create-spinner', 'create-text', true, 'Create Category');
     
     try {
-        const formData = new FormData();
-        formData.append('name', name);
-        
         const response = await fetch('/admin/categories', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
+                'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: formData
+            body: JSON.stringify({ name: name })
         });
         
         if (response.ok) {
@@ -376,16 +374,14 @@ document.getElementById('edit-form').addEventListener('submit', async function(e
     setButtonLoading('update-btn', 'update-spinner', 'update-text', true, 'Update Category');
     
     try {
-        const formData = new FormData();
-        formData.append('name', name);
-        
         const response = await fetch(`/admin/categories/${currentEditingId}`, {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
+                'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: formData
+            body: JSON.stringify({ name: name })
         });
         
         if (response.ok) {

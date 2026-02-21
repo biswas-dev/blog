@@ -43,6 +43,7 @@ services:
       - SESSION_SECRET=${SESSION_SECRET:-changeme}
       - APP_ENV=${APP_ENV:-development}
       - DEPLOY_BRANCH=${DEPLOY_BRANCH:-unknown}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

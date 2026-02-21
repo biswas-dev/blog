@@ -269,6 +269,166 @@
                 </div>
             </div>
         </div>
+
+        <!-- External Systems Section -->
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">External Blog Systems</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Connect and sync posts with other blog instances</p>
+                        </div>
+                    </div>
+                    <button onclick="openAddSystemModal()"
+                            class="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Add System
+                    </button>
+                </div>
+            </div>
+            <div class="px-6 py-4">
+                <div id="ext-systems-loading" class="text-center py-8 text-gray-500 dark:text-gray-400">Loading external systems...</div>
+                <div id="ext-systems-empty" class="hidden text-center py-8">
+                    <p class="text-gray-500 dark:text-gray-400">No external systems registered yet.</p>
+                    <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Add a blog instance to start syncing posts.</p>
+                </div>
+                <div id="ext-systems-list" class="hidden space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Add/Edit System Modal -->
+        <div id="system-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeSystemModal()"></div>
+                <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full p-6">
+                    <h3 id="modal-title" class="text-lg font-medium text-gray-900 dark:text-white mb-4">Add External System</h3>
+                    <input type="hidden" id="modal-system-id" value="">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                            <input type="text" id="modal-name" placeholder="e.g., Production Blog"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base URL</label>
+                            <input type="url" id="modal-base-url" placeholder="https://blog.example.com"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
+                            <input type="password" id="modal-api-key" placeholder="Bearer token for authentication"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500">
+                            <p id="modal-api-key-hint" class="hidden text-xs text-gray-500 dark:text-gray-400 mt-1">Leave blank to keep existing key</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Custom Headers</label>
+                            <div id="modal-headers" class="space-y-2"></div>
+                            <button type="button" onclick="addHeaderRow()"
+                                    class="mt-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500">
+                                + Add Header
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Test Connection Result (inline in modal) -->
+                    <div id="modal-test-result" class="hidden p-3 rounded-md text-sm"></div>
+
+                    <div class="mt-6 flex justify-between">
+                        <button onclick="testConnectionFromModal()" id="modal-test-btn"
+                                class="hidden px-4 py-2 border border-green-300 dark:border-green-600 rounded-md text-sm font-medium text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20">
+                            Test Connection
+                        </button>
+                        <div class="flex space-x-3">
+                            <button onclick="closeSystemModal()"
+                                    class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                                Cancel
+                            </button>
+                            <button onclick="saveSystem()" id="modal-save-btn"
+                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync Modal -->
+        <div id="sync-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeSyncModal()"></div>
+                <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Sync Posts — <span id="sync-system-name"></span></h3>
+                    <input type="hidden" id="sync-system-id" value="">
+                    <div class="space-y-4">
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="sync-direction" value="pull" checked
+                                       class="text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Pull (remote to local)</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="sync-direction" value="push"
+                                       class="text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Push (local to remote)</span>
+                            </label>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button onclick="previewSync()" id="sync-preview-btn"
+                                    class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                                Preview
+                            </button>
+                            <button onclick="executeSync()" id="sync-execute-btn" disabled
+                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                                Execute Sync
+                            </button>
+                        </div>
+                        <div id="sync-preview-area" class="hidden">
+                            <div class="border border-gray-200 dark:border-slate-600 rounded-md overflow-hidden">
+                                <div class="px-4 py-2 bg-gray-50 dark:bg-slate-700 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Preview: <span id="sync-preview-new" class="text-green-600 dark:text-green-400"></span>,
+                                    <span id="sync-preview-skip" class="text-gray-500"></span>
+                                </div>
+                                <div id="sync-preview-items" class="max-h-60 overflow-y-auto divide-y divide-gray-200 dark:divide-slate-600"></div>
+                            </div>
+                        </div>
+                        <div id="sync-result-area" class="hidden p-4 rounded-md"></div>
+                    </div>
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="closeSyncModal()"
+                                class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync Logs Modal -->
+        <div id="logs-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeLogsModal()"></div>
+                <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Sync Logs — <span id="logs-system-name"></span></h3>
+                    <div id="logs-content" class="max-h-96 overflow-y-auto">
+                        <p class="text-gray-500 dark:text-gray-400">Loading...</p>
+                    </div>
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="closeLogsModal()"
+                                class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -290,6 +450,7 @@ function showMessage(message, type = 'success') {
     }
 
     container.classList.remove('hidden');
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     setTimeout(() => {
         container.classList.add('hidden');
@@ -348,6 +509,441 @@ async function exportDatabase() {
         text.textContent = 'Export Database';
     }
 }
+
+// --- External Systems ---
+async function loadExternalSystems() {
+    const loading = document.getElementById('ext-systems-loading');
+    const empty = document.getElementById('ext-systems-empty');
+    const list = document.getElementById('ext-systems-list');
+
+    try {
+        const resp = await fetch('/api/admin/external-systems');
+        if (!resp.ok) throw new Error('Failed to load');
+        const systems = await resp.json();
+
+        loading.classList.add('hidden');
+
+        if (!systems || systems.length === 0) {
+            empty.classList.remove('hidden');
+            list.classList.add('hidden');
+            return;
+        }
+
+        empty.classList.add('hidden');
+        list.classList.remove('hidden');
+        list.innerHTML = systems.map(s => renderSystemCard(s)).join('');
+    } catch (err) {
+        loading.textContent = 'Failed to load external systems.';
+    }
+}
+
+function renderSystemCard(s) {
+    const statusBadge = s.last_sync_status
+        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+            s.last_sync_status === 'success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+            s.last_sync_status === 'partial' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
+            'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+          }">${s.last_sync_status}</span>`
+        : '<span class="text-xs text-gray-400 dark:text-gray-500">Never synced</span>';
+
+    const lastSync = s.last_sync_at
+        ? new Date(s.last_sync_at).toLocaleString()
+        : 'Never';
+
+    return `
+    <div class="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-2">
+            <div>
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(s.name)}</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">${escapeHtml(s.base_url)}</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                ${statusBadge}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s.is_active ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}">${s.is_active ? 'Active' : 'Inactive'}</span>
+            </div>
+        </div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            Last sync: ${lastSync}
+            ${s.last_sync_message ? ' &mdash; ' + escapeHtml(s.last_sync_message) : ''}
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button onclick="testConnection(${s.id})" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Test Connection</button>
+            <button onclick="openSyncModal(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-indigo-300 dark:border-indigo-600 rounded-md text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20">Sync</button>
+            <button onclick="openEditSystemModal(${s.id})" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Edit</button>
+            <button onclick="viewSyncLogs(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Logs</button>
+            <button onclick="deleteSystem(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-red-300 dark:border-red-600 rounded-md text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
+        </div>
+    </div>`;
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+}
+
+// Add/Edit Modal
+function openAddSystemModal() {
+    document.getElementById('modal-title').textContent = 'Add External System';
+    document.getElementById('modal-system-id').value = '';
+    document.getElementById('modal-name').value = '';
+    document.getElementById('modal-base-url').value = '';
+    document.getElementById('modal-api-key').value = '';
+    document.getElementById('modal-api-key-hint').classList.add('hidden');
+    document.getElementById('modal-test-btn').classList.add('hidden');
+    document.getElementById('modal-test-result').classList.add('hidden');
+    document.getElementById('modal-headers').innerHTML = '';
+    addHeaderRow();
+    document.getElementById('system-modal').classList.remove('hidden');
+}
+
+async function openEditSystemModal(id) {
+    document.getElementById('modal-title').textContent = 'Edit External System';
+    document.getElementById('modal-system-id').value = id;
+    document.getElementById('modal-api-key').value = '';
+    document.getElementById('modal-api-key-hint').classList.remove('hidden');
+    document.getElementById('modal-test-btn').classList.remove('hidden');
+    document.getElementById('modal-test-result').classList.add('hidden');
+    document.getElementById('modal-headers').innerHTML = '';
+
+    // Load full system details including custom headers
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}`);
+        const sys = await resp.json();
+        if (sys) {
+            document.getElementById('modal-name').value = sys.name || '';
+            document.getElementById('modal-base-url').value = sys.base_url || '';
+            // Populate saved custom headers
+            if (sys.custom_headers && sys.custom_headers.length > 0) {
+                sys.custom_headers.forEach(h => addHeaderRow(h.key, h.value));
+            } else {
+                addHeaderRow();
+            }
+        } else {
+            addHeaderRow();
+        }
+    } catch (e) {
+        addHeaderRow();
+    }
+
+    document.getElementById('system-modal').classList.remove('hidden');
+}
+
+async function testConnectionFromModal() {
+    const id = document.getElementById('modal-system-id').value;
+    if (!id) return;
+
+    const btn = document.getElementById('modal-test-btn');
+    const resultDiv = document.getElementById('modal-test-result');
+    btn.disabled = true;
+    btn.textContent = 'Testing...';
+    resultDiv.classList.add('hidden');
+
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}/test`, { method: 'POST' });
+        const result = await resp.json();
+
+        resultDiv.classList.remove('hidden');
+        if (result.success) {
+            resultDiv.className = 'p-3 rounded-md text-sm bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200';
+            resultDiv.textContent = result.message;
+        } else {
+            resultDiv.className = 'p-3 rounded-md text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
+            resultDiv.textContent = result.message;
+        }
+    } catch (e) {
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'p-3 rounded-md text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
+        resultDiv.textContent = 'Test failed: ' + e.message;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Test Connection';
+    }
+}
+
+function closeSystemModal() {
+    document.getElementById('system-modal').classList.add('hidden');
+}
+
+function addHeaderRow(key, value) {
+    const container = document.getElementById('modal-headers');
+    const row = document.createElement('div');
+    row.className = 'flex space-x-2 items-center';
+    row.innerHTML = `
+        <input type="text" placeholder="Header name" value="${escapeHtml(key || '')}"
+               class="header-key flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+        <input type="text" placeholder="Value" value="${escapeHtml(value || '')}"
+               class="header-value flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+        <button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 text-sm px-1">&times;</button>
+    `;
+    container.appendChild(row);
+}
+
+function getHeadersFromModal() {
+    const headers = [];
+    document.querySelectorAll('#modal-headers > div').forEach(row => {
+        let key = row.querySelector('.header-key').value.trim().replace(/:+$/, '');
+        const value = row.querySelector('.header-value').value.trim();
+        if (key) headers.push({ key, value });
+    });
+    return headers;
+}
+
+async function saveSystem() {
+    const id = document.getElementById('modal-system-id').value;
+    const payload = {
+        name: document.getElementById('modal-name').value.trim(),
+        base_url: document.getElementById('modal-base-url').value.trim(),
+        api_key: document.getElementById('modal-api-key').value,
+        custom_headers: getHeadersFromModal()
+    };
+
+    if (!payload.name || !payload.base_url) {
+        showMessage('Name and Base URL are required', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('modal-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const url = id ? `/api/admin/external-systems/${id}` : '/api/admin/external-systems';
+        const method = id ? 'PUT' : 'POST';
+        const resp = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+            closeSystemModal();
+            showMessage(id ? 'System updated' : 'System added', 'success');
+            loadExternalSystems();
+        } else {
+            const err = await resp.text();
+            showMessage('Error: ' + err, 'error');
+        }
+    } catch (e) {
+        showMessage('Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save';
+    }
+}
+
+async function deleteSystem(id, name) {
+    if (!confirm(`Delete external system "${name}"? This will also delete all sync logs.`)) return;
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}`, { method: 'DELETE' });
+        if (resp.ok) {
+            showMessage('System deleted', 'success');
+            loadExternalSystems();
+        } else {
+            showMessage('Failed to delete system', 'error');
+        }
+    } catch (e) {
+        showMessage('Error: ' + e.message, 'error');
+    }
+}
+
+async function testConnection(id) {
+    // Find the button that was clicked and update it
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Testing...';
+
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}/test`, { method: 'POST' });
+        const result = await resp.json();
+        btn.textContent = result.success ? 'Connected!' : 'Failed!';
+        btn.className = btn.className.replace(/border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300/,
+            result.success ? 'border-green-300 dark:border-green-600 text-green-700 dark:text-green-300' : 'border-red-300 dark:border-red-600 text-red-700 dark:text-red-300');
+        showMessage(result.message, result.success ? 'success' : 'error');
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            btn.className = btn.className.replace(/border-(green|red)-300 dark:border-(green|red)-600 text-(green|red)-700 dark:text-(green|red)-300/,
+                'border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300');
+        }, 3000);
+    } catch (e) {
+        showMessage('Test failed: ' + e.message, 'error');
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+// Sync Modal
+function openSyncModal(id, name) {
+    document.getElementById('sync-system-id').value = id;
+    document.getElementById('sync-system-name').textContent = name;
+    document.getElementById('sync-preview-area').classList.add('hidden');
+    document.getElementById('sync-result-area').classList.add('hidden');
+    document.getElementById('sync-execute-btn').disabled = true;
+    document.querySelector('input[name="sync-direction"][value="pull"]').checked = true;
+    document.getElementById('sync-modal').classList.remove('hidden');
+}
+
+function closeSyncModal() {
+    document.getElementById('sync-modal').classList.add('hidden');
+}
+
+async function previewSync() {
+    const id = document.getElementById('sync-system-id').value;
+    const direction = document.querySelector('input[name="sync-direction"]:checked').value;
+    const btn = document.getElementById('sync-preview-btn');
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    document.getElementById('sync-result-area').classList.add('hidden');
+
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}/sync/preview`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ direction })
+        });
+
+        if (!resp.ok) {
+            const err = await resp.text();
+            showMessage('Preview failed: ' + err, 'error');
+            return;
+        }
+
+        const preview = await resp.json();
+        const area = document.getElementById('sync-preview-area');
+        document.getElementById('sync-preview-new').textContent = preview.new_count + ' new';
+        document.getElementById('sync-preview-skip').textContent = preview.skip_count + ' existing (skipped)';
+
+        const itemsDiv = document.getElementById('sync-preview-items');
+        if (preview.items && preview.items.length > 0) {
+            itemsDiv.innerHTML = preview.items.map(item => `
+                <div class="px-4 py-2 flex justify-between items-center">
+                    <span class="text-sm text-gray-900 dark:text-white truncate">${escapeHtml(item.title)}</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full ${
+                        item.status === 'new'
+                            ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }">${item.status}</span>
+                </div>
+            `).join('');
+        } else {
+            itemsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">No posts found.</div>';
+        }
+
+        area.classList.remove('hidden');
+        document.getElementById('sync-execute-btn').disabled = preview.new_count === 0;
+    } catch (e) {
+        showMessage('Preview error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Preview';
+    }
+}
+
+async function executeSync() {
+    const id = document.getElementById('sync-system-id').value;
+    const direction = document.querySelector('input[name="sync-direction"]:checked').value;
+
+    if (!confirm(`Execute ${direction} sync? This will ${direction === 'pull' ? 'create posts locally' : 'push posts to the remote system'}.`)) return;
+
+    const btn = document.getElementById('sync-execute-btn');
+    btn.disabled = true;
+    btn.textContent = 'Syncing...';
+
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}/sync/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ direction })
+        });
+
+        const resultArea = document.getElementById('sync-result-area');
+
+        if (!resp.ok) {
+            const err = await resp.text();
+            resultArea.className = 'p-4 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800';
+            resultArea.innerHTML = `<p class="text-sm text-red-800 dark:text-red-200">Sync failed: ${escapeHtml(err)}</p>`;
+            resultArea.classList.remove('hidden');
+            return;
+        }
+
+        const result = await resp.json();
+        const isSuccess = result.items_failed === 0;
+        resultArea.className = `p-4 rounded-md ${isSuccess ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'}`;
+        resultArea.innerHTML = `
+            <p class="text-sm ${isSuccess ? 'text-green-800 dark:text-green-200' : 'text-yellow-800 dark:text-yellow-200'}">
+                Sync complete: ${result.items_synced} synced, ${result.items_skipped} skipped, ${result.items_failed} failed
+                ${result.error_message ? '<br>' + escapeHtml(result.error_message) : ''}
+            </p>`;
+        resultArea.classList.remove('hidden');
+        loadExternalSystems();
+    } catch (e) {
+        showMessage('Sync error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Execute Sync';
+    }
+}
+
+// Sync Logs
+async function viewSyncLogs(id, name) {
+    document.getElementById('logs-system-name').textContent = name;
+    document.getElementById('logs-content').innerHTML = '<p class="text-gray-500 dark:text-gray-400">Loading...</p>';
+    document.getElementById('logs-modal').classList.remove('hidden');
+
+    try {
+        const resp = await fetch(`/api/admin/external-systems/${id}/sync/logs`);
+        const logs = await resp.json();
+        const content = document.getElementById('logs-content');
+
+        if (!logs || logs.length === 0) {
+            content.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No sync logs yet.</p>';
+            return;
+        }
+
+        content.innerHTML = `
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-600">
+            <thead class="bg-gray-50 dark:bg-slate-700">
+                <tr>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Direction</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Synced</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Skipped</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Failed</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Started</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-slate-600">
+                ${logs.map(l => `
+                <tr>
+                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">${escapeHtml(l.direction)}</td>
+                    <td class="px-3 py-2"><span class="text-xs px-2 py-0.5 rounded-full ${
+                        l.status === 'success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                        l.status === 'partial' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
+                        l.status === 'started' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
+                        'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                    }">${escapeHtml(l.status)}</span></td>
+                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">${l.items_synced}</td>
+                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">${l.items_skipped}</td>
+                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">${l.items_failed}</td>
+                    <td class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">${new Date(l.started_at).toLocaleString()}</td>
+                </tr>
+                ${l.error_message ? `<tr><td colspan="6" class="px-3 py-1 text-xs text-red-600 dark:text-red-400">${escapeHtml(l.error_message)}</td></tr>` : ''}
+                `).join('')}
+            </tbody>
+        </table>`;
+    } catch (e) {
+        document.getElementById('logs-content').innerHTML = '<p class="text-red-500">Failed to load logs.</p>';
+    }
+}
+
+function closeLogsModal() {
+    document.getElementById('logs-modal').classList.add('hidden');
+}
+
+// Load external systems on page load
+document.addEventListener('DOMContentLoaded', loadExternalSystems);
 
 document.getElementById('import-form').addEventListener('submit', async function(e) {
     e.preventDefault();

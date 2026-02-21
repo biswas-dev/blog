@@ -89,6 +89,9 @@ jobs:
           SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
           cd biswas-infrastructure/ansible
@@ -109,7 +112,10 @@ jobs:
             -e "build_time=${{ steps.version.outputs.BUILD_TIME }}" \
             -e "go_version=${{ steps.version.outputs.GO_VERSION }}" \
             -e "app_env=uat" \
-            -e "deploy_branch=${{ github.base_ref || 'uat' }}"
+            -e "deploy_branch=${{ github.base_ref || 'uat' }}" \
+            -e "encryption_key=$ENCRYPTION_KEY" \
+            -e "dockerhub_username=$DOCKERHUB_USERNAME" \
+            -e "dockerhub_token=$DOCKERHUB_TOKEN"
 
       - name: Verify deployment
         run: |
