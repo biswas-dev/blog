@@ -248,12 +248,26 @@ func (c *Categories) CreateCategoryForm(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Invalid form data", http.StatusBadRequest)
-		return
+	var name string
+	if isAjaxRequest(r) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request body"})
+			return
+		}
+		name = strings.TrimSpace(req.Name)
+	} else {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Invalid form data", http.StatusBadRequest)
+			return
+		}
+		name = r.Form.Get("name")
 	}
 
-	name := r.Form.Get("name")
 	if name == "" {
 		if isAjaxRequest(r) {
 			w.Header().Set("Content-Type", "application/json")
@@ -315,12 +329,26 @@ func (c *Categories) UpdateCategoryForm(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Invalid form data", http.StatusBadRequest)
-		return
+	var name string
+	if isAjaxRequest(r) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request body"})
+			return
+		}
+		name = strings.TrimSpace(req.Name)
+	} else {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Invalid form data", http.StatusBadRequest)
+			return
+		}
+		name = r.Form.Get("name")
 	}
 
-	name := r.Form.Get("name")
 	if name == "" {
 		if isAjaxRequest(r) {
 			w.Header().Set("Content-Type", "application/json")

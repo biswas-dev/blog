@@ -6,22 +6,40 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/utils"
+	"github.com/go-chi/chi/v5"
 )
 
 type System struct {
 	SystemService         *models.SystemService
 	DatabaseBackupService *models.DatabaseBackupService
 	SessionService        *models.SessionService
+	ExternalSystemService *models.ExternalSystemService
+	SyncClient            *models.SyncClient
 	Templates             struct {
 		Dashboard Template
 	}
 	// Rate limiting for database exports
 	exportLimiter sync.Map // map[userID]time.Time
+}
+
+// requireAdmin checks auth and admin role, returning the user or writing an error
+func (s *System) requireAdmin(w http.ResponseWriter, r *http.Request) (*models.User, bool) {
+	user, err := utils.IsUserLoggedIn(r, s.SessionService)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return nil, false
+	}
+	if !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		return nil, false
+	}
+	return user, true
 }
 
 // Dashboard renders the system information page (admin-only)
@@ -211,4 +229,299 @@ func (s *System) ImportDatabase(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"message": "Database imported successfully",
 	})
+}
+
+// --- External Systems Handlers ---
+
+// ListExternalSystems returns all registered external systems
+func (s *System) ListExternalSystems(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	systems, err := s.ExternalSystemService.GetAll()
+	if err != nil {
+		log.Printf("Error listing external systems: %v", err)
+		http.Error(w, "Failed to list external systems", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(systems)
+}
+
+// CreateExternalSystem registers a new external blog instance
+func (s *System) CreateExternalSystem(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+
+	var input struct {
+		Name          string                `json:"name"`
+		BaseURL       string                `json:"base_url"`
+		APIKey        string                `json:"api_key"`
+		CustomHeaders []models.CustomHeader `json:"custom_headers"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if input.Name == "" || input.BaseURL == "" {
+		http.Error(w, "Name and base_url are required", http.StatusBadRequest)
+		return
+	}
+
+	system, err := s.ExternalSystemService.Create(input.Name, input.BaseURL, input.APIKey, input.CustomHeaders, user.UserID)
+	if err != nil {
+		log.Printf("Error creating external system: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to create external system: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(system)
+}
+
+// UpdateExternalSystem updates an existing external system
+func (s *System) UpdateExternalSystem(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		Name          string                `json:"name"`
+		BaseURL       string                `json:"base_url"`
+		APIKey        string                `json:"api_key"`
+		CustomHeaders []models.CustomHeader `json:"custom_headers"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if input.Name == "" || input.BaseURL == "" {
+		http.Error(w, "Name and base_url are required", http.StatusBadRequest)
+		return
+	}
+
+	system, err := s.ExternalSystemService.Update(id, input.Name, input.BaseURL, input.APIKey, input.CustomHeaders)
+	if err != nil {
+		log.Printf("Error updating external system: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to update: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(system)
+}
+
+// DeleteExternalSystem removes an external system
+func (s *System) DeleteExternalSystem(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.ExternalSystemService.Delete(id); err != nil {
+		log.Printf("Error deleting external system: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to delete: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// TestExternalConnection tests connectivity to a remote blog instance
+func (s *System) TestExternalConnection(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		return
+	}
+
+	system, err := s.ExternalSystemService.GetByID(id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("System not found: %v", err), http.StatusNotFound)
+		return
+	}
+
+	if err := s.SyncClient.TestConnection(system); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Connection successful",
+	})
+}
+
+// PreviewSync previews what a sync operation would do
+func (s *System) PreviewSync(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		Direction string `json:"direction"` // "pull" or "push"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	system, err := s.ExternalSystemService.GetByID(id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("System not found: %v", err), http.StatusNotFound)
+		return
+	}
+
+	var preview *models.SyncPreview
+	switch input.Direction {
+	case "pull":
+		preview, err = s.SyncClient.PreviewPull(system)
+	case "push":
+		preview, err = s.SyncClient.PreviewPush(system)
+	default:
+		http.Error(w, "Direction must be 'pull' or 'push'", http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		log.Printf("Error previewing sync: %v", err)
+		http.Error(w, fmt.Sprintf("Preview failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(preview)
+}
+
+// ExecuteSync runs a sync operation
+func (s *System) ExecuteSync(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		Direction string `json:"direction"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	system, err := s.ExternalSystemService.GetByID(id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("System not found: %v", err), http.StatusNotFound)
+		return
+	}
+
+	// Create sync log
+	logID, err := s.ExternalSystemService.CreateSyncLog(id, input.Direction, "posts", user.UserID)
+	if err != nil {
+		log.Printf("Error creating sync log: %v", err)
+	}
+
+	var result *models.SyncResult
+	switch input.Direction {
+	case "pull":
+		result, err = s.SyncClient.ExecutePull(system, user.UserID)
+	case "push":
+		result, err = s.SyncClient.ExecutePush(system)
+	default:
+		http.Error(w, "Direction must be 'pull' or 'push'", http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		log.Printf("Error executing sync: %v", err)
+		if logID > 0 {
+			s.ExternalSystemService.UpdateSyncLog(logID, "failed", 0, 0, 0, err.Error())
+		}
+		s.ExternalSystemService.UpdateSyncStatus(id, "failed", err.Error())
+		http.Error(w, fmt.Sprintf("Sync failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Update sync log and status
+	status := "success"
+	if result.ItemsFailed > 0 {
+		status = "partial"
+	}
+	statusMsg := fmt.Sprintf("%s: %d synced, %d skipped, %d failed", input.Direction, result.ItemsSynced, result.ItemsSkipped, result.ItemsFailed)
+
+	if logID > 0 {
+		s.ExternalSystemService.UpdateSyncLog(logID, status, result.ItemsSynced, result.ItemsSkipped, result.ItemsFailed, result.ErrorMessage)
+	}
+	s.ExternalSystemService.UpdateSyncStatus(id, status, statusMsg)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// GetSyncLogs returns sync history for a system
+func (s *System) GetSyncLogs(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		return
+	}
+
+	limit := 20
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	logs, err := s.ExternalSystemService.GetSyncLogs(id, limit)
+	if err != nil {
+		log.Printf("Error getting sync logs: %v", err)
+		http.Error(w, "Failed to get sync logs", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(logs)
 }
