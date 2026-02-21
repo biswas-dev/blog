@@ -67,6 +67,8 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -100,6 +102,9 @@ jobs:
               git clone https://github.com/anchoo2kewl/blog.git .
               git checkout $COMMIT_SHA
             fi
+
+            # Login to Docker Hub to avoid rate limits
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin || echo "⚠️  Docker Hub login failed, continuing with anonymous pulls"
 
             # Ensure Docker volume exists
             docker volume inspect blog-postgres-data >/dev/null 2>&1 || docker volume create blog-postgres-data
@@ -142,9 +147,16 @@ jobs:
             echo "🧹 Cleaning up any stale containers..."
             docker rm -f blog-postgres blog-app 2>/dev/null || true
 
-            echo "🧹 Cleaning up Docker build cache and unused images to free disk space..."
-            docker builder prune -af || true
-            docker image prune -f || true
+            echo "🧹 Cleaning up Docker resources if disk space is low..."
+            DISK_USAGE=\$(df / | tail -1 | awk '{print \$5}' | tr -d '%')
+            echo "Current disk usage: \${DISK_USAGE}%"
+            if [ "\$DISK_USAGE" -gt 80 ]; then
+              echo "Disk usage above 80%, cleaning up old build cache and dangling images..."
+              docker builder prune -f --filter "until=48h" || true
+              docker image prune -f || true
+            else
+              echo "Disk usage OK, skipping aggressive cleanup"
+            fi
 
             echo "🔨 Building image..."
             docker compose build
