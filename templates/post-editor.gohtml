@@ -360,6 +360,52 @@ section.editor-container div.editor-layout div.editor-main div.wysiwyg {
 </style>
 
 <script>
+// --- Cloudinary Upload Config ---
+let cloudinaryConfig = null;
+
+(async function loadUploadConfig() {
+  try {
+    const resp = await fetch('/api/admin/upload-config');
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.cloudinary_enabled) {
+        cloudinaryConfig = { cloud_name: data.cloud_name };
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load upload config, using local uploads:', e);
+  }
+})();
+
+async function uploadToCloudinary(file, folder) {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const sigResp = await fetch('/api/admin/cloudinary/signature', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folder: folder, timestamp: timestamp })
+  });
+  if (!sigResp.ok) throw new Error('Failed to get upload signature');
+  const sigData = await sigResp.json();
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('api_key', sigData.api_key);
+  fd.append('timestamp', sigData.timestamp);
+  fd.append('signature', sigData.signature);
+  fd.append('folder', folder);
+
+  const resp = await fetch('https://api.cloudinary.com/v1_1/' + sigData.cloud_name + '/auto/upload', {
+    method: 'POST',
+    body: fd
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error('Cloudinary upload failed: ' + errText);
+  }
+  const result = await resp.json();
+  return result.secure_url;
+}
+
 // CRITICAL: Force layout fix with JavaScript as last resort
 document.addEventListener('DOMContentLoaded', function() {
   console.log('Forcing layout fix...');
@@ -489,14 +535,27 @@ document.getElementById('upload-inline-btn').addEventListener('click', async () 
   const picker = document.getElementById('inline-upload');
   if (!picker.files.length) return picker.click();
   const f = picker.files[0];
-  const fd = new FormData(); fd.append('file', f);
   const slug = currentSlugFromInputs();
-  const res = await fetch('/admin/uploads' + (slug? ('?slug=' + encodeURIComponent(slug)) : ''), { method:'POST', body:fd });
-  if (!res.ok) { alert('Upload failed'); return; }
-  const j = await res.json();
+  let imageUrl;
+  try {
+    if (cloudinaryConfig) {
+      const folder = 'blog/post/' + (slug || 'unsorted');
+      imageUrl = await uploadToCloudinary(f, folder);
+    } else {
+      const fd = new FormData(); fd.append('file', f);
+      const res = await fetch('/admin/uploads' + (slug? ('?slug=' + encodeURIComponent(slug)) : ''), { method:'POST', body:fd });
+      if (!res.ok) throw new Error('Upload failed');
+      const j = await res.json();
+      imageUrl = j.url;
+    }
+  } catch (e) {
+    alert('Upload failed: ' + e.message);
+    picker.value = '';
+    return;
+  }
   const select = document.getElementById('img-size-select');
   let pct = (select && select.value) ? select.value : '66%';
-  insertImageIntoEditor(j.url, pct);
+  insertImageIntoEditor(imageUrl, pct);
   picker.value = '';
 });
 // Open file dialog on first click if none selected
@@ -541,28 +600,32 @@ if (uploadNewCoverBtn && coverUploadInput && !uploadNewCoverBtn._bound) {
 if (coverUploadInput && !coverUploadInput._boundChange) coverUploadInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  
-  const formData = new FormData();
-  formData.append('file', file);
-  
+
   const slug = currentSlugFromInputs();
-  const uploadUrl = '/admin/uploads' + (slug ? ('?slug=' + encodeURIComponent(slug) + '&type=featured') : '?type=featured');
-  
+
   try {
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      body: formData,
-      credentials: 'same-origin'
-    });
-    
-    if (!response.ok) throw new Error('Upload failed');
-    
-    const result = await response.json();
-    setCoverImage(result.url);
+    let imageUrl;
+    if (cloudinaryConfig) {
+      const folder = 'blog/featured/' + (slug || 'unsorted');
+      imageUrl = await uploadToCloudinary(file, folder);
+    } else {
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadUrl = '/admin/uploads' + (slug ? ('?slug=' + encodeURIComponent(slug) + '&type=featured') : '?type=featured');
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+      });
+      if (!response.ok) throw new Error('Upload failed');
+      const result = await response.json();
+      imageUrl = result.url;
+    }
+    setCoverImage(imageUrl);
   } catch (error) {
     alert('Upload failed: ' + error.message);
   }
-  
+
   e.target.value = ''; // Reset file input
   coverUploadInput._boundChange = true;
 });
@@ -1066,57 +1129,66 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   // Upload files
-  const formData = new FormData();
-  files.forEach(file => formData.append('files', file));
-  
   const slug = currentSlugFromInputs();
-  const uploadUrl = '/admin/uploads/multiple' + (slug ? '?slug=' + encodeURIComponent(slug) : '');
-  
+  const result = { uploads: [], errors: [] };
+
   try {
-    console.log('Starting upload to:', uploadUrl);
     console.log('Files to upload:', files.length);
-    
-    progressBar.style.width = '50%';
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      body: formData,
-      credentials: 'same-origin' // Include cookies for session auth
-    });
-    
-    progressBar.style.width = '100%';
-    
-    console.log('Upload response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Upload failed:', response.status, errorText);
-      throw new Error(`Upload failed: ${response.status} ${errorText}`);
+
+    if (cloudinaryConfig) {
+      // Upload each file to Cloudinary individually
+      const folder = 'blog/post/' + (slug || 'unsorted');
+      for (let i = 0; i < files.length; i++) {
+        progressBar.style.width = ((i + 1) / files.length * 100) + '%';
+        const statusEl = document.getElementById('status-' + i);
+        try {
+          const url = await uploadToCloudinary(files[i], folder);
+          result.uploads.push({ url: url, filename: files[i].name });
+          if (statusEl) { statusEl.textContent = 'Uploaded'; statusEl.className = 'status success'; }
+        } catch (e) {
+          result.errors.push(files[i].name + ': ' + e.message);
+          if (statusEl) { statusEl.textContent = 'Failed'; statusEl.className = 'status error'; }
+        }
+      }
+    } else {
+      // Use local multi-upload endpoint
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+      const uploadUrl = '/admin/uploads/multiple' + (slug ? '?slug=' + encodeURIComponent(slug) : '');
+
+      progressBar.style.width = '50%';
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+      });
+
+      progressBar.style.width = '100%';
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error('Upload failed: ' + response.status + ' ' + errorText);
+      }
+
+      const serverResult = await response.json();
+      if (serverResult.uploads) {
+        result.uploads = serverResult.uploads;
+        serverResult.uploads.forEach((upload, index) => {
+          const status = document.getElementById('status-' + index);
+          if (status) { status.textContent = 'Uploaded'; status.className = 'status success'; }
+        });
+      }
+      if (serverResult.errors) {
+        result.errors = serverResult.errors;
+        serverResult.errors.forEach((error, index) => {
+          const status = document.getElementById('status-' + (files.length - serverResult.errors.length + index));
+          if (status) { status.textContent = 'Failed'; status.className = 'status error'; }
+        });
+      }
     }
-    
-    const result = await response.json();
+
     console.log('Upload result:', result);
-    
-    // Update status for each file
-    if (result.uploads) {
-      result.uploads.forEach((upload, index) => {
-        const status = document.getElementById(`status-${index}`);
-        if (status) {
-          status.textContent = 'Uploaded';
-          status.className = 'status success';
-        }
-      });
-    }
-    
-    if (result.errors) {
-      result.errors.forEach((error, index) => {
-        const status = document.getElementById(`status-${files.length - result.errors.length + index}`);
-        if (status) {
-          status.textContent = 'Failed';
-          status.className = 'status error';
-        }
-      });
-    }
-    
+
     // Show insert buttons for successful uploads
     if (result.uploads && result.uploads.length > 0) {
       const actions = document.createElement('div');

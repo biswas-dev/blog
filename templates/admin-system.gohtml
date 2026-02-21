@@ -304,6 +304,85 @@
             </div>
         </div>
 
+        <!-- Cloudinary Image Storage Section -->
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M5.5 17a4.5 4.5 0 01-1.44-8.765 4.5 4.5 0 018.302-3.046 3.5 3.5 0 014.504 4.272A4 4 0 0115 17H5.5zm3.75-2.75a.75.75 0 001.5 0V9.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0l-3.25 3.5a.75.75 0 101.1 1.02l1.95-2.1v4.59z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Cloudinary Image Storage</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Store uploaded images in the cloud for cross-environment access</p>
+                        </div>
+                    </div>
+                    <button onclick="openCloudinaryModal()"
+                            class="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Configure
+                    </button>
+                </div>
+            </div>
+            <div class="px-6 py-4">
+                <div id="cloudinary-status" class="text-center py-4 text-gray-500 dark:text-gray-400">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Cloudinary Settings Modal -->
+        <div id="cloudinary-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeCloudinaryModal()"></div>
+                <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Cloudinary Settings</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cloud Name</label>
+                            <input type="text" id="cld-cloud-name" placeholder="e.g., my-cloud"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
+                            <input type="text" id="cld-api-key" placeholder="e.g., 123456789012345"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Secret</label>
+                            <input type="password" id="cld-api-secret" placeholder="Leave blank to keep existing"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500">
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Encrypted at rest. Leave blank when editing to keep the existing secret.</p>
+                        </div>
+                        <div id="cld-test-result" class="hidden rounded-md p-3 text-sm"></div>
+                    </div>
+                    <div class="mt-6 flex justify-between">
+                        <button onclick="deleteCloudinary()" id="cld-delete-btn"
+                                class="hidden px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
+                            Remove
+                        </button>
+                        <div class="flex space-x-3 ml-auto">
+                            <button onclick="closeCloudinaryModal()"
+                                    class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                                Cancel
+                            </button>
+                            <button onclick="testCloudinary()"
+                                    class="px-4 py-2 border border-purple-300 dark:border-purple-600 rounded-md text-sm font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900">
+                                Test Connection
+                            </button>
+                            <button onclick="saveCloudinary()"
+                                    class="px-4 py-2 bg-purple-600 hover:bg-purple-700 border border-transparent rounded-md text-sm font-medium text-white">
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Add/Edit System Modal -->
         <div id="system-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
@@ -943,7 +1022,155 @@ function closeLogsModal() {
 }
 
 // Load external systems on page load
-document.addEventListener('DOMContentLoaded', loadExternalSystems);
+// --- Cloudinary Settings ---
+
+async function loadCloudinaryStatus() {
+    const container = document.getElementById('cloudinary-status');
+    try {
+        const resp = await fetch('/api/admin/cloudinary');
+        if (!resp.ok) throw new Error('Failed to load');
+        const data = await resp.json();
+        if (!data.configured) {
+            container.innerHTML = `
+                <p class="text-gray-500 dark:text-gray-400">Not configured</p>
+                <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Click Configure to set up Cloudinary for cloud image storage.</p>`;
+        } else {
+            const s = data.settings;
+            const statusColor = s.status === 'healthy' ? 'green' : s.status === 'error' ? 'red' : 'yellow';
+            container.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800 dark:bg-${statusColor}-900 dark:text-${statusColor}-300">
+                            ${escapeHtml(s.status)}
+                        </span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Cloud: <strong>${escapeHtml(s.cloud_name)}</strong></span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">API Key: ${escapeHtml(s.api_key)}</span>
+                    </div>
+                    <span class="text-xs text-gray-400 dark:text-gray-500">${s.last_checked_at ? 'Last checked: ' + new Date(s.last_checked_at).toLocaleString() : 'Not tested yet'}</span>
+                </div>`;
+        }
+    } catch (e) {
+        container.innerHTML = '<p class="text-red-500">Failed to load Cloudinary status</p>';
+    }
+}
+
+function openCloudinaryModal() {
+    const modal = document.getElementById('cloudinary-modal');
+    const deleteBtn = document.getElementById('cld-delete-btn');
+    const testResult = document.getElementById('cld-test-result');
+    testResult.classList.add('hidden');
+
+    // Try to load existing settings
+    fetch('/api/admin/cloudinary')
+        .then(r => r.json())
+        .then(data => {
+            if (data.configured) {
+                document.getElementById('cld-cloud-name').value = data.settings.cloud_name;
+                document.getElementById('cld-api-key').value = data.settings.api_key;
+                document.getElementById('cld-api-secret').value = '';
+                document.getElementById('cld-api-secret').placeholder = 'Leave blank to keep existing';
+                deleteBtn.classList.remove('hidden');
+            } else {
+                document.getElementById('cld-cloud-name').value = '';
+                document.getElementById('cld-api-key').value = '';
+                document.getElementById('cld-api-secret').value = '';
+                document.getElementById('cld-api-secret').placeholder = 'Required';
+                deleteBtn.classList.add('hidden');
+            }
+        });
+
+    modal.classList.remove('hidden');
+}
+
+function closeCloudinaryModal() {
+    document.getElementById('cloudinary-modal').classList.add('hidden');
+}
+
+async function saveCloudinary() {
+    const cloudName = document.getElementById('cld-cloud-name').value.trim();
+    const apiKey = document.getElementById('cld-api-key').value.trim();
+    const apiSecret = document.getElementById('cld-api-secret').value;
+
+    if (!cloudName || !apiKey) {
+        showMessage('Cloud name and API key are required', 'error');
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/admin/cloudinary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret })
+        });
+        if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text);
+        }
+        closeCloudinaryModal();
+        showMessage('Cloudinary settings saved successfully');
+        loadCloudinaryStatus();
+    } catch (e) {
+        showMessage('Failed to save: ' + e.message, 'error');
+    }
+}
+
+async function testCloudinary() {
+    const resultDiv = document.getElementById('cld-test-result');
+    resultDiv.className = 'rounded-md p-3 text-sm bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300';
+    resultDiv.textContent = 'Testing connection...';
+    resultDiv.classList.remove('hidden');
+
+    // Save first if fields have values (so test uses latest credentials)
+    const cloudName = document.getElementById('cld-cloud-name').value.trim();
+    const apiKey = document.getElementById('cld-api-key').value.trim();
+    const apiSecret = document.getElementById('cld-api-secret').value;
+    if (cloudName && apiKey) {
+        const saveResp = await fetch('/api/admin/cloudinary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret })
+        });
+        if (!saveResp.ok) {
+            resultDiv.className = 'rounded-md p-3 text-sm bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+            resultDiv.textContent = 'Failed to save settings before testing';
+            return;
+        }
+    }
+
+    try {
+        const resp = await fetch('/api/admin/cloudinary/test', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+            resultDiv.className = 'rounded-md p-3 text-sm bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+            resultDiv.textContent = 'Connection successful!';
+        } else {
+            resultDiv.className = 'rounded-md p-3 text-sm bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+            resultDiv.textContent = 'Connection failed: ' + data.message;
+        }
+        loadCloudinaryStatus();
+    } catch (e) {
+        resultDiv.className = 'rounded-md p-3 text-sm bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+        resultDiv.textContent = 'Error: ' + e.message;
+    }
+}
+
+async function deleteCloudinary() {
+    if (!confirm('Remove Cloudinary settings? Image uploads will fall back to local storage.')) return;
+    try {
+        const resp = await fetch('/api/admin/cloudinary', { method: 'DELETE' });
+        if (!resp.ok) throw new Error('Failed to delete');
+        closeCloudinaryModal();
+        showMessage('Cloudinary settings removed');
+        loadCloudinaryStatus();
+    } catch (e) {
+        showMessage('Failed to remove: ' + e.message, 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadExternalSystems();
+    loadCloudinaryStatus();
+});
 
 document.getElementById('import-form').addEventListener('submit', async function(e) {
     e.preventDefault();
