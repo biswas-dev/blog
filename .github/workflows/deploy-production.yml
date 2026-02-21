@@ -175,23 +175,47 @@ jobs:
 
             echo "📦 Running database migrations..."
             if [ -d "migrations" ] && ls migrations/*.up.sql 1>/dev/null 2>&1; then
-              MIGRATE_DB="postgres://blog:\$PG_PASSWORD@localhost:5432/blog?sslmode=disable"
-              MIGRATE_CMD="docker run --rm --network container:blog-postgres -v \$(pwd)/migrations:/migrations migrate/migrate -path=/migrations -database \$MIGRATE_DB"
+              # Ensure schema_migrations table exists
+              docker exec blog-postgres psql -U blog -d blog -c "
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                  version bigint NOT NULL PRIMARY KEY,
+                  dirty boolean NOT NULL DEFAULT false
+                );" 2>/dev/null
 
-              # Check if existing DB needs migration version bootstrap
-              HAS_USERS_TABLE=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='users')" 2>/dev/null || echo "f")
-              CURRENT_VERSION=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT version FROM schema_migrations LIMIT 1" 2>/dev/null || echo "0")
-              IS_DIRTY=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT dirty FROM schema_migrations LIMIT 1" 2>/dev/null || echo "f")
+              # Bootstrap: if tables exist but no version tracked, set to 6
+              CURRENT_VERSION=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_migrations" 2>/dev/null || echo "0")
+              CURRENT_VERSION=\$(echo "\$CURRENT_VERSION" | tr -d ' ')
+              HAS_USERS=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='users')" 2>/dev/null || echo "f")
 
-              echo "DB state: users_table=\$HAS_USERS_TABLE, version=\$CURRENT_VERSION, dirty=\$IS_DIRTY"
-
-              if [ "\$HAS_USERS_TABLE" = "t" ] && { [ "\$CURRENT_VERSION" = "0" ] || [ "\$IS_DIRTY" = "t" ] || [ "\$CURRENT_VERSION" -lt 6 ] 2>/dev/null; }; then
-                echo "📋 Bootstrapping: setting migration version to 6..."
-                \$MIGRATE_CMD force 6
-                echo "✅ Set migration version to 6"
+              if [ "\$HAS_USERS" = "t" ] && [ "\$CURRENT_VERSION" -lt 6 ] 2>/dev/null; then
+                echo "📋 Bootstrapping: existing DB detected at version \$CURRENT_VERSION, setting to 6"
+                docker exec blog-postgres psql -U blog -d blog -c "DELETE FROM schema_migrations; INSERT INTO schema_migrations (version, dirty) VALUES (6, false);"
               fi
 
-              \$MIGRATE_CMD up && echo "✅ Migrations applied" || echo "⚠️  No new migrations to apply"
+              # Re-read version after potential bootstrap
+              CURRENT_VERSION=\$(docker exec blog-postgres psql -U blog -d blog -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_migrations" 2>/dev/null || echo "0")
+              CURRENT_VERSION=\$(echo "\$CURRENT_VERSION" | tr -d ' ')
+              echo "Current migration version: \$CURRENT_VERSION"
+
+              # Apply pending migrations
+              APPLIED=0
+              for f in \$(ls migrations/*.up.sql | sort); do
+                FILE_VERSION=\$(basename "\$f" | grep -o '^[0-9]*')
+                if [ "\$FILE_VERSION" -gt "\$CURRENT_VERSION" ] 2>/dev/null; then
+                  echo "Applying migration \$FILE_VERSION..."
+                  docker cp "\$f" blog-postgres:/tmp/migration.sql
+                  if docker exec blog-postgres psql -U blog -d blog -f /tmp/migration.sql; then
+                    docker exec blog-postgres psql -U blog -d blog -c "DELETE FROM schema_migrations; INSERT INTO schema_migrations (version, dirty) VALUES (\$FILE_VERSION, false);"
+                    echo "✅ Migration \$FILE_VERSION applied"
+                    APPLIED=\$((APPLIED + 1))
+                  else
+                    echo "❌ Migration \$FILE_VERSION failed"
+                    docker exec blog-postgres psql -U blog -d blog -c "DELETE FROM schema_migrations; INSERT INTO schema_migrations (version, dirty) VALUES (\$FILE_VERSION, true);"
+                    break
+                  fi
+                fi
+              done
+              [ "\$APPLIED" -eq 0 ] && echo "✅ All migrations up to date" || echo "✅ Applied \$APPLIED migration(s)"
             else
               echo "⚠️  No migration files found, skipping"
             fi
