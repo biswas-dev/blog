@@ -2,10 +2,17 @@ package models
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -195,6 +202,106 @@ func (sc *SyncClient) PreviewPush(system *ExternalSystem) (*SyncPreview, error) 
 	return preview, nil
 }
 
+// downloadImage downloads an image from a remote URL and saves it locally.
+// Returns the local URL path (e.g., /static/uploads/featured/slug/abc.jpg).
+func (sc *SyncClient) downloadImage(remoteBaseURL, imageURL, slug, imageType string, system *ExternalSystem) (string, error) {
+	// Build full remote URL
+	fullURL := imageURL
+	if !strings.HasPrefix(imageURL, "http") {
+		fullURL = strings.TrimRight(remoteBaseURL, "/") + imageURL
+	}
+
+	req, err := buildRequest("GET", fullURL, nil, system)
+	if err != nil {
+		return "", fmt.Errorf("build image request: %w", err)
+	}
+
+	client := httpClient(30 * time.Second)
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("download image: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("image returned status %d", resp.StatusCode)
+	}
+
+	// Determine file extension from the original URL
+	ext := filepath.Ext(path.Base(imageURL))
+	if ext == "" {
+		ext = ".jpg"
+	}
+
+	// Generate random filename
+	randBytes := make([]byte, 8)
+	rand.Read(randBytes)
+	filename := hex.EncodeToString(randBytes) + ext
+
+	// Create local directory
+	localDir := filepath.Join("static", "uploads", imageType, slug)
+	if err := os.MkdirAll(localDir, 0755); err != nil {
+		return "", fmt.Errorf("create directory: %w", err)
+	}
+
+	// Save the file
+	localPath := filepath.Join(localDir, filename)
+	f, err := os.Create(localPath)
+	if err != nil {
+		return "", fmt.Errorf("create file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		return "", fmt.Errorf("write file: %w", err)
+	}
+
+	// Return the URL path
+	return "/" + filepath.ToSlash(localPath), nil
+}
+
+// Regex patterns to find image URLs in markdown and HTML content
+var (
+	markdownImageRe = regexp.MustCompile(`!\[([^\]]*)\]\((/static/uploads/[^)]+)\)`)
+	htmlImageRe     = regexp.MustCompile(`<img\s[^>]*src="(/static/uploads/[^"]+)"`)
+)
+
+// downloadAndRewriteContentImages finds all image references in post content,
+// downloads them from the remote system, and rewrites URLs to local paths.
+func (sc *SyncClient) downloadAndRewriteContentImages(content, remoteBaseURL, slug string, system *ExternalSystem) string {
+	// Process markdown images: ![alt](/static/uploads/post/slug/file.jpg)
+	content = markdownImageRe.ReplaceAllStringFunc(content, func(match string) string {
+		parts := markdownImageRe.FindStringSubmatch(match)
+		if len(parts) < 3 {
+			return match
+		}
+		alt, remoteURL := parts[1], parts[2]
+		localURL, err := sc.downloadImage(remoteBaseURL, remoteURL, slug, "post", system)
+		if err != nil {
+			log.Printf("Warning: failed to download content image %s: %v", remoteURL, err)
+			return match
+		}
+		return fmt.Sprintf("![%s](%s)", alt, localURL)
+	})
+
+	// Process HTML images: <img src="/static/uploads/post/slug/file.jpg">
+	content = htmlImageRe.ReplaceAllStringFunc(content, func(match string) string {
+		parts := htmlImageRe.FindStringSubmatch(match)
+		if len(parts) < 2 {
+			return match
+		}
+		remoteURL := parts[1]
+		localURL, err := sc.downloadImage(remoteBaseURL, remoteURL, slug, "post", system)
+		if err != nil {
+			log.Printf("Warning: failed to download content image %s: %v", remoteURL, err)
+			return match
+		}
+		return strings.Replace(match, remoteURL, localURL, 1)
+	})
+
+	return content
+}
+
 // ExecutePull pulls new posts from the remote system and creates them locally
 func (sc *SyncClient) ExecutePull(system *ExternalSystem, userID int) (*SyncResult, error) {
 	remotePosts, err := sc.fetchRemotePosts(system)
@@ -207,6 +314,7 @@ func (sc *SyncClient) ExecutePull(system *ExternalSystem, userID int) (*SyncResu
 		return nil, err
 	}
 
+	remoteBaseURL := strings.TrimRight(system.BaseURL, "/")
 	result := &SyncResult{Direction: "pull"}
 
 	for _, rp := range remotePosts {
@@ -215,15 +323,30 @@ func (sc *SyncClient) ExecutePull(system *ExternalSystem, userID int) (*SyncResu
 			continue
 		}
 
+		// Download featured image if present
+		featuredImageURL := rp.FeaturedImageURL
+		if featuredImageURL != "" && strings.HasPrefix(featuredImageURL, "/static/uploads/") {
+			localURL, err := sc.downloadImage(remoteBaseURL, featuredImageURL, rp.Slug, "featured", system)
+			if err != nil {
+				log.Printf("Warning: failed to download featured image for '%s': %v", rp.Slug, err)
+				// Keep the remote URL as fallback
+			} else {
+				featuredImageURL = localURL
+			}
+		}
+
+		// Download and rewrite inline images in content
+		content := sc.downloadAndRewriteContentImages(rp.Content, remoteBaseURL, rp.Slug, system)
+
 		// Create the post locally with the pulling user as author
 		_, err := sc.PostService.Create(
 			userID,
 			rp.CategoryID,
 			rp.Title,
-			rp.Content,
+			content,
 			rp.IsPublished,
 			rp.Featured,
-			rp.FeaturedImageURL,
+			featuredImageURL,
 			rp.Slug,
 		)
 		if err != nil {
