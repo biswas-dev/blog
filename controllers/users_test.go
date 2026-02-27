@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"anshumanbiswas.com/blog/models"
 )
 
 func TestUsers_TypeDefinition(t *testing.T) {
@@ -426,6 +428,88 @@ func TestUsersTempFiles(t *testing.T) {
 		// Verify file is removed
 		if _, err := os.Stat(filename); !os.IsNotExist(err) {
 			t.Error("Temp file should be removed after cleanup")
+		}
+	})
+}
+
+// Test image metadata handler request/response patterns
+func TestImageMetadataHandlers(t *testing.T) {
+	t.Run("SaveImageMetadata rejects missing service", func(t *testing.T) {
+		u := Users{ImageMetadataService: nil}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/admin/image-metadata", strings.NewReader(`{"image_url":"http://example.com/img.jpg","alt_text":"test"}`))
+		r.Header.Set("Content-Type", "application/json")
+		u.SaveImageMetadata(w, r)
+		if w.Code != http.StatusServiceUnavailable {
+			t.Errorf("Expected 503, got %d", w.Code)
+		}
+	})
+
+	t.Run("SaveImageMetadata rejects invalid JSON", func(t *testing.T) {
+		svc := &models.ImageMetadataService{} // nil DB is fine, validation returns before DB call
+		u := Users{ImageMetadataService: svc}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/admin/image-metadata", strings.NewReader(`not json`))
+		r.Header.Set("Content-Type", "application/json")
+		u.SaveImageMetadata(w, r)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("SaveImageMetadata rejects empty URL", func(t *testing.T) {
+		svc := &models.ImageMetadataService{}
+		u := Users{ImageMetadataService: svc}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/admin/image-metadata", strings.NewReader(`{"image_url":"","alt_text":"test"}`))
+		r.Header.Set("Content-Type", "application/json")
+		u.SaveImageMetadata(w, r)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetImageMetadata rejects missing service", func(t *testing.T) {
+		u := Users{ImageMetadataService: nil}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/admin/image-metadata?url=http://example.com/img.jpg", nil)
+		u.GetImageMetadata(w, r)
+		if w.Code != http.StatusServiceUnavailable {
+			t.Errorf("Expected 503, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetImageMetadata rejects missing url param", func(t *testing.T) {
+		svc := &models.ImageMetadataService{}
+		u := Users{ImageMetadataService: svc}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/admin/image-metadata", nil)
+		u.GetImageMetadata(w, r)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetImageMetadataBulk rejects missing service", func(t *testing.T) {
+		u := Users{ImageMetadataService: nil}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/admin/image-metadata/bulk", strings.NewReader(`{"urls":[]}`))
+		r.Header.Set("Content-Type", "application/json")
+		u.GetImageMetadataBulk(w, r)
+		if w.Code != http.StatusServiceUnavailable {
+			t.Errorf("Expected 503, got %d", w.Code)
+		}
+	})
+
+	t.Run("GetImageMetadataBulk rejects invalid JSON", func(t *testing.T) {
+		svc := &models.ImageMetadataService{}
+		u := Users{ImageMetadataService: svc}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/admin/image-metadata/bulk", strings.NewReader(`bad`))
+		r.Header.Set("Content-Type", "application/json")
+		u.GetImageMetadataBulk(w, r)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400, got %d", w.Code)
 		}
 	})
 }
