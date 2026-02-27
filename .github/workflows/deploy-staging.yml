@@ -232,6 +232,15 @@ jobs:
               echo "⚠️  No migration files found, skipping"
             fi
 
+            # One-time cleanup of local upload files (migrated to Cloudinary)
+            if [ ! -f static/uploads/.cloudinary_cleanup_done ]; then
+              echo "🧹 One-time cleanup: removing local upload files (migrated to Cloudinary)..."
+              rm -rf static/uploads/featured 2>/dev/null || true
+              rm -rf static/uploads/post 2>/dev/null || true
+              touch static/uploads/.cloudinary_cleanup_done
+              echo "✅ Local upload files cleaned up"
+            fi
+
             echo "✅ Deployment complete!"
             docker compose ps
           EOF

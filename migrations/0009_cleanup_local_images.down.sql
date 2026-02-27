@@ -1,0 +1,3 @@
+-- Down migration: Cannot restore deleted image references or files
+-- This is a one-way data cleanup migration after Cloudinary migration
+-- No rollback possible for deleted image data
