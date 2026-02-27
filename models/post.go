@@ -60,7 +60,7 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 		var post Post
 		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("scan top posts: %w", err)
 		}
 
 		// Parse and format CreatedAt
@@ -125,7 +125,7 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 		var post Post
 		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("scan paginated posts: %w", err)
 		}
 
 		// Parse and format CreatedAt

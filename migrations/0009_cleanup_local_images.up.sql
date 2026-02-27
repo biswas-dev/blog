@@ -5,7 +5,7 @@ BEGIN;
 
 -- 1. Clear featured_image_url for posts with local paths (preserve Cloudinary URLs)
 UPDATE posts
-SET featured_image_url = NULL
+SET featured_image_url = ''
 WHERE featured_image_url LIKE '/static/uploads/%';
 
 -- 2. Remove markdown image references to local uploads: ![alt](/static/uploads/...)
@@ -30,7 +30,7 @@ WHERE content LIKE '%/static/uploads/%';
 
 -- 4. Clear profile_picture_url for users with local paths
 UPDATE users
-SET profile_picture_url = NULL
+SET profile_picture_url = ''
 WHERE profile_picture_url LIKE '/static/uploads/%';
 
 COMMIT;
