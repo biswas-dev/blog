@@ -127,6 +127,7 @@
             </select>
           </label>
           <button type="button" class="btn" id="apply-size-btn" title="Apply size to selected image">Apply Size</button>
+          <button type="button" class="btn" id="edit-img-meta" title="Edit image metadata">Edit Img</button>
           <input type="file" id="multi-upload" accept="image/*" multiple style="display:none" />
           <div class="upload-drop-zone" id="multi-upload-zone">
             <div class="upload-drop-content">
@@ -555,7 +556,13 @@ document.getElementById('upload-inline-btn').addEventListener('click', async () 
   }
   const select = document.getElementById('img-size-select');
   let pct = (select && select.value) ? select.value : '66%';
-  insertImageIntoEditor(imageUrl, pct);
+  const defaultFilename = f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+  showImageMetaModal(imageUrl, { alt: defaultFilename, size: pct }, (meta) => {
+    const editor = document.getElementById('editor');
+    editor.focus();
+    const html = buildImageHtml(imageUrl, meta.alt, meta.title, meta.caption, meta.size);
+    insertAtCursor(editor, html);
+  });
   picker.value = '';
 });
 // Open file dialog on first click if none selected
@@ -948,31 +955,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // Image button
+  // Image button (URL prompt → metadata modal)
   const insertImageBtn = document.getElementById('insert-image');
   if (insertImageBtn) {
     insertImageBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
-      console.log('Image button clicked');
+
       const url = prompt('Enter image URL:');
       if (url) {
-        const alt = prompt('Enter alt text:') || 'Uploaded image';
         const select = document.getElementById('img-size-select');
         const widthPct = (select && select.value) ? select.value : '66%';
-        
-        // Create styled HTML image for rich formatting
-        const imageHtml = `<p style="text-align:center; margin: 10px 0;"><a href="${url}" data-lightbox="article-images" data-title="${alt}"><img src="${url}" alt="${alt}" style="width:${widthPct}; height:auto; max-width:100%;" /></a></p>\n`;
-        
-        console.log('Inserting image HTML:', imageHtml);
-        console.log('Editor element:', editor);
-        
-        insertAtCursor(editor, imageHtml);
+        showImageMetaModal(url, { size: widthPct }, (meta) => {
+          editor.focus();
+          const imageHtml = buildImageHtml(url, meta.alt, meta.title, meta.caption, meta.size);
+          insertAtCursor(editor, imageHtml);
+        });
       }
     });
-  } else {
-    console.error('Insert image button not found');
   }
   
   // Color picker
@@ -993,6 +993,158 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// --- Image Metadata Functions ---
+
+function buildImageHtml(url, alt, title, caption, width) {
+  const w = width || '66%';
+  const safeAlt = escapeHtml(alt || 'Image');
+  const safeTitle = escapeHtml(title || alt || 'Image');
+  const imgTag = `<img src="${url}" alt="${safeAlt}" style="width:${w}; height:auto; max-width:100%;" />`;
+  const link = `<a href="${url}" data-lightbox="article-images" data-title="${safeTitle}">${imgTag}</a>`;
+
+  if (caption && caption.trim()) {
+    return `<figure style="text-align:center; margin: 1.5rem 0;">${link}<figcaption>${escapeHtml(caption)}</figcaption></figure>\n`;
+  }
+  return `<p style="text-align:center; margin: 10px 0;">${link}</p>\n`;
+}
+
+function parseImageBlock(html) {
+  const srcMatch = html.match(/src="([^"]+)"/);
+  const altMatch = html.match(/alt="([^"]*)"/);
+  const titleMatch = html.match(/data-title="([^"]*)"/);
+  const captionMatch = html.match(/<figcaption>([\s\S]*?)<\/figcaption>/);
+  const widthMatch = html.match(/style="[^"]*width:\s*([^;]+)/);
+
+  return {
+    url: srcMatch ? srcMatch[1] : '',
+    alt: altMatch ? unescapeHtml(altMatch[1]) : '',
+    title: titleMatch ? unescapeHtml(titleMatch[1]) : '',
+    caption: captionMatch ? unescapeHtml(captionMatch[1]) : '',
+    size: widthMatch ? widthMatch[1].trim() : '66%'
+  };
+}
+
+function unescapeHtml(s) {
+  const el = document.createElement('div');
+  el.innerHTML = s;
+  return el.textContent || el.innerText || '';
+}
+
+async function showImageMetaModal(url, opts, callback) {
+  const modal = document.getElementById('image-meta-modal');
+  const altInput = document.getElementById('img-meta-alt');
+  const titleInput = document.getElementById('img-meta-title');
+  const captionInput = document.getElementById('img-meta-caption');
+  const sizeSelect = document.getElementById('img-meta-size');
+  const previewImg = document.getElementById('img-meta-preview');
+  const heading = document.getElementById('img-meta-heading');
+
+  // Pre-fill from opts first
+  altInput.value = opts.alt || '';
+  titleInput.value = opts.title || '';
+  captionInput.value = opts.caption || '';
+  sizeSelect.value = opts.size || '66%';
+  previewImg.src = url;
+  heading.textContent = opts.editMode ? 'Edit Image Metadata' : 'Image Metadata';
+
+  // Try to load saved metadata from DB (DB values always take precedence if they exist)
+  if (!opts.skipDbLookup) {
+    try {
+      const resp = await fetch('/api/admin/image-metadata?url=' + encodeURIComponent(url), { credentials: 'same-origin' });
+      if (resp.ok) {
+        const dbMeta = await resp.json();
+        if (dbMeta) {
+          if (dbMeta.alt_text) altInput.value = dbMeta.alt_text;
+          if (dbMeta.title) titleInput.value = dbMeta.title;
+          if (dbMeta.caption) captionInput.value = dbMeta.caption;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load image metadata from DB:', e);
+    }
+  }
+
+  modal.classList.remove('hidden');
+  altInput.focus();
+
+  // Clone buttons to remove old listeners
+  const submitBtn = document.getElementById('img-meta-submit');
+  const newSubmitBtn = submitBtn.cloneNode(true);
+  newSubmitBtn.textContent = opts.editMode ? 'Update Image' : 'Insert Image';
+  submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
+
+  const cancelBtn = document.getElementById('img-meta-cancel');
+  const newCancelBtn = cancelBtn.cloneNode(true);
+  cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+  const cancelBtn2 = document.getElementById('img-meta-cancel-btn');
+  const newCancelBtn2 = cancelBtn2.cloneNode(true);
+  cancelBtn2.parentNode.replaceChild(newCancelBtn2, cancelBtn2);
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    document.removeEventListener('keydown', escHandler);
+  }
+
+  function escHandler(e) {
+    if (e.key === 'Escape') closeModal();
+  }
+
+  newSubmitBtn.addEventListener('click', () => {
+    const metadata = {
+      alt: altInput.value.trim() || 'Image',
+      title: titleInput.value.trim(),
+      caption: captionInput.value.trim(),
+      size: sizeSelect.value
+    };
+    closeModal();
+
+    // Save metadata to DB (fire-and-forget)
+    fetch('/api/admin/image-metadata', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_url: url,
+        alt_text: metadata.alt,
+        title: metadata.title,
+        caption: metadata.caption
+      }),
+      credentials: 'same-origin'
+    }).catch(e => console.warn('Failed to save image metadata:', e));
+
+    callback(metadata);
+  });
+
+  newCancelBtn.addEventListener('click', closeModal);
+  newCancelBtn2.addEventListener('click', closeModal);
+  document.addEventListener('keydown', escHandler);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  }, { once: true });
+}
+
+function showImageMetaModalQueue(images, doneCallback) {
+  let index = 0;
+  const results = [];
+
+  function next() {
+    if (index >= images.length) {
+      doneCallback(results);
+      return;
+    }
+    const img = images[index];
+    const defaultAlt = img.filename ? img.filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ') : 'Image';
+    showImageMetaModal(img.url, { alt: defaultAlt }, (metadata) => {
+      results.push({ url: img.url, metadata: metadata });
+      index++;
+      next();
+    });
+  }
+
+  next();
+}
+
 function convertFences(html){
   // Convert triple-backtick code fences into <pre><code>
   return html.replace(/```(\w+)?\s*([\s\S]*?)```/g, (m,lang,code)=>{
@@ -1199,44 +1351,35 @@ document.addEventListener('DOMContentLoaded', function() {
       `;
       container.appendChild(actions);
       
-      // Insert all images individually
+      // Insert all images individually (with metadata modal per image)
       document.getElementById('insert-all-btn').addEventListener('click', () => {
-        const select = document.getElementById('img-size-select');
-        let pct = (select && select.value) ? select.value : '66%';
-        result.uploads.forEach((upload, index) => {
-          // Add slight delay to ensure proper sequential insertion
-          setTimeout(() => {
-            insertImageIntoEditor(upload.url, pct);
-            // Only refresh lightbox after the last image
-            if (index === result.uploads.length - 1) {
-              setTimeout(() => {
-                refreshLightbox();
-              }, 50);
-            }
-          }, index * 100);
-        });
         modal.classList.add('hidden');
+        showImageMetaModalQueue(result.uploads, (results) => {
+          const editor = document.getElementById('editor');
+          editor.focus();
+          results.forEach(({ url, metadata }) => {
+            const html = buildImageHtml(url, metadata.alt, metadata.title, metadata.caption, metadata.size);
+            insertAtCursor(editor, html);
+          });
+          refreshLightbox();
+        });
       });
       
-      // Insert as gallery
+      // Insert as gallery (use filenames as alt, skip per-image modal)
       document.getElementById('insert-gallery-btn').addEventListener('click', () => {
         const editor = document.getElementById('editor');
         editor.focus();
-        
-        const galleryHtml = `
-          <div class="image-gallery" style="display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; justify-content: center;">
-            ${result.uploads.map(upload => `<a href="${upload.url}" data-lightbox="article-images" data-title="${upload.filename}"><img src="${upload.url}" alt="${upload.filename}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a>`).join('')}
-          </div>
-        `;
-        
-        console.log('Inserting gallery:', galleryHtml);
-        
-        // Use insertAtCursor for textarea
+
+        const imageElements = result.uploads.map(upload => {
+          const alt = upload.filename ? upload.filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ') : 'Image';
+          const safeAlt = escapeHtml(alt);
+          return `  <a href="${upload.url}" data-lightbox="article-images" data-title="${safeAlt}"><img src="${upload.url}" alt="${safeAlt}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a>`;
+        }).join('\n');
+
+        const galleryHtml = `<div class="image-gallery" style="display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; justify-content: center;">\n${imageElements}\n</div>\n`;
+
         insertAtCursor(editor, galleryHtml);
-        
-        // Refresh lightbox to handle new images
         refreshLightbox();
-        
         modal.classList.add('hidden');
       });
     }
@@ -1353,22 +1496,51 @@ document.addEventListener('DOMContentLoaded', function() {
       const result = await response.json();
       
       if (result.images && result.images.length > 0) {
-        container.innerHTML = result.images.map((img) => `
+        // Fetch metadata from DB for all image URLs
+        let metaMap = {};
+        try {
+          const urls = result.images.map(img => img.url);
+          const metaResp = await fetch('/api/admin/image-metadata/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls: urls }),
+            credentials: 'same-origin'
+          });
+          if (metaResp.ok) {
+            metaMap = await metaResp.json();
+          }
+        } catch (e) {
+          console.warn('Failed to load image metadata from DB:', e);
+        }
+
+        container.innerHTML = result.images.map((img) => {
+          const meta = metaMap[img.url] || null;
+          const altText = meta && meta.alt_text ? meta.alt_text : '';
+          const captionText = meta && meta.caption ? meta.caption : '';
+          const altBadge = altText
+            ? `<div class="img-meta-badge img-meta-alt" title="Alt: ${escapeHtml(altText)}"><span class="badge-label">Alt</span> ${escapeHtml(altText)}</div>`
+            : `<div class="img-meta-badge img-meta-none"><span class="badge-label">Alt</span> not set</div>`;
+          const captionBadge = captionText
+            ? `<div class="img-meta-badge img-meta-caption" title="Caption: ${escapeHtml(captionText)}"><span class="badge-label">Fig</span> ${escapeHtml(captionText)}</div>`
+            : '';
+          return `
           <div class="existing-image-item" data-url="${img.url}">
             <div class="image-checkbox-container">
               <input type="checkbox" class="image-checkbox" data-url="${img.url}" id="img-${img.url.replace(/[^a-zA-Z0-9]/g, '')}" />
               <label class="image-checkbox-label" for="img-${img.url.replace(/[^a-zA-Z0-9]/g, '')}">
-                <img src="${img.url}" alt="${img.filename}" style="width: 100%; height: 120px; object-fit: cover;" />
+                <img src="${img.url}" alt="${altText || img.filename}" style="width: 100%; height: 120px; object-fit: cover;" />
               </label>
             </div>
             <div class="image-info" style="padding: 8px;">
               <div class="filename" style="font-size: 12px; font-weight: 500; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${img.filename}</div>
               <div class="filesize" style="font-size: 10px; color: #6b7280;">${(img.size / 1024).toFixed(1)} KB</div>
+              ${altBadge}
+              ${captionBadge}
             </div>
             <button class="image-delete-btn" data-url="${img.url}" title="Delete image">×</button>
             <button class="image-insert-btn" data-url="${img.url}" title="Insert into editor">Insert</button>
           </div>
-        `).join('');
+        `}).join('');
 
         // Add event listeners for delete and insert buttons
         // Add event listeners for checkboxes
@@ -1410,10 +1582,18 @@ document.addEventListener('DOMContentLoaded', function() {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const imageUrl = btn.getAttribute('data-url');
+            const filename = btn.closest('.existing-image-item')?.querySelector('.filename')?.textContent || '';
+            const defaultAlt = filename ? filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ') : 'Image';
             const select = document.getElementById('img-size-select');
             let pct = (select && select.value) ? select.value : '66%';
-            insertImageIntoEditor(imageUrl, pct);
             document.getElementById('existing-images-modal').classList.add('hidden');
+            showImageMetaModal(imageUrl, { alt: defaultAlt, size: pct }, (meta) => {
+              const editor = document.getElementById('editor');
+              editor.focus();
+              const html = buildImageHtml(imageUrl, meta.alt, meta.title, meta.caption, meta.size);
+              insertAtCursor(editor, html);
+              refreshLightbox();
+            });
           });
         });
       } else {
@@ -1463,24 +1643,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Function to insert image into editor
+  // Function to insert image into editor (with metadata modal)
   function insertImageIntoEditor(imageUrl, widthPct) {
     const editor = document.getElementById('editor');
-    
-    // Ensure editor has focus and cursor position
-    editor.focus();
-    
-    // Create image HTML with lightbox link
-    const w = widthPct || '66%';
-    const imageHtml = `<p style="text-align:center; margin: 10px 0;"><a href="${imageUrl}" data-lightbox="article-images" data-title="Uploaded image"><img src="${imageUrl}" alt="Uploaded image" style="width:${w}; height:auto; max-width:100%;" /></a></p>`;
-    
-    console.log('Inserting uploaded image:', imageHtml);
-    
-    // Use the insertAtCursor function for textarea
-    insertAtCursor(editor, imageHtml);
-    
-    // Refresh lightbox to handle new images
-    refreshLightbox();
+    const defaultFilename = imageUrl.split('/').pop().replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+
+    showImageMetaModal(imageUrl, { alt: defaultFilename, size: widthPct || '66%' }, (meta) => {
+      editor.focus();
+      const imageHtml = buildImageHtml(imageUrl, meta.alt, meta.title, meta.caption, meta.size);
+      insertAtCursor(editor, imageHtml);
+      refreshLightbox();
+    });
   }
 
   // Lightweight resize tool for selected image
@@ -1591,6 +1764,58 @@ document.addEventListener('DOMContentLoaded', function() {
         <button id="confirmation-cancel" class="btn btn-secondary">Cancel</button>
         <button id="confirmation-confirm" class="btn btn-danger">Delete</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Image Metadata Modal -->
+<div id="image-meta-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4 shadow-xl">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-50" id="img-meta-heading">Image Metadata</h3>
+      <button id="img-meta-cancel" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl">&times;</button>
+    </div>
+    <div class="mb-4 text-center">
+      <img id="img-meta-preview" src="" alt="Preview" style="max-height: 150px; max-width: 100%; border-radius: 8px; object-fit: contain;" />
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alt Text <span class="text-red-500">*</span></label>
+        <input type="text" id="img-meta-alt" class="form-input w-full" placeholder="Describe the image for accessibility" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+        <input type="text" id="img-meta-title" class="form-input w-full" placeholder="Tooltip / lightbox title (defaults to alt)" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Caption</label>
+        <textarea id="img-meta-caption" class="form-input w-full" rows="2" placeholder="Optional figcaption text"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Size</label>
+        <select id="img-meta-size" class="form-input w-full">
+          <option value="33%">Small (33%)</option>
+          <option value="66%" selected>Medium (66%)</option>
+          <option value="100%">Large (100%)</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end mt-5">
+      <button type="button" id="img-meta-cancel-btn" class="btn btn-secondary">Cancel</button>
+      <button type="button" id="img-meta-submit" class="btn btn-primary">Insert Image</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Picker Modal (for Edit Img) -->
+<div id="image-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-xl">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-50">Select Image to Edit</h3>
+      <button id="close-image-picker" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl">&times;</button>
+    </div>
+    <div id="image-picker-container" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <!-- Image items will be inserted here -->
     </div>
   </div>
 </div>
@@ -2038,6 +2263,109 @@ document.addEventListener('DOMContentLoaded', function() {
 .dark .upload-icon-small {
   color: #9ca3af;
 }
+
+/* Image picker items (for Edit Img) */
+.image-picker-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.image-picker-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  transform: scale(1.02);
+}
+
+.dark .image-picker-item {
+  border-color: #374151;
+  background: #1f2937;
+}
+
+.dark .image-picker-item:hover {
+  border-color: #3b82f6;
+}
+
+.image-picker-item img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.image-picker-item .picker-info {
+  padding: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark .image-picker-item .picker-info {
+  color: #9ca3af;
+}
+
+/* Image metadata badges in browse modal */
+.img-meta-badge {
+  font-size: 10px;
+  margin-top: 3px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.img-meta-badge .badge-label {
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.img-meta-alt {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.dark .img-meta-alt {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.img-meta-caption {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.dark .img-meta-caption {
+  background: #14532d;
+  color: #86efac;
+}
+
+.img-meta-none {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dark .img-meta-none {
+  background: #78350f;
+  color: #fcd34d;
+}
+
+.img-in-editor-badge {
+  position: absolute;
+  top: 4px;
+  left: 30px;
+  background: rgba(16, 185, 129, 0.9);
+  color: white;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
 </style>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css">
@@ -2192,38 +2520,40 @@ document.addEventListener('DOMContentLoaded', function() {
   
   document.getElementById('insert-selected-images')?.addEventListener('click', () => {
     const selected = Array.from(document.querySelectorAll('.image-checkbox:checked'));
-    const editor = document.getElementById('editor');
-    const select = document.getElementById('img-size-select');
-    const widthPct = (select && select.value) ? select.value : '66%';
-    
-    selected.forEach(checkbox => {
+    const images = selected.map(checkbox => {
       const url = checkbox.dataset.url;
-      const imageHtml = `<p style="text-align:center; margin: 10px 0;"><a href="${url}" data-lightbox="article-images" data-title="Uploaded image"><img src="${url}" alt="Uploaded image" style="width:${widthPct}; height:auto; max-width:100%;" /></a></p>\n`;
-      insertAtCursor(editor, imageHtml);
+      const filename = checkbox.closest('.existing-image-item')?.querySelector('.filename')?.textContent || '';
+      return { url: url, filename: filename };
     });
-    
     document.getElementById('existing-images-modal')?.classList.add('hidden');
+    showImageMetaModalQueue(images, (results) => {
+      const editor = document.getElementById('editor');
+      editor.focus();
+      results.forEach(({ url, metadata }) => {
+        const html = buildImageHtml(url, metadata.alt, metadata.title, metadata.caption, metadata.size);
+        insertAtCursor(editor, html);
+      });
+      refreshLightbox();
+    });
   });
   
   document.getElementById('insert-selected-gallery')?.addEventListener('click', () => {
     const selected = Array.from(document.querySelectorAll('.image-checkbox:checked'));
     const editor = document.getElementById('editor');
-    
+
     const imageElements = selected.map(checkbox => {
       const url = checkbox.dataset.url;
-      const filename = checkbox.closest('.existing-image-item').querySelector('.filename')?.textContent || 'Image';
-      return `  <a href="${url}" data-lightbox="article-images" data-title="${filename}">
-    <img src="${url}" alt="${filename}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-  </a>`;
+      const filename = checkbox.closest('.existing-image-item')?.querySelector('.filename')?.textContent || 'Image';
+      const alt = filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+      const safeAlt = escapeHtml(alt);
+      return `  <a href="${url}" data-lightbox="article-images" data-title="${safeAlt}"><img src="${url}" alt="${safeAlt}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a>`;
     }).join('\n');
-    
-    const galleryHtml = `<div class="image-gallery" style="display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; justify-content: center;">
-${imageElements}
-</div>
 
-`;
-    
+    const galleryHtml = `<div class="image-gallery" style="display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; justify-content: center;">\n${imageElements}\n</div>\n`;
+
+    editor.focus();
     insertAtCursor(editor, galleryHtml);
+    refreshLightbox();
     document.getElementById('existing-images-modal')?.classList.add('hidden');
   });
   
@@ -2262,6 +2592,97 @@ ${imageElements}
         }
       }
     );
+  });
+});
+
+// Edit Img button handler
+document.addEventListener('DOMContentLoaded', function() {
+  const editImgBtn = document.getElementById('edit-img-meta');
+  if (!editImgBtn) return;
+
+  editImgBtn.addEventListener('click', () => {
+    const editor = document.getElementById('editor');
+    const content = editor.value;
+
+    // Find all image blocks: <figure>...<img...>...</figure> or <p>...<img...>...</p>
+    const imgBlocks = [];
+    const figureRegex = /<figure[^>]*>[\s\S]*?<img\s[^>]*src="([^"]+)"[^>]*>[\s\S]*?<\/figure>/g;
+    const pRegex = /<p[^>]*>[\s\S]*?<img\s[^>]*src="([^"]+)"[^>]*>[\s\S]*?<\/p>/g;
+
+    let match;
+    while ((match = figureRegex.exec(content)) !== null) {
+      imgBlocks.push({ html: match[0], url: match[1], index: match.index });
+    }
+    while ((match = pRegex.exec(content)) !== null) {
+      // Only include if it contains an <img> tag (avoid false positives)
+      if (/<img\s/.test(match[0])) {
+        // Avoid duplicates (figure blocks that also match p)
+        const isDuplicate = imgBlocks.some(b => b.url === match[1] && Math.abs(b.index - match.index) < 10);
+        if (!isDuplicate) {
+          imgBlocks.push({ html: match[0], url: match[1], index: match.index });
+        }
+      }
+    }
+
+    if (imgBlocks.length === 0) {
+      alert('No images found in the editor content.');
+      return;
+    }
+
+    // Show image picker modal
+    const pickerModal = document.getElementById('image-picker-modal');
+    const pickerContainer = document.getElementById('image-picker-container');
+
+    pickerContainer.innerHTML = imgBlocks.map((block, i) => {
+      const parsed = parseImageBlock(block.html);
+      return `<div class="image-picker-item" data-block-index="${i}">
+        <img src="${block.url}" alt="${parsed.alt}" />
+        <div class="picker-info">${parsed.alt || 'No alt text'}</div>
+      </div>`;
+    }).join('');
+
+    pickerModal.classList.remove('hidden');
+
+    // Close handlers
+    const closeBtn = document.getElementById('close-image-picker');
+    const newCloseBtn = closeBtn.cloneNode(true);
+    closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+    newCloseBtn.addEventListener('click', () => pickerModal.classList.add('hidden'));
+
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        pickerModal.classList.add('hidden');
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    pickerModal.addEventListener('click', (e) => {
+      if (e.target === pickerModal) pickerModal.classList.add('hidden');
+    }, { once: true });
+
+    // Click handler for each image item
+    pickerContainer.querySelectorAll('.image-picker-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const idx = parseInt(item.dataset.blockIndex, 10);
+        const block = imgBlocks[idx];
+        const parsed = parseImageBlock(block.html);
+
+        pickerModal.classList.add('hidden');
+        document.removeEventListener('keydown', escHandler);
+
+        showImageMetaModal(block.url, {
+          alt: parsed.alt,
+          title: parsed.title,
+          caption: parsed.caption,
+          size: parsed.size,
+          editMode: true
+        }, (meta) => {
+          const newHtml = buildImageHtml(block.url, meta.alt, meta.title, meta.caption, meta.size);
+          editor.value = editor.value.replace(block.html, newHtml.trimEnd());
+          editor.focus();
+        });
+      });
+    });
   });
 });
 
