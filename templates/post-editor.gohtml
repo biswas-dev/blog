@@ -1031,7 +1031,7 @@ function unescapeHtml(s) {
   return el.textContent || el.innerText || '';
 }
 
-function showImageMetaModal(url, opts, callback) {
+async function showImageMetaModal(url, opts, callback) {
   const modal = document.getElementById('image-meta-modal');
   const altInput = document.getElementById('img-meta-alt');
   const titleInput = document.getElementById('img-meta-title');
@@ -1040,13 +1040,30 @@ function showImageMetaModal(url, opts, callback) {
   const previewImg = document.getElementById('img-meta-preview');
   const heading = document.getElementById('img-meta-heading');
 
-  // Pre-fill fields
+  // Pre-fill from opts first
   altInput.value = opts.alt || '';
   titleInput.value = opts.title || '';
   captionInput.value = opts.caption || '';
   sizeSelect.value = opts.size || '66%';
   previewImg.src = url;
   heading.textContent = opts.editMode ? 'Edit Image Metadata' : 'Image Metadata';
+
+  // Try to load saved metadata from DB (DB values always take precedence if they exist)
+  if (!opts.skipDbLookup) {
+    try {
+      const resp = await fetch('/api/admin/image-metadata?url=' + encodeURIComponent(url), { credentials: 'same-origin' });
+      if (resp.ok) {
+        const dbMeta = await resp.json();
+        if (dbMeta) {
+          if (dbMeta.alt_text) altInput.value = dbMeta.alt_text;
+          if (dbMeta.title) titleInput.value = dbMeta.title;
+          if (dbMeta.caption) captionInput.value = dbMeta.caption;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load image metadata from DB:', e);
+    }
+  }
 
   modal.classList.remove('hidden');
   altInput.focus();
@@ -1082,6 +1099,20 @@ function showImageMetaModal(url, opts, callback) {
       size: sizeSelect.value
     };
     closeModal();
+
+    // Save metadata to DB (fire-and-forget)
+    fetch('/api/admin/image-metadata', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_url: url,
+        alt_text: metadata.alt,
+        title: metadata.title,
+        caption: metadata.caption
+      }),
+      credentials: 'same-origin'
+    }).catch(e => console.warn('Failed to save image metadata:', e));
+
     callback(metadata);
   });
 
@@ -1465,22 +1496,51 @@ document.addEventListener('DOMContentLoaded', function() {
       const result = await response.json();
       
       if (result.images && result.images.length > 0) {
-        container.innerHTML = result.images.map((img) => `
+        // Fetch metadata from DB for all image URLs
+        let metaMap = {};
+        try {
+          const urls = result.images.map(img => img.url);
+          const metaResp = await fetch('/api/admin/image-metadata/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls: urls }),
+            credentials: 'same-origin'
+          });
+          if (metaResp.ok) {
+            metaMap = await metaResp.json();
+          }
+        } catch (e) {
+          console.warn('Failed to load image metadata from DB:', e);
+        }
+
+        container.innerHTML = result.images.map((img) => {
+          const meta = metaMap[img.url] || null;
+          const altText = meta && meta.alt_text ? meta.alt_text : '';
+          const captionText = meta && meta.caption ? meta.caption : '';
+          const altBadge = altText
+            ? `<div class="img-meta-badge img-meta-alt" title="Alt: ${escapeHtml(altText)}"><span class="badge-label">Alt</span> ${escapeHtml(altText)}</div>`
+            : `<div class="img-meta-badge img-meta-none"><span class="badge-label">Alt</span> not set</div>`;
+          const captionBadge = captionText
+            ? `<div class="img-meta-badge img-meta-caption" title="Caption: ${escapeHtml(captionText)}"><span class="badge-label">Fig</span> ${escapeHtml(captionText)}</div>`
+            : '';
+          return `
           <div class="existing-image-item" data-url="${img.url}">
             <div class="image-checkbox-container">
               <input type="checkbox" class="image-checkbox" data-url="${img.url}" id="img-${img.url.replace(/[^a-zA-Z0-9]/g, '')}" />
               <label class="image-checkbox-label" for="img-${img.url.replace(/[^a-zA-Z0-9]/g, '')}">
-                <img src="${img.url}" alt="${img.filename}" style="width: 100%; height: 120px; object-fit: cover;" />
+                <img src="${img.url}" alt="${altText || img.filename}" style="width: 100%; height: 120px; object-fit: cover;" />
               </label>
             </div>
             <div class="image-info" style="padding: 8px;">
               <div class="filename" style="font-size: 12px; font-weight: 500; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${img.filename}</div>
               <div class="filesize" style="font-size: 10px; color: #6b7280;">${(img.size / 1024).toFixed(1)} KB</div>
+              ${altBadge}
+              ${captionBadge}
             </div>
             <button class="image-delete-btn" data-url="${img.url}" title="Delete image">×</button>
             <button class="image-insert-btn" data-url="${img.url}" title="Insert into editor">Insert</button>
           </div>
-        `).join('');
+        `}).join('');
 
         // Add event listeners for delete and insert buttons
         // Add event listeners for checkboxes
@@ -2246,6 +2306,65 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .dark .image-picker-item .picker-info {
   color: #9ca3af;
+}
+
+/* Image metadata badges in browse modal */
+.img-meta-badge {
+  font-size: 10px;
+  margin-top: 3px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.img-meta-badge .badge-label {
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.img-meta-alt {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.dark .img-meta-alt {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.img-meta-caption {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.dark .img-meta-caption {
+  background: #14532d;
+  color: #86efac;
+}
+
+.img-meta-none {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dark .img-meta-none {
+  background: #78350f;
+  color: #fcd34d;
+}
+
+.img-in-editor-badge {
+  position: absolute;
+  top: 4px;
+  left: 30px;
+  background: rgba(16, 185, 129, 0.9);
+  color: white;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 </style>
 

@@ -121,14 +121,20 @@ func main() {
 		DB: DB,
 	}
 
+	// Initialize ImageMetadataService
+	imageMetadataService := models.ImageMetadataService{
+		DB: DB,
+	}
+
 	// Setup our controllers
 	usersC := controllers.Users{
-		UserService:       &userService,
-		SessionService:    &sessionService,
-		PostService:       &postService,
-		APITokenService:   &apiTokenService,
-		CategoryService:   &categoryService,
-		CloudinaryService: &cloudinaryService,
+		UserService:          &userService,
+		SessionService:       &sessionService,
+		PostService:          &postService,
+		APITokenService:      &apiTokenService,
+		CategoryService:      &categoryService,
+		CloudinaryService:    &cloudinaryService,
+		ImageMetadataService: &imageMetadataService,
 	}
 
 	// Initialize Blog controller
@@ -245,6 +251,12 @@ func main() {
 	r.Get("/admin/uploads/list", usersC.ListUploadedImages)
 	r.Delete("/admin/uploads", usersC.DeleteImage)
 	r.Post("/admin/preview", usersC.PreviewRender)
+
+	// Image Metadata Routes
+	r.Put("/api/admin/image-metadata", usersC.SaveImageMetadata)
+	r.Get("/api/admin/image-metadata", usersC.GetImageMetadata)
+	r.Post("/api/admin/image-metadata/bulk", usersC.GetImageMetadataBulk)
+
 	r.Get("/my-posts", usersC.UserPosts)
 	r.Get("/api-access", usersC.APIAccess)
 

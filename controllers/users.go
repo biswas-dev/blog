@@ -87,7 +87,8 @@ type Users struct {
 	PostService       *models.PostService
 	APITokenService   *models.APITokenService
 	CategoryService   *models.CategoryService
-	CloudinaryService *models.CloudinaryService
+	CloudinaryService    *models.CloudinaryService
+	ImageMetadataService *models.ImageMetadataService
 }
 
 // UploadImage handles image uploads (cover or inline). Returns JSON {url}
@@ -1458,4 +1459,89 @@ func (u Users) DeleteAPITokenJSON(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"message": "Token deleted successfully",
 	})
+}
+
+// SaveImageMetadata handles PUT /api/admin/image-metadata — upsert metadata for one image.
+func (u Users) SaveImageMetadata(w http.ResponseWriter, r *http.Request) {
+	if u.ImageMetadataService == nil {
+		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		ImageURL string `json:"image_url"`
+		AltText  string `json:"alt_text"`
+		Title    string `json:"title"`
+		Caption  string `json:"caption"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if req.ImageURL == "" {
+		http.Error(w, "image_url is required", http.StatusBadRequest)
+		return
+	}
+
+	meta, err := u.ImageMetadataService.Upsert(req.ImageURL, req.AltText, req.Title, req.Caption)
+	if err != nil {
+		http.Error(w, "failed to save: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(meta)
+}
+
+// GetImageMetadata handles GET /api/admin/image-metadata?url=... — get metadata for one image.
+func (u Users) GetImageMetadata(w http.ResponseWriter, r *http.Request) {
+	if u.ImageMetadataService == nil {
+		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	imageURL := r.URL.Query().Get("url")
+	if imageURL == "" {
+		http.Error(w, "url param is required", http.StatusBadRequest)
+		return
+	}
+
+	meta, err := u.ImageMetadataService.GetByURL(imageURL)
+	if err != nil {
+		http.Error(w, "lookup failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if meta == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("null"))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(meta)
+}
+
+// GetImageMetadataBulk handles POST /api/admin/image-metadata/bulk — get metadata for multiple image URLs.
+func (u Users) GetImageMetadataBulk(w http.ResponseWriter, r *http.Request) {
+	if u.ImageMetadataService == nil {
+		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		URLs []string `json:"urls"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	result, err := u.ImageMetadataService.GetByURLs(req.URLs)
+	if err != nil {
+		http.Error(w, "lookup failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
