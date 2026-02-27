@@ -299,13 +299,40 @@
     cursor: pointer;
     transition: transform 0.2s ease;
     position: relative;
+    max-width: 100%;
+    height: auto;
 }
 
-/* Center single images and add spacing */
+/* Content images should fill their container */
 .prose p > img,
-.prose div > img {
+.prose div > img,
+.prose figure > img,
+.prose a > img {
     display: block;
     margin: 12px auto;
+    width: 100%;
+}
+
+/* Figure and figcaption styling */
+.prose figure {
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.prose figure img {
+    width: 100%;
+}
+
+.prose figcaption {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    font-style: italic;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.dark .prose figcaption {
+    color: #9ca3af;
 }
 
 /* Image gallery layout */
@@ -334,7 +361,7 @@
 
 /* Lightbox link styling */
 .prose a[data-lightbox] {
-    display: inline-block;
+    display: block;
     position: relative;
     overflow: hidden;
     border-radius: 12px;
@@ -610,10 +637,11 @@
                     'resizeDuration': 200,
                     'wrapAround': true,
                     'fitImagesInViewport': true,
-                    'maxWidth': 1200,
-                    'maxHeight': 800,
-                    'showImageNumberLabel': false,
-                    'albumLabel': "Image %1 of %2"
+                    'maxWidth': 1400,
+                    'maxHeight': 900,
+                    'showImageNumberLabel': true,
+                    'albumLabel': "Image %1 of %2",
+                    'disableScrolling': true
                 });
             } else {
                 console.log('Waiting for lightbox to load...');

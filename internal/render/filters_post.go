@@ -125,15 +125,15 @@ func wrapImageGalleries(html string) string {
 	galleryRe := regexp.MustCompile(`(?is)(<div[^>]*class="[^"]*image-gallery[^"]*"[^>]*>)([\s\S]*?)(</div>)`)
 	imgRe := regexp.MustCompile(`(?is)<img([^>]*?)\s+src="([^"]+)"([^>]*)>`)
 	altRe := regexp.MustCompile(`(?i)alt="([^"]*)"`)
+	existingLightboxRe := regexp.MustCompile(`(?is)<a[^>]*data-lightbox[^>]*>\s*<img[^>]*>\s*</a>`)
 
 	transform := func(content string) string {
 		// First, find and protect any existing lightbox-wrapped images
-		existingLightboxRe := regexp.MustCompile(`(?is)<a[^>]*data-lightbox[^>]*>\s*<img[^>]*>\s*</a>`)
 		if existingLightboxRe.MatchString(content) {
 			// Content already has lightbox links, don't add more
 			return content
 		}
-		
+
 		// Only add lightbox wrapping if images are bare (not already wrapped)
 		return imgRe.ReplaceAllStringFunc(content, func(imgTag string) string {
 			m := imgRe.FindStringSubmatch(imgTag)
@@ -155,7 +155,55 @@ func wrapImageGalleries(html string) string {
 		})
 	}
 
-	// 7a) Inside image-gallery containers
+	// 7a) <figure> blocks: wrap <img> with lightbox using <figcaption> as data-title
+	figureRe := regexp.MustCompile(`(?is)(<figure[^>]*>)([\s\S]*?)(</figure>)`)
+	captionRe := regexp.MustCompile(`(?is)<figcaption[^>]*>([\s\S]*?)</figcaption>`)
+	html = figureRe.ReplaceAllStringFunc(html, func(block string) string {
+		// Skip if already has lightbox links
+		if existingLightboxRe.MatchString(block) {
+			return block
+		}
+		parts := figureRe.FindStringSubmatch(block)
+		if len(parts) != 4 {
+			return block
+		}
+		openTag, inner, closeTag := parts[1], parts[2], parts[3]
+
+		// Extract figcaption text for lightbox title
+		caption := ""
+		if cm := captionRe.FindStringSubmatch(inner); len(cm) == 2 {
+			// Strip HTML tags from caption for data-title
+			caption = regexp.MustCompile(`<[^>]*>`).ReplaceAllString(cm[1], "")
+			caption = strings.TrimSpace(caption)
+		}
+
+		// Wrap bare <img> tags inside the figure with lightbox links
+		inner = imgRe.ReplaceAllStringFunc(inner, func(imgTag string) string {
+			m := imgRe.FindStringSubmatch(imgTag)
+			if len(m) != 4 {
+				return imgTag
+			}
+			preAttrs := m[1]
+			src := m[2]
+			postAttrs := m[3]
+			// Use figcaption if available, fall back to alt text
+			title := caption
+			if title == "" {
+				attrs := preAttrs + " " + postAttrs
+				if am := altRe.FindStringSubmatch(attrs); len(am) == 2 {
+					title = am[1]
+				}
+			}
+			return fmt.Sprintf(
+				`<a href="%s" data-lightbox="article-images" rel="lightbox[article-images]" data-title="%s"><img%s src="%s"%s></a>`,
+				src, htmlEscapeAttr(title), preAttrs, src, postAttrs,
+			)
+		})
+
+		return openTag + inner + closeTag
+	})
+
+	// 7b) Inside image-gallery containers
 	html = galleryRe.ReplaceAllStringFunc(html, func(block string) string {
 		parts := galleryRe.FindStringSubmatch(block)
 		if len(parts) != 4 {
@@ -164,22 +212,32 @@ func wrapImageGalleries(html string) string {
 		return parts[1] + transform(parts[2]) + parts[3]
 	})
 
-	// 7b) Standalone <p><img ...></p> -> lightbox (skip if already has lightbox links)
+	// 7c) Standalone <p><img ...></p> -> lightbox (skip if already has lightbox links)
 	imgPara := regexp.MustCompile(`(?is)<p>\s*(<img[^>]+>)\s*</p>`)
 	existingParaLightboxRe := regexp.MustCompile(`(?is)<p>\s*<a[^>]*data-lightbox[^>]*>\s*<img[^>]*>\s*</a>\s*</p>`)
-	
+
 	html = imgPara.ReplaceAllStringFunc(html, func(m string) string {
 		// Skip if this paragraph already has a lightbox link
 		if existingParaLightboxRe.MatchString(m) {
 			return m
 		}
-		
+
 		im := imgRe.FindStringSubmatch(m)
 		if len(im) != 4 {
 			return m
 		}
 		src := im[2]
-		return `<p><a href="` + src + `" data-lightbox="article-images" rel="lightbox[article-images]">` + im[0][3:len(im[0])-4] + `</a></p>`
+		preAttrs := im[1]
+		postAttrs := im[3]
+		attrs := preAttrs + " " + postAttrs
+		alt := ""
+		if am := altRe.FindStringSubmatch(attrs); len(am) == 2 {
+			alt = am[1]
+		}
+		return fmt.Sprintf(
+			`<p><a href="%s" data-lightbox="article-images" rel="lightbox[article-images]" data-title="%s"><img%s src="%s"%s></a></p>`,
+			src, htmlEscapeAttr(alt), preAttrs, src, postAttrs,
+		)
 	})
 
 	return html
