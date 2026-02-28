@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"anshumanbiswas.com/blog/internal/render"
+	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/lib/pq"
 )
 
@@ -482,12 +482,12 @@ func (ps PostService) Delete(postID int) error {
 	return nil
 }
 
-// defaultRenderer is a singleton to avoid re-allocating on every render call.
-var defaultRenderer = render.NewRenderer(render.DefaultOptions())
+// defaultWiki is a singleton to avoid re-allocating on every render call.
+var defaultWiki = gowiki.New()
 
-// RenderContent converts markdown content to HTML using the default renderer
+// RenderContent converts markdown content to HTML using the default renderer.
 func RenderContent(content string) string {
-	return defaultRenderer.Render(content)
+	return defaultWiki.RenderContent(content)
 }
 
 // loadCategoriesForPosts batch-loads categories for all posts in a single query,
