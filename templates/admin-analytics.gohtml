@@ -1,0 +1,539 @@
+{{template "modern-header" .}}
+
+<style>
+    .sys-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .dark .sys-card {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    .sys-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .sys-card-header {
+        border-color: var(--border);
+    }
+    .sys-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .sys-icon svg { width: 18px; height: 18px; }
+    .sys-icon-teal { background: rgba(13,148,136,0.1); color: #0d9488; }
+    .dark .sys-icon-teal { background: rgba(45,212,191,0.15); color: #2dd4bf; }
+    .sys-icon-blue { background: rgba(37,99,235,0.1); color: #2563eb; }
+    .dark .sys-icon-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .sys-icon-amber { background: rgba(217,119,6,0.1); color: #d97706; }
+    .dark .sys-icon-amber { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .sys-icon-green { background: rgba(22,163,74,0.1); color: #16a34a; }
+    .dark .sys-icon-green { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .sys-icon-purple { background: rgba(139,92,246,0.1); color: #8b5cf6; }
+    .dark .sys-icon-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
+    .sys-card-header h3 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .sys-card-body { padding: 16px 20px; }
+    .sys-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+    }
+    .sys-page-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .sys-page-header p {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin: 4px 0 0 0;
+    }
+    .sys-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .sys-back-btn:hover {
+        color: var(--text-primary);
+        border-color: var(--text-secondary);
+    }
+
+    /* Summary cards grid */
+    .analytics-summary {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    @media (min-width: 768px) {
+        .analytics-summary { grid-template-columns: repeat(4, 1fr); }
+    }
+    .stat-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        padding: 20px;
+    }
+    .dark .stat-card {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 4px;
+    }
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+    .stat-sub {
+        font-size: 0.75rem;
+        color: var(--text-tertiary);
+        margin-top: 4px;
+    }
+
+    /* Period selector */
+    .period-selector {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    .period-btn {
+        padding: 6px 16px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .period-btn:hover {
+        color: var(--text-primary);
+        border-color: var(--text-secondary);
+    }
+    .period-btn.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+
+    /* Chart container */
+    .chart-container {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+    .dark .chart-container {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    .chart-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 16px 0;
+    }
+
+    /* Tables grid */
+    .tables-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    @media (min-width: 768px) {
+        .tables-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .analytics-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .analytics-table th {
+        text-align: left;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .analytics-table th { border-bottom-color: var(--border); }
+    .analytics-table td {
+        font-size: 0.8125rem;
+        color: var(--text-primary);
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .analytics-table td { border-bottom-color: var(--border); }
+    .analytics-table td.num {
+        text-align: right;
+        font-weight: 600;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.75rem;
+    }
+    .analytics-table td.path {
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Loading / empty states */
+    .analytics-loading {
+        text-align: center;
+        padding: 40px 0;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+</style>
+
+<div class="min-h-screen" style="background: var(--bg-secondary);">
+    <div class="max-w-7xl mx-auto px-4 py-8" style="max-width: 1100px;">
+        <!-- Header -->
+        <div class="sys-page-header">
+            <div>
+                <h1>Analytics</h1>
+                <p>Visitor traffic and page view insights</p>
+            </div>
+            <a href="/admin/system" class="sys-back-btn">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                System
+            </a>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="analytics-summary">
+            <div class="stat-card">
+                <div class="stat-label">Today</div>
+                <div class="stat-value" id="stat-today">{{.LiveStats.TodayViews}}</div>
+                <div class="stat-sub" id="stat-today-uniques">{{.LiveStats.TodayUniques}} unique</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Views</div>
+                <div class="stat-value" id="stat-total">—</div>
+                <div class="stat-sub" id="stat-total-sub"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Unique Visitors</div>
+                <div class="stat-value" id="stat-uniques">—</div>
+                <div class="stat-sub" id="stat-uniques-sub"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Daily</div>
+                <div class="stat-value" id="stat-avg">—</div>
+                <div class="stat-sub" id="stat-avg-sub"></div>
+            </div>
+        </div>
+
+        <!-- Period selector -->
+        <div class="period-selector">
+            <button class="period-btn" data-period="7d">7 Days</button>
+            <button class="period-btn active" data-period="30d">30 Days</button>
+            <button class="period-btn" data-period="90d">90 Days</button>
+            <button class="period-btn" data-period="1y">1 Year</button>
+        </div>
+
+        <!-- Views chart -->
+        <div class="chart-container">
+            <h3 class="chart-title">Page Views</h3>
+            <div style="position: relative; height: 300px;">
+                <canvas id="views-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Content type breakdown -->
+        <div class="tables-grid" style="margin-bottom: 24px;">
+            <div class="chart-container" style="margin-bottom: 0;">
+                <h3 class="chart-title">Content Breakdown</h3>
+                <div style="position: relative; height: 220px;">
+                    <canvas id="content-chart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container" style="margin-bottom: 0;">
+                <h3 class="chart-title">Content Type Stats</h3>
+                <table class="analytics-table" id="content-table">
+                    <thead><tr><th>Type</th><th style="text-align:right">Views</th><th style="text-align:right">Uniques</th></tr></thead>
+                    <tbody id="content-table-body">
+                        <tr><td colspan="3" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Top pages + Top referrers -->
+        <div class="tables-grid">
+            <div class="sys-card">
+                <div class="sys-card-header">
+                    <div class="sys-icon sys-icon-teal">
+                        <svg fill="currentColor" viewBox="0 0 20 20"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V15"/></svg>
+                    </div>
+                    <h3>Top Pages</h3>
+                </div>
+                <div class="sys-card-body" style="padding: 0;">
+                    <table class="analytics-table">
+                        <thead><tr><th>Page</th><th style="text-align:right">Views</th></tr></thead>
+                        <tbody id="top-pages-body">
+                            <tr><td colspan="2" class="analytics-loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="sys-card">
+                <div class="sys-card-header">
+                    <div class="sys-icon sys-icon-blue">
+                        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/></svg>
+                    </div>
+                    <h3>Top Referrers</h3>
+                </div>
+                <div class="sys-card-body" style="padding: 0;">
+                    <table class="analytics-table">
+                        <thead><tr><th>Referrer</th><th style="text-align:right">Views</th></tr></thead>
+                        <tbody id="top-referrers-body">
+                            <tr><td colspan="2" class="analytics-loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const isDark = () => document.documentElement.classList.contains('dark');
+
+    const colors = {
+        views:   { light: '#0d9488', dark: '#2dd4bf' },
+        uniques: { light: '#2563eb', dark: '#60a5fa' },
+        grid:    { light: 'rgba(0,0,0,0.06)', dark: 'rgba(255,255,255,0.06)' },
+        text:    { light: '#6b7280', dark: '#9ca3af' },
+    };
+
+    function getColor(key) {
+        return isDark() ? colors[key].dark : colors[key].light;
+    }
+
+    let viewsChart = null;
+    let contentChart = null;
+    let currentPeriod = '30d';
+
+    // Initialize charts
+    function initViewsChart(data) {
+        const ctx = document.getElementById('views-chart').getContext('2d');
+        if (viewsChart) viewsChart.destroy();
+
+        viewsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.date),
+                datasets: [
+                    {
+                        label: 'Views',
+                        data: data.map(d => d.views),
+                        borderColor: getColor('views'),
+                        backgroundColor: getColor('views') + '20',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: data.length > 60 ? 0 : 3,
+                        pointHoverRadius: 5,
+                    },
+                    {
+                        label: 'Unique Visitors',
+                        data: data.map(d => d.uniques),
+                        borderColor: getColor('uniques'),
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 3],
+                        tension: 0.3,
+                        pointRadius: data.length > 60 ? 0 : 3,
+                        pointHoverRadius: 5,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: {
+                        labels: { color: getColor('text'), usePointStyle: true, pointStyle: 'circle' }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: getColor('grid') },
+                        ticks: { color: getColor('text'), maxTicksLimit: 10 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: getColor('grid') },
+                        ticks: { color: getColor('text') }
+                    }
+                }
+            }
+        });
+    }
+
+    function initContentChart(data) {
+        const ctx = document.getElementById('content-chart').getContext('2d');
+        if (contentChart) contentChart.destroy();
+
+        const labels = data.map(d => d.content_type.charAt(0).toUpperCase() + d.content_type.slice(1));
+        const chartColors = ['#0d9488', '#2563eb', '#d97706'];
+        if (isDark()) {
+            chartColors[0] = '#2dd4bf';
+            chartColors[1] = '#60a5fa';
+            chartColors[2] = '#fbbf24';
+        }
+
+        contentChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data.map(d => d.views),
+                    backgroundColor: chartColors.slice(0, data.length),
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: getColor('text'), usePointStyle: true, pointStyle: 'circle', padding: 16 }
+                    }
+                }
+            }
+        });
+    }
+
+    function fmtNum(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return String(n);
+    }
+
+    function escapeHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    async function loadData(period) {
+        try {
+            const resp = await fetch('/api/admin/analytics?period=' + period);
+            if (!resp.ok) throw new Error('Failed to load');
+            const data = await resp.json();
+
+            // Update stat cards
+            document.getElementById('stat-total').textContent = fmtNum(data.total_views);
+            document.getElementById('stat-uniques').textContent = fmtNum(data.unique_ips);
+            document.getElementById('stat-avg').textContent = data.avg_daily > 0 ? data.avg_daily.toFixed(1) : '0';
+            document.getElementById('stat-total-sub').textContent = 'in ' + period;
+            document.getElementById('stat-uniques-sub').textContent = 'in ' + period;
+            document.getElementById('stat-avg-sub').textContent = 'views / day';
+
+            // Views chart
+            initViewsChart(data.time_series || []);
+
+            // Content type breakdown
+            const cts = data.content_types || [];
+            initContentChart(cts);
+
+            const ctBody = document.getElementById('content-table-body');
+            if (cts.length === 0) {
+                ctBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-tertiary);padding:20px;">No data yet</td></tr>';
+            } else {
+                ctBody.innerHTML = cts.map(ct =>
+                    `<tr><td>${escapeHtml(ct.content_type)}</td><td class="num">${fmtNum(ct.views)}</td><td class="num">${fmtNum(ct.uniques)}</td></tr>`
+                ).join('');
+            }
+
+            // Top pages
+            const tpBody = document.getElementById('top-pages-body');
+            const pages = data.top_pages || [];
+            if (pages.length === 0) {
+                tpBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-tertiary);padding:20px;">No data yet</td></tr>';
+            } else {
+                tpBody.innerHTML = pages.map(p =>
+                    `<tr><td class="path" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</td><td class="num">${fmtNum(p.count)}</td></tr>`
+                ).join('');
+            }
+
+            // Top referrers
+            const trBody = document.getElementById('top-referrers-body');
+            const refs = data.top_referrers || [];
+            if (refs.length === 0) {
+                trBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-tertiary);padding:20px;">No data yet</td></tr>';
+            } else {
+                trBody.innerHTML = refs.map(r =>
+                    `<tr><td class="path" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td class="num">${fmtNum(r.count)}</td></tr>`
+                ).join('');
+            }
+        } catch (err) {
+            console.error('Analytics load error:', err);
+        }
+    }
+
+    // Period button handlers
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelector('.period-btn.active').classList.remove('active');
+            this.classList.add('active');
+            currentPeriod = this.dataset.period;
+            loadData(currentPeriod);
+        });
+    });
+
+    // Load initial data
+    loadData(currentPeriod);
+
+    // Auto-refresh today's count every 30s
+    setInterval(async () => {
+        try {
+            const resp = await fetch('/api/admin/analytics?period=1d');
+            // We just reload the current period to keep everything fresh
+        } catch (e) { /* ignore */ }
+    }, 30000);
+})();
+</script>
+
+{{template "modern-footer" .}}

@@ -63,6 +63,10 @@ func main() {
 	}
 	defer database.Conn.Close()
 
+	// Initialize AnalyticsService (background goroutines for batch inserts + aggregation)
+	analyticsService := models.NewAnalyticsService(DB)
+	defer analyticsService.Shutdown()
+
 	userService := models.UserService{
 		DB: DB,
 	}
@@ -74,6 +78,9 @@ func main() {
 	apiTokenService := models.APITokenService{
 		DB: DB,
 	}
+
+	// Page view tracking middleware (records after response, zero latency)
+	r.Use(authmw.TrackingMiddleware(analyticsService, &sessionService))
 
 	r.Get("/about", controllers.StaticHandler(
 		views.Must(views.ParseFS(templates.FS, "about.gohtml", "tailwind.gohtml")), &sessionService))
@@ -245,9 +252,19 @@ func main() {
 	slidesC.Templates.SlidePresentation = views.Must(views.ParseFS(
 		templates.FS, "slide-presentation.gohtml", "tailwind.gohtml"))
 
+	// Initialize Analytics controller
+	analyticsC := controllers.Analytics{
+		AnalyticsService: analyticsService,
+		SessionService:   &sessionService,
+	}
+
 	// Initialize System templates
 	systemC.Templates.Dashboard = views.Must(views.ParseFS(
 		templates.FS, "admin-system.gohtml", "tailwind.gohtml"))
+
+	// Initialize Analytics templates
+	analyticsC.Templates.Dashboard = views.Must(views.ParseFS(
+		templates.FS, "admin-analytics.gohtml", "tailwind.gohtml"))
 
 	r.Get("/", usersC.Home)
 	r.Get("/admin/posts", usersC.AdminPosts)
@@ -306,6 +323,10 @@ func main() {
 	r.Post("/api/admin/external-systems/{id}/sync/preview", systemC.PreviewSync)
 	r.Post("/api/admin/external-systems/{id}/sync/execute", systemC.ExecuteSync)
 	r.Get("/api/admin/external-systems/{id}/sync/logs", systemC.GetSyncLogs)
+
+	// Analytics Routes
+	r.Get("/admin/analytics", analyticsC.Dashboard)
+	r.Get("/api/admin/analytics", analyticsC.GetAnalyticsJSON)
 
 	// Cloudinary Settings Routes
 	r.Get("/api/admin/cloudinary", systemC.GetCloudinarySettings)
