@@ -6,48 +6,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Anshuman Biswas - Software Engineering & Cloud Architecture Blog" />
     <meta name="author" content="Anshuman Biswas" />
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
     <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.svg" />
     <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon.svg" />
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Styles -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
-    <link rel="stylesheet" href="/static/css/modern-theme.css?v=2025-v5" />
-    
-    <!-- Dark mode script -->
+    <link rel="stylesheet" href="/static/css/theme.css?v=2026-v1" />
+
+    <!-- Dark mode script — runs before paint to prevent flash -->
     <script>
-        // Check for saved theme preference or default to system preference
-        const savedTheme = localStorage.getItem('theme') || 
+        const savedTheme = localStorage.getItem('theme') ||
                           (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        
         if (savedTheme === 'dark') {
             document.documentElement.classList.add('dark');
         }
     </script>
-    
+
     <title>Blog - Anshuman Biswas</title>
 </head>
-<body class="bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 antialiased">
+<body>
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
-                
+
             <a href="/" class="logo-container">
                 <span class="logo-text">
                     Anshuman <span class="highlight">B</span>iswas
                 </span>
             </a>
-            
+
             <!-- Desktop Navigation -->
             <ul class="nav-links">
                 <li><a href="/" class="nav-link {{if eq .CurrentPage "home"}}active{{end}}">Home</a></li>
@@ -58,7 +54,7 @@
                         <li class="relative admin-dropdown">
                             <button class="nav-link admin-dropdown-btn {{if eq .CurrentPage "admin"}}active{{end}}" aria-label="Admin menu">
                                 <span>Admin</span>
-                                <svg class="w-4 h-4 ml-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
                             </button>
@@ -120,7 +116,7 @@
                         <button class="nav-link user-dropdown-btn" aria-label="User menu">
                             <span class="avatar-circle">{{initial .Username}}</span>
                             <span class="username-text">{{.Username}}</span>
-                            <svg class="w-4 h-4 ml-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
                         </button>
@@ -168,7 +164,7 @@
                         <li><a href="/signup" class="nav-link ">Sign Up</a></li>
                     {{end}}
                 {{end}}
-                
+
                 <!-- Theme Toggle -->
                 <li>
                     <button id="theme-toggle" class="nav-link" aria-label="Toggle theme">
@@ -198,7 +194,7 @@
                     </a>
                 </li>
                 {{end}}
-                
+
                 <!-- Search -->
                 <li>
                     <button id="search-toggle" class="nav-link" aria-label="Search">
@@ -208,14 +204,14 @@
                     </button>
                 </li>
             </ul>
-            
+
             <!-- Mobile Menu Button -->
             <button class="mobile-menu-button" id="mobile-menu-btn" aria-label="Toggle menu">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
             </button>
-            
+
             <!-- Mobile Menu -->
             <div class="mobile-menu" id="mobile-menu">
                 <ul class="mobile-nav-links">
@@ -243,14 +239,14 @@
             </div>
         </div>
     </nav>
-    
+
     <!-- Main Content -->
     <main class="main-container">
 {{end}}
 
 {{define "modern-footer"}}
     </main>
-    
+
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
@@ -262,20 +258,20 @@
                 <a href="/rss" class="footer-link">RSS</a>
             </div>
             <p class="footer-text">
-                © <span id="current-year"></span> Anshuman Biswas • Built with Go & ❤️
+                &copy; <span id="current-year"></span> Anshuman Biswas
             </p>
         </div>
     </footer>
-    
+
     <!-- Scripts -->
     <script>
         // Update year
         document.getElementById('current-year').textContent = new Date().getFullYear();
-        
+
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
         const html = document.documentElement;
-        
+
         themeToggle.addEventListener('click', () => {
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
@@ -285,31 +281,30 @@
                 localStorage.setItem('theme', 'dark');
             }
         });
-        
+
         // Mobile menu toggle
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
-        
+
         mobileMenuBtn.addEventListener('click', () => {
             mobileMenu.classList.toggle('open');
         });
-        
+
         // Close mobile menu when clicking outside
         document.addEventListener('click', (e) => {
             if (!mobileMenuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
                 mobileMenu.classList.remove('open');
             }
         });
-        
+
         // Admin dropdown toggle
         const adminDropdown = document.querySelector('.admin-dropdown');
         const adminDropdownBtn = document.querySelector('.admin-dropdown-btn');
-        const adminDropdownMenu = document.querySelector('.admin-dropdown-menu');
-        
+
         if (adminDropdownBtn && adminDropdown) {
             const openMenu = () => adminDropdown.classList.add('open');
             const closeMenu = () => adminDropdown.classList.remove('open');
-            
+
             adminDropdownBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (adminDropdown.classList.contains('open')) {
@@ -318,23 +313,22 @@
                     openMenu();
                 }
             });
-            
+
             document.addEventListener('click', (e) => {
                 if (!adminDropdown.contains(e.target)) {
                     closeMenu();
                 }
             });
         }
-        
+
         // User dropdown toggle
         const userDropdown = document.querySelector('.user-dropdown');
         const userDropdownBtn = document.querySelector('.user-dropdown-btn');
-        const userDropdownMenu = document.querySelector('.user-dropdown-menu');
-        
+
         if (userDropdownBtn && userDropdown) {
             const openMenu = () => userDropdown.classList.add('open');
             const closeMenu = () => userDropdown.classList.remove('open');
-            
+
             userDropdownBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (userDropdown.classList.contains('open')) {
@@ -343,96 +337,71 @@
                     openMenu();
                 }
             });
-            
+
             document.addEventListener('click', (e) => {
                 if (!userDropdown.contains(e.target)) {
                     closeMenu();
                 }
             });
-            
-            // Keep menu open on mouseleave to avoid flicker while moving to submenu
         }
-        
-        // Search toggle (placeholder - can be enhanced)
+
+        // Search toggle (placeholder)
         document.getElementById('search-toggle').addEventListener('click', () => {
             console.log('Search clicked');
         });
-        
-        // Add fade-in animation to content
+
+        // DOMContentLoaded utilities
         document.addEventListener('DOMContentLoaded', () => {
-            const content = document.querySelector('.main-container');
-            if (content) {
-                content.classList.add('fade-in');
-            }
-            
             // Convert dates to relative time
             convertToRelativeTime();
-            
             // Calculate reading times
             calculateReadingTimes();
         });
-        
-        // Function to convert ISO dates to relative time
+
         function convertToRelativeTime() {
-            const timeElements = document.querySelectorAll('.relative-time');
-            timeElements.forEach(element => {
+            document.querySelectorAll('.relative-time').forEach(element => {
                 const isoDate = element.getAttribute('datetime');
                 if (isoDate) {
-                    const relativeTime = getRelativeTime(new Date(isoDate));
-                    element.textContent = relativeTime;
+                    element.textContent = getRelativeTime(new Date(isoDate));
                 }
             });
         }
-        
-        // Function to get relative time string
+
         function getRelativeTime(date) {
             const now = new Date();
             const diffInSeconds = Math.floor((now - date) / 1000);
-            
-            if (diffInSeconds < 60) {
-                return 'just now';
-            } else if (diffInSeconds < 3600) {
-                const minutes = Math.floor(diffInSeconds / 60);
-                return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
-            } else if (diffInSeconds < 86400) {
-                const hours = Math.floor(diffInSeconds / 3600);
-                return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
-            } else if (diffInSeconds < 2592000) {
-                const days = Math.floor(diffInSeconds / 86400);
-                return `${days} ${days === 1 ? 'day' : 'days'} ago`;
-            } else if (diffInSeconds < 31536000) {
-                const months = Math.floor(diffInSeconds / 2592000);
-                return `${months} ${months === 1 ? 'month' : 'months'} ago`;
-            } else {
-                const years = Math.floor(diffInSeconds / 31536000);
-                return `${years} ${years === 1 ? 'year' : 'years'} ago`;
+
+            if (diffInSeconds < 60) return 'just now';
+            if (diffInSeconds < 3600) {
+                const m = Math.floor(diffInSeconds / 60);
+                return `${m} ${m === 1 ? 'minute' : 'minutes'} ago`;
             }
+            if (diffInSeconds < 86400) {
+                const h = Math.floor(diffInSeconds / 3600);
+                return `${h} ${h === 1 ? 'hour' : 'hours'} ago`;
+            }
+            if (diffInSeconds < 2592000) {
+                const d = Math.floor(diffInSeconds / 86400);
+                return `${d} ${d === 1 ? 'day' : 'days'} ago`;
+            }
+            if (diffInSeconds < 31536000) {
+                const mo = Math.floor(diffInSeconds / 2592000);
+                return `${mo} ${mo === 1 ? 'month' : 'months'} ago`;
+            }
+            const y = Math.floor(diffInSeconds / 31536000);
+            return `${y} ${y === 1 ? 'year' : 'years'} ago`;
         }
-        
-        // Function to calculate reading times
+
         function calculateReadingTimes() {
-            const readTimeElements = document.querySelectorAll('.read-time');
-            readTimeElements.forEach(element => {
+            document.querySelectorAll('.read-time').forEach(element => {
                 const content = element.getAttribute('data-content');
                 if (content) {
-                    const readingTime = calculateReadingTime(content);
-                    element.textContent = readingTime;
+                    const plainText = content.replace(/<[^>]*>/g, '');
+                    const wordCount = plainText.trim().split(/\s+/).length;
+                    const minutes = Math.ceil(wordCount / 200);
+                    element.textContent = `${minutes} min read`;
                 }
             });
-        }
-        
-        // Function to calculate reading time based on content
-        function calculateReadingTime(content) {
-            // Remove HTML tags and count words
-            const plainText = content.replace(/<[^>]*>/g, '');
-            const wordCount = plainText.trim().split(/\s+/).length;
-            
-            // Average reading speed is 200-250 words per minute
-            // Using 200 for conservative estimate
-            const wordsPerMinute = 200;
-            const minutes = Math.ceil(wordCount / wordsPerMinute);
-            
-            return `${minutes} min read`;
         }
     </script>
 </body>

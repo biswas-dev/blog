@@ -1,24 +1,23 @@
 {{template "modern-header" .}}
 
-<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Header -->
-        <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-900 dark:text-white sm:text-5xl">
-                Slide Presentations
-            </h1>
-            <p class="mt-4 text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                Interactive presentations and talks powered by reveal.js
-            </p>
-        </div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold sm:text-5xl" style="color: var(--text-primary);">
+            Slide Presentations
+        </h1>
+        <p class="mt-4 text-xl max-w-2xl mx-auto" style="color: var(--text-secondary);">
+            Interactive presentations and talks powered by reveal.js
+        </p>
+    </div>
 
         {{if .Slides.Slides}}
             <!-- Slides Grid -->
             <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
                 {{range .Slides.Slides}}
-                <div class="bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                <div class="rounded-lg overflow-hidden border transition-all" style="background: var(--surface); border-color: var(--border-light);">
                     <!-- Slide Preview/Thumbnail -->
-                    <div class="bg-gradient-to-br from-indigo-500 to-purple-600 h-48 flex items-center justify-center">
+                    <div class="h-48 flex items-center justify-center" style="background: var(--accent);">
                         <div class="text-center text-white">
                             <svg class="w-16 h-16 mx-auto mb-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"/>
@@ -26,26 +25,27 @@
                             <p class="text-sm font-medium opacity-90">Presentation</p>
                         </div>
                     </div>
-                    
+
                     <!-- Content -->
                     <div class="p-6">
-                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                            <a href="/slides/{{.Slug}}">{{.Title}}</a>
+                        <h3 class="text-xl font-semibold mb-3">
+                            <a href="/slides/{{.Slug}}" class="transition-colors" style="color: var(--text-primary);"
+                               onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">{{.Title}}</a>
                         </h3>
-                        
+
                         <!-- Categories -->
                         {{if .Categories}}
                             <div class="flex flex-wrap gap-2 mb-4">
                                 {{range .Categories}}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium" style="background: rgba(13,148,136,0.1); color: var(--accent);">
                                         {{.Name}}
                                     </span>
                                 {{end}}
                             </div>
                         {{end}}
-                        
+
                         <!-- Meta Info -->
-                        <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        <div class="flex items-center justify-between text-sm mb-4" style="color: var(--text-tertiary);">
                             <div class="flex items-center">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -53,22 +53,16 @@
                                 {{.RelativeTime}}
                             </div>
                             {{if $.IsAdmin}}
-                                <div class="flex items-center">
-                                    <a href="/admin/slides/{{.ID}}/edit" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
-                                        Edit
-                                    </a>
-                                </div>
+                                <a href="/admin/slides/{{.ID}}/edit" class="font-medium" style="color: var(--accent);">Edit</a>
                             {{end}}
                         </div>
-                        
+
                         <!-- Action Button -->
-                        <a href="/slides/{{.Slug}}" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white text-center py-2.5 px-4 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800">
-                            <span class="flex items-center justify-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m2-10v18a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2h8l4 4z"/>
-                                </svg>
-                                View Presentation
-                            </span>
+                        <a href="/slides/{{.Slug}}" class="btn btn-primary w-full justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m2-10v18a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2h8l4 4z"/>
+                            </svg>
+                            View Presentation
                         </a>
                     </div>
                 </div>
@@ -78,19 +72,18 @@
             <!-- Empty State -->
             <div class="text-center py-16">
                 <div class="max-w-md mx-auto">
-                    <svg class="mx-auto h-24 w-24 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="mx-auto h-24 w-24" style="color: var(--text-tertiary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"/>
                     </svg>
-                    <h3 class="mt-6 text-xl font-medium text-gray-900 dark:text-white">
+                    <h3 class="mt-6 text-xl font-medium" style="color: var(--text-primary);">
                         No presentations yet
                     </h3>
-                    <p class="mt-2 text-gray-500 dark:text-gray-400">
+                    <p class="mt-2" style="color: var(--text-secondary);">
                         Check back soon for interactive slide presentations and talks.
                     </p>
                 </div>
             </div>
         {{end}}
-    </div>
 </div>
 
 {{template "modern-footer" .}}

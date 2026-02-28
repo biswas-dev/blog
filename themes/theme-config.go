@@ -57,7 +57,7 @@ func (tm *ThemeManager) registerBuiltinThemes() {
             "404":      "themes/modern/404.gohtml",
         },
         Assets: map[string]string{
-            "css":    "/static/css/modern-theme.css",
+            "css":    "/static/css/theme.css",
             "js":     "/static/js/modern-theme.js",
             "favicon": "/static/favicon.svg",
             "logo":   "/static/logo.svg",
