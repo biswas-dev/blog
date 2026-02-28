@@ -71,9 +71,15 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 			},
 		},
 	)
-	tpl, err := tpl.ParseFS(fs, patterns...)
-	if err != nil {
-		return Template{}, fmt.Errorf("parsing template: %w", err)
+	// Parse layout templates (index 1+) before the page template (index 0).
+	// This allows page-level {{define}} to override layout {{block}} defaults
+	// (e.g., og-meta, page-title) since the last-parsed definition wins.
+	for i := len(patterns) - 1; i >= 0; i-- {
+		var err error
+		tpl, err = tpl.ParseFS(fs, patterns[i])
+		if err != nil {
+			return Template{}, fmt.Errorf("parsing template %s: %w", patterns[i], err)
+		}
 	}
 	return Template{
 		htmlTpl: tpl,

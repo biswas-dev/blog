@@ -4,8 +4,16 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Anshuman Biswas - Software Engineering & Cloud Architecture Blog" />
+    {{block "meta-description" .}}<meta name="description" content="Anshuman Biswas - Software Engineering & Cloud Architecture Blog" />{{end}}
     <meta name="author" content="Anshuman Biswas" />
+
+    <!-- Open Graph / Social sharing -->
+    {{block "og-meta" .}}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Anshuman Biswas" />
+    <meta property="og:title" content="Anshuman Biswas - Engineering Insights" />
+    <meta property="og:description" content="Software Engineering & Cloud Architecture Blog" />
+    {{end}}
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
@@ -33,7 +41,7 @@
         }
     </script>
 
-    <title>Blog - Anshuman Biswas</title>
+    <title>{{block "page-title" .}}Blog - Anshuman Biswas{{end}}</title>
 </head>
 <body>
     <!-- Navigation -->
