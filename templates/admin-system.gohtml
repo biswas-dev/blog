@@ -245,6 +245,173 @@
     .sys-action-btn.accent:hover { background: rgba(13,148,136,0.08); }
     .sys-action-btn.danger { border-color: #ef4444; color: #ef4444; }
     .sys-action-btn.danger:hover { background: rgba(239,68,68,0.08); }
+
+    /* Modal components */
+    .sys-modal {
+        background: var(--bg-primary);
+        border-radius: 8px;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,.25);
+    }
+    .dark .sys-modal { background: var(--bg-secondary); }
+    .sys-modal-title {
+        font-size: 1.125rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+    }
+    .sys-modal-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+    }
+    .sys-input {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+    }
+    .sys-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+    }
+    .dark .sys-input { background: var(--bg-tertiary); }
+    .sys-hint {
+        font-size: 0.75rem;
+        color: var(--text-tertiary);
+        margin-top: 4px;
+    }
+    .sys-btn-cancel {
+        padding: 8px 16px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .sys-btn-cancel:hover {
+        color: var(--text-primary);
+        border-color: var(--text-secondary);
+    }
+    .sys-btn-remove {
+        padding: 8px 16px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #ef4444;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+    }
+    .sys-btn-remove:hover { color: #dc2626; }
+    .dark .sys-btn-remove { color: #f87171; }
+    .dark .sys-btn-remove:hover { color: #fca5a5; }
+    .sys-btn-test-teal {
+        padding: 8px 16px;
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--accent);
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .sys-btn-test-teal:hover { background: rgba(13,148,136,0.06); }
+    .sys-btn-test-green {
+        padding: 8px 16px;
+        border: 1px solid #22c55e;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #16a34a;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .dark .sys-btn-test-green { border-color: #166534; color: #4ade80; }
+    .sys-btn-test-green:hover { background: rgba(22,163,74,0.06); }
+    .sys-link-teal {
+        font-size: 0.875rem;
+        color: var(--accent);
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+    .sys-link-teal:hover { opacity: 0.8; }
+
+    /* Text utilities for JS-generated content */
+    .sys-text-primary { color: var(--text-primary); }
+    .sys-text-secondary { color: var(--text-secondary); }
+    .sys-text-muted { color: var(--text-tertiary); }
+    .sys-text-error { color: #dc2626; }
+    .dark .sys-text-error { color: #f87171; }
+    .sys-text-green { color: #16a34a; }
+    .dark .sys-text-green { color: #4ade80; }
+
+    /* Status badges for JS-generated content */
+    .sys-status-success { background: rgba(22,163,74,0.1); color: #16a34a; }
+    .dark .sys-status-success { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .sys-status-warning { background: rgba(217,119,6,0.1); color: #92400e; }
+    .dark .sys-status-warning { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .sys-status-error { background: rgba(220,38,38,0.1); color: #991b1b; }
+    .dark .sys-status-error { background: rgba(248,113,113,0.15); color: #fca5a5; }
+    .sys-status-info { background: rgba(37,99,235,0.1); color: #1e40af; }
+    .dark .sys-status-info { background: rgba(96,165,250,0.15); color: #93c5fd; }
+    .sys-status-neutral { background: rgba(107,114,128,0.1); color: #374151; }
+    .dark .sys-status-neutral { background: rgba(156,163,175,0.15); color: #d1d5db; }
+
+    /* Result feedback boxes */
+    .sys-result-success { background: rgba(22,163,74,0.06); border: 1px solid rgba(22,163,74,0.2); color: #16a34a; }
+    .dark .sys-result-success { background: rgba(22,163,74,0.1); border-color: rgba(22,163,74,0.25); color: #4ade80; }
+    .sys-result-error { background: rgba(220,38,38,0.06); border: 1px solid rgba(220,38,38,0.2); color: #dc2626; }
+    .dark .sys-result-error { background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.25); color: #f87171; }
+    .sys-result-warning { background: rgba(217,119,6,0.06); border: 1px solid rgba(217,119,6,0.2); color: #d97706; }
+    .dark .sys-result-warning { background: rgba(217,119,6,0.1); border-color: rgba(217,119,6,0.25); color: #fbbf24; }
+    .sys-result-loading { background: var(--bg-tertiary); color: var(--text-secondary); }
+
+    /* External system card */
+    .sys-ext-card {
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 16px;
+    }
+    .dark .sys-ext-card { border-color: var(--border); }
+
+    /* Table styles for JS-generated tables */
+    .sys-table-divider > * + * { border-top: 1px solid var(--border-light); }
+    .dark .sys-table-divider > * + * { border-top-color: var(--border); }
+    .sys-table-head { background: var(--bg-secondary); }
+    .dark .sys-table-head { background: var(--bg-tertiary); }
+
+    /* Preview area */
+    .sys-preview-box {
+        border: 1px solid var(--border-light);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .dark .sys-preview-box { border-color: var(--border); }
+    .sys-preview-head {
+        padding: 8px 16px;
+        background: var(--bg-secondary);
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+    .dark .sys-preview-head { background: var(--bg-tertiary); }
+    .sys-preview-list > * + * { border-top: 1px solid var(--border-light); }
+    .dark .sys-preview-list > * + * { border-top-color: var(--border); }
+
+    /* Radio label text */
+    .sys-radio-text {
+        margin-left: 8px;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
 </style>
 
 <div class="min-h-screen" style="background: var(--bg-secondary);">
@@ -538,45 +705,32 @@
         <div id="cloudinary-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
                 <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeCloudinaryModal()"></div>
-                <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full p-6">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Cloudinary Settings</h3>
+                <div class="sys-modal relative max-w-lg w-full p-6">
+                    <h3 class="sys-modal-title">Cloudinary Settings</h3>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cloud Name</label>
-                            <input type="text" id="cld-cloud-name" placeholder="e.g., my-cloud"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
+                            <label class="sys-modal-label">Cloud Name</label>
+                            <input type="text" id="cld-cloud-name" placeholder="e.g., my-cloud" class="sys-input w-full px-3 py-2">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
-                            <input type="text" id="cld-api-key" placeholder="e.g., 123456789012345"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
+                            <label class="sys-modal-label">API Key</label>
+                            <input type="text" id="cld-api-key" placeholder="e.g., 123456789012345" class="sys-input w-full px-3 py-2">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Secret</label>
-                            <input type="password" id="cld-api-secret" placeholder="Leave blank to keep existing"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
-                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Encrypted at rest. Leave blank when editing to keep the existing secret.</p>
+                            <label class="sys-modal-label">API Secret</label>
+                            <input type="password" id="cld-api-secret" placeholder="Leave blank to keep existing" class="sys-input w-full px-3 py-2">
+                            <p class="sys-hint">Encrypted at rest. Leave blank when editing to keep the existing secret.</p>
                         </div>
                         <div id="cld-test-result" class="hidden rounded-md p-3 text-sm"></div>
                     </div>
                     <div class="mt-6 flex justify-between">
-                        <button onclick="deleteCloudinary()" id="cld-delete-btn"
-                                class="hidden px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
+                        <button onclick="deleteCloudinary()" id="cld-delete-btn" class="hidden sys-btn-remove">
                             Remove
                         </button>
                         <div class="flex space-x-3 ml-auto">
-                            <button onclick="closeCloudinaryModal()"
-                                    class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                                Cancel
-                            </button>
-                            <button onclick="testCloudinary()"
-                                    class="px-4 py-2 border border-teal-300 dark:border-teal-600 rounded-md text-sm font-medium text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900">
-                                Test Connection
-                            </button>
-                            <button onclick="saveCloudinary()"
-                                    class="px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-transparent rounded-md text-sm font-medium text-white">
-                                Save
-                            </button>
+                            <button onclick="closeCloudinaryModal()" class="sys-btn-cancel">Cancel</button>
+                            <button onclick="testCloudinary()" class="sys-btn-test-teal">Test Connection</button>
+                            <button onclick="saveCloudinary()" class="sys-btn-primary">Save</button>
                         </div>
                     </div>
                 </div>
@@ -587,31 +741,27 @@
         <div id="system-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
                 <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeSystemModal()"></div>
-                <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full p-6">
-                    <h3 id="modal-title" class="text-lg font-medium text-gray-900 dark:text-white mb-4">Add External System</h3>
+                <div class="sys-modal relative max-w-lg w-full p-6">
+                    <h3 id="modal-title" class="sys-modal-title">Add External System</h3>
                     <input type="hidden" id="modal-system-id" value="">
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                            <input type="text" id="modal-name" placeholder="e.g., Production Blog"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
+                            <label class="sys-modal-label">Name</label>
+                            <input type="text" id="modal-name" placeholder="e.g., Production Blog" class="sys-input w-full px-3 py-2">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base URL</label>
-                            <input type="url" id="modal-base-url" placeholder="https://blog.example.com"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
+                            <label class="sys-modal-label">Base URL</label>
+                            <input type="url" id="modal-base-url" placeholder="https://blog.example.com" class="sys-input w-full px-3 py-2">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
-                            <input type="password" id="modal-api-key" placeholder="Bearer token for authentication"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
-                            <p id="modal-api-key-hint" class="hidden text-xs text-gray-500 dark:text-gray-400 mt-1">Leave blank to keep existing key</p>
+                            <label class="sys-modal-label">API Key</label>
+                            <input type="password" id="modal-api-key" placeholder="Bearer token for authentication" class="sys-input w-full px-3 py-2">
+                            <p id="modal-api-key-hint" class="hidden sys-hint">Leave blank to keep existing key</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Custom Headers</label>
+                            <label class="sys-modal-label">Custom Headers</label>
                             <div id="modal-headers" class="space-y-2"></div>
-                            <button type="button" onclick="addHeaderRow()"
-                                    class="mt-2 text-sm text-teal-600 dark:text-teal-400 hover:text-teal-500">
+                            <button type="button" onclick="addHeaderRow()" class="mt-2 sys-link-teal">
                                 + Add Header
                             </button>
                         </div>
@@ -620,19 +770,12 @@
                     <div id="modal-test-result" class="hidden p-3 rounded-md text-sm"></div>
 
                     <div class="mt-6 flex justify-between">
-                        <button onclick="testConnectionFromModal()" id="modal-test-btn"
-                                class="hidden px-4 py-2 border border-green-300 dark:border-green-600 rounded-md text-sm font-medium text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20">
+                        <button onclick="testConnectionFromModal()" id="modal-test-btn" class="hidden sys-btn-test-green">
                             Test Connection
                         </button>
                         <div class="flex space-x-3">
-                            <button onclick="closeSystemModal()"
-                                    class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                                Cancel
-                            </button>
-                            <button onclick="saveSystem()" id="modal-save-btn"
-                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700">
-                                Save
-                            </button>
+                            <button onclick="closeSystemModal()" class="sys-btn-cancel">Cancel</button>
+                            <button onclick="saveSystem()" id="modal-save-btn" class="sys-btn-primary">Save</button>
                         </div>
                     </div>
                 </div>
@@ -643,48 +786,43 @@
         <div id="sync-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
                 <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeSyncModal()"></div>
-                <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full p-6">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Sync Posts — <span id="sync-system-name"></span></h3>
+                <div class="sys-modal relative max-w-2xl w-full p-6">
+                    <h3 class="sys-modal-title">Sync Posts — <span id="sync-system-name"></span></h3>
                     <input type="hidden" id="sync-system-id" value="">
                     <div class="space-y-4">
                         <div class="flex space-x-4">
                             <label class="inline-flex items-center">
                                 <input type="radio" name="sync-direction" value="pull" checked
                                        class="text-teal-600 focus:ring-teal-500">
-                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Pull (remote to local)</span>
+                                <span class="sys-radio-text">Pull (remote to local)</span>
                             </label>
                             <label class="inline-flex items-center">
                                 <input type="radio" name="sync-direction" value="push"
                                        class="text-teal-600 focus:ring-teal-500">
-                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Push (local to remote)</span>
+                                <span class="sys-radio-text">Push (local to remote)</span>
                             </label>
                         </div>
                         <div class="flex space-x-3">
-                            <button onclick="previewSync()" id="sync-preview-btn"
-                                    class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                            <button onclick="previewSync()" id="sync-preview-btn" class="sys-btn-cancel">
                                 Preview
                             </button>
-                            <button onclick="executeSync()" id="sync-execute-btn" disabled
-                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50">
+                            <button onclick="executeSync()" id="sync-execute-btn" disabled class="sys-btn-primary">
                                 Execute Sync
                             </button>
                         </div>
                         <div id="sync-preview-area" class="hidden">
-                            <div class="border border-gray-200 dark:border-slate-600 rounded-md overflow-hidden">
-                                <div class="px-4 py-2 bg-gray-50 dark:bg-slate-700 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Preview: <span id="sync-preview-new" class="text-green-600 dark:text-green-400"></span>,
-                                    <span id="sync-preview-skip" class="text-gray-500"></span>
+                            <div class="sys-preview-box">
+                                <div class="sys-preview-head">
+                                    Preview: <span id="sync-preview-new" class="sys-text-green"></span>,
+                                    <span id="sync-preview-skip" class="sys-text-muted"></span>
                                 </div>
-                                <div id="sync-preview-items" class="max-h-60 overflow-y-auto divide-y divide-gray-200 dark:divide-slate-600"></div>
+                                <div id="sync-preview-items" class="max-h-60 overflow-y-auto sys-preview-list"></div>
                             </div>
                         </div>
                         <div id="sync-result-area" class="hidden p-4 rounded-md"></div>
                     </div>
                     <div class="mt-6 flex justify-end">
-                        <button onclick="closeSyncModal()"
-                                class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                            Close
-                        </button>
+                        <button onclick="closeSyncModal()" class="sys-btn-cancel">Close</button>
                     </div>
                 </div>
             </div>
@@ -694,16 +832,13 @@
         <div id="logs-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
                 <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeLogsModal()"></div>
-                <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full p-6">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Sync Logs — <span id="logs-system-name"></span></h3>
+                <div class="sys-modal relative max-w-2xl w-full p-6">
+                    <h3 class="sys-modal-title">Sync Logs — <span id="logs-system-name"></span></h3>
                     <div id="logs-content" class="max-h-96 overflow-y-auto">
-                        <p class="text-gray-500 dark:text-gray-400">Loading...</p>
+                        <p class="sys-text-muted">Loading...</p>
                     </div>
                     <div class="mt-6 flex justify-end">
-                        <button onclick="closeLogsModal()"
-                                class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                            Close
-                        </button>
+                        <button onclick="closeLogsModal()" class="sys-btn-cancel">Close</button>
                     </div>
                 </div>
             </div>
@@ -818,30 +953,30 @@ async function loadExternalSystems() {
 
 function renderSystemCard(s) {
     const statusBadge = s.last_sync_status
-        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-            s.last_sync_status === 'success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
-            s.last_sync_status === 'partial' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
-            'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+        ? `<span class="sys-badge ${
+            s.last_sync_status === 'success' ? 'sys-status-success' :
+            s.last_sync_status === 'partial' ? 'sys-status-warning' :
+            'sys-status-error'
           }">${s.last_sync_status}</span>`
-        : '<span class="text-xs text-gray-400 dark:text-gray-500">Never synced</span>';
+        : '<span class="sys-text-muted" style="font-size:0.75rem">Never synced</span>';
 
     const lastSync = s.last_sync_at
         ? new Date(s.last_sync_at).toLocaleString()
         : 'Never';
 
     return `
-    <div class="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+    <div class="sys-ext-card">
         <div class="flex items-center justify-between mb-2">
             <div>
-                <h4 class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(s.name)}</h4>
-                <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">${escapeHtml(s.base_url)}</p>
+                <h4 class="text-sm font-medium sys-text-primary">${escapeHtml(s.name)}</h4>
+                <p class="text-xs sys-text-muted font-mono">${escapeHtml(s.base_url)}</p>
             </div>
             <div class="flex items-center space-x-2">
                 ${statusBadge}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s.is_active ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}">${s.is_active ? 'Active' : 'Inactive'}</span>
+                <span class="sys-badge ${s.is_active ? 'sys-status-success' : 'sys-status-neutral'}">${s.is_active ? 'Active' : 'Inactive'}</span>
             </div>
         </div>
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+        <div class="text-xs sys-text-muted mb-3">
             Last sync: ${lastSync}
             ${s.last_sync_message ? ' &mdash; ' + escapeHtml(s.last_sync_message) : ''}
         </div>
@@ -924,15 +1059,15 @@ async function testConnectionFromModal() {
 
         resultDiv.classList.remove('hidden');
         if (result.success) {
-            resultDiv.className = 'p-3 rounded-md text-sm bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200';
+            resultDiv.className = 'p-3 rounded-md text-sm sys-result-success';
             resultDiv.textContent = result.message;
         } else {
-            resultDiv.className = 'p-3 rounded-md text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
+            resultDiv.className = 'p-3 rounded-md text-sm sys-result-error';
             resultDiv.textContent = result.message;
         }
     } catch (e) {
         resultDiv.classList.remove('hidden');
-        resultDiv.className = 'p-3 rounded-md text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
+        resultDiv.className = 'p-3 rounded-md text-sm sys-result-error';
         resultDiv.textContent = 'Test failed: ' + e.message;
     } finally {
         btn.disabled = false;
@@ -950,10 +1085,10 @@ function addHeaderRow(key, value) {
     row.className = 'flex space-x-2 items-center';
     row.innerHTML = `
         <input type="text" placeholder="Header name" value="${escapeHtml(key || '')}"
-               class="header-key flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+               class="header-key flex-1 px-2 py-1 text-sm sys-input">
         <input type="text" placeholder="Value" value="${escapeHtml(value || '')}"
-               class="header-value flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
-        <button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 text-sm px-1">&times;</button>
+               class="header-value flex-1 px-2 py-1 text-sm sys-input">
+        <button type="button" onclick="this.parentElement.remove()" class="sys-text-error text-sm px-1">&times;</button>
     `;
     container.appendChild(row);
 }
@@ -1027,7 +1162,6 @@ async function deleteSystem(id, name) {
 }
 
 async function testConnection(id) {
-    // Find the button that was clicked and update it
     const btn = event.target;
     const originalText = btn.textContent;
     btn.disabled = true;
@@ -1037,14 +1171,12 @@ async function testConnection(id) {
         const resp = await fetch(`/api/admin/external-systems/${id}/test`, { method: 'POST' });
         const result = await resp.json();
         btn.textContent = result.success ? 'Connected!' : 'Failed!';
-        btn.className = btn.className.replace(/border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300/,
-            result.success ? 'border-green-300 dark:border-green-600 text-green-700 dark:text-green-300' : 'border-red-300 dark:border-red-600 text-red-700 dark:text-red-300');
+        btn.classList.add(result.success ? 'accent' : 'danger');
         showMessage(result.message, result.success ? 'success' : 'error');
         setTimeout(() => {
             btn.textContent = originalText;
             btn.disabled = false;
-            btn.className = btn.className.replace(/border-(green|red)-300 dark:border-(green|red)-600 text-(green|red)-700 dark:text-(green|red)-300/,
-                'border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300');
+            btn.classList.remove('accent', 'danger');
         }, 3000);
     } catch (e) {
         showMessage('Test failed: ' + e.message, 'error');
@@ -1098,16 +1230,14 @@ async function previewSync() {
         if (preview.items && preview.items.length > 0) {
             itemsDiv.innerHTML = preview.items.map(item => `
                 <div class="px-4 py-2 flex justify-between items-center">
-                    <span class="text-sm text-gray-900 dark:text-white truncate">${escapeHtml(item.title)}</span>
-                    <span class="text-xs px-2 py-0.5 rounded-full ${
-                        item.status === 'new'
-                            ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    <span class="text-sm sys-text-primary truncate">${escapeHtml(item.title)}</span>
+                    <span class="sys-badge ${
+                        item.status === 'new' ? 'sys-status-success' : 'sys-status-neutral'
                     }">${item.status}</span>
                 </div>
             `).join('');
         } else {
-            itemsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">No posts found.</div>';
+            itemsDiv.innerHTML = '<div class="px-4 py-2 text-sm sys-text-muted">No posts found.</div>';
         }
 
         area.classList.remove('hidden');
@@ -1141,17 +1271,17 @@ async function executeSync() {
 
         if (!resp.ok) {
             const err = await resp.text();
-            resultArea.className = 'p-4 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800';
-            resultArea.innerHTML = `<p class="text-sm text-red-800 dark:text-red-200">Sync failed: ${escapeHtml(err)}</p>`;
+            resultArea.className = 'p-4 rounded-md sys-result-error';
+            resultArea.innerHTML = `<p class="text-sm" style="color:inherit">Sync failed: ${escapeHtml(err)}</p>`;
             resultArea.classList.remove('hidden');
             return;
         }
 
         const result = await resp.json();
         const isSuccess = result.items_failed === 0;
-        resultArea.className = `p-4 rounded-md ${isSuccess ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'}`;
+        resultArea.className = `p-4 rounded-md ${isSuccess ? 'sys-result-success' : 'sys-result-warning'}`;
         resultArea.innerHTML = `
-            <p class="text-sm ${isSuccess ? 'text-green-800 dark:text-green-200' : 'text-yellow-800 dark:text-yellow-200'}">
+            <p class="text-sm" style="color:inherit">
                 Sync complete: ${result.items_synced} synced, ${result.items_skipped} skipped, ${result.items_failed} failed
                 ${result.error_message ? '<br>' + escapeHtml(result.error_message) : ''}
             </p>`;
@@ -1168,7 +1298,7 @@ async function executeSync() {
 // Sync Logs
 async function viewSyncLogs(id, name) {
     document.getElementById('logs-system-name').textContent = name;
-    document.getElementById('logs-content').innerHTML = '<p class="text-gray-500 dark:text-gray-400">Loading...</p>';
+    document.getElementById('logs-content').innerHTML = '<p class="sys-text-muted">Loading...</p>';
     document.getElementById('logs-modal').classList.remove('hidden');
 
     try {
@@ -1177,38 +1307,38 @@ async function viewSyncLogs(id, name) {
         const content = document.getElementById('logs-content');
 
         if (!logs || logs.length === 0) {
-            content.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No sync logs yet.</p>';
+            content.innerHTML = '<p class="sys-text-muted text-center py-4">No sync logs yet.</p>';
             return;
         }
 
         content.innerHTML = `
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-600">
-            <thead class="bg-gray-50 dark:bg-slate-700">
+        <table class="min-w-full sys-table-divider">
+            <thead class="sys-table-head">
                 <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Direction</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Synced</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Skipped</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Failed</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Started</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium sys-text-muted uppercase">Direction</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium sys-text-muted uppercase">Status</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium sys-text-muted uppercase">Synced</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium sys-text-muted uppercase">Skipped</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium sys-text-muted uppercase">Failed</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium sys-text-muted uppercase">Started</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-slate-600">
+            <tbody class="sys-table-divider">
                 ${logs.map(l => `
                 <tr>
-                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">${escapeHtml(l.direction)}</td>
-                    <td class="px-3 py-2"><span class="text-xs px-2 py-0.5 rounded-full ${
-                        l.status === 'success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
-                        l.status === 'partial' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
-                        l.status === 'started' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                        'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                    <td class="px-3 py-2 text-sm sys-text-primary">${escapeHtml(l.direction)}</td>
+                    <td class="px-3 py-2"><span class="sys-badge ${
+                        l.status === 'success' ? 'sys-status-success' :
+                        l.status === 'partial' ? 'sys-status-warning' :
+                        l.status === 'started' ? 'sys-status-info' :
+                        'sys-status-error'
                     }">${escapeHtml(l.status)}</span></td>
-                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">${l.items_synced}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">${l.items_skipped}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">${l.items_failed}</td>
-                    <td class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">${new Date(l.started_at).toLocaleString()}</td>
+                    <td class="px-3 py-2 text-sm sys-text-primary">${l.items_synced}</td>
+                    <td class="px-3 py-2 text-sm sys-text-primary">${l.items_skipped}</td>
+                    <td class="px-3 py-2 text-sm sys-text-primary">${l.items_failed}</td>
+                    <td class="px-3 py-2 text-sm sys-text-muted">${new Date(l.started_at).toLocaleString()}</td>
                 </tr>
-                ${l.error_message ? `<tr><td colspan="6" class="px-3 py-1 text-xs text-red-600 dark:text-red-400">${escapeHtml(l.error_message)}</td></tr>` : ''}
+                ${l.error_message ? `<tr><td colspan="6" class="px-3 py-1 text-xs sys-text-error">${escapeHtml(l.error_message)}</td></tr>` : ''}
                 `).join('')}
             </tbody>
         </table>`;
@@ -1232,21 +1362,21 @@ async function loadCloudinaryStatus() {
         const data = await resp.json();
         if (!data.configured) {
             container.innerHTML = `
-                <p class="text-gray-500 dark:text-gray-400">Not configured</p>
-                <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Click Configure to set up Cloudinary for cloud image storage.</p>`;
+                <p class="sys-text-muted">Not configured</p>
+                <p class="text-sm sys-text-muted mt-1">Click Configure to set up Cloudinary for cloud image storage.</p>`;
         } else {
             const s = data.settings;
-            const statusColor = s.status === 'healthy' ? 'green' : s.status === 'error' ? 'red' : 'yellow';
+            const statusClass = s.status === 'healthy' ? 'sys-status-success' : s.status === 'error' ? 'sys-status-error' : 'sys-status-warning';
             container.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800 dark:bg-${statusColor}-900 dark:text-${statusColor}-300">
+                        <span class="sys-badge ${statusClass}">
                             ${escapeHtml(s.status)}
                         </span>
-                        <span class="text-sm text-gray-700 dark:text-gray-300">Cloud: <strong>${escapeHtml(s.cloud_name)}</strong></span>
-                        <span class="text-sm text-gray-500 dark:text-gray-400">API Key: ${escapeHtml(s.api_key)}</span>
+                        <span class="text-sm sys-text-secondary">Cloud: <strong>${escapeHtml(s.cloud_name)}</strong></span>
+                        <span class="text-sm sys-text-muted">API Key: ${escapeHtml(s.api_key)}</span>
                     </div>
-                    <span class="text-xs text-gray-400 dark:text-gray-500">${s.last_checked_at ? 'Last checked: ' + new Date(s.last_checked_at).toLocaleString() : 'Not tested yet'}</span>
+                    <span class="text-xs sys-text-muted">${s.last_checked_at ? 'Last checked: ' + new Date(s.last_checked_at).toLocaleString() : 'Not tested yet'}</span>
                 </div>`;
         }
     } catch (e) {
@@ -1316,7 +1446,7 @@ async function saveCloudinary() {
 
 async function testCloudinary() {
     const resultDiv = document.getElementById('cld-test-result');
-    resultDiv.className = 'rounded-md p-3 text-sm bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300';
+    resultDiv.className = 'rounded-md p-3 text-sm sys-result-loading';
     resultDiv.textContent = 'Testing connection...';
     resultDiv.classList.remove('hidden');
 
@@ -1331,7 +1461,7 @@ async function testCloudinary() {
             body: JSON.stringify({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret })
         });
         if (!saveResp.ok) {
-            resultDiv.className = 'rounded-md p-3 text-sm bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
             resultDiv.textContent = 'Failed to save settings before testing';
             return;
         }
@@ -1341,15 +1471,15 @@ async function testCloudinary() {
         const resp = await fetch('/api/admin/cloudinary/test', { method: 'POST' });
         const data = await resp.json();
         if (data.success) {
-            resultDiv.className = 'rounded-md p-3 text-sm bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-success';
             resultDiv.textContent = 'Connection successful!';
         } else {
-            resultDiv.className = 'rounded-md p-3 text-sm bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
             resultDiv.textContent = 'Connection failed: ' + data.message;
         }
         loadCloudinaryStatus();
     } catch (e) {
-        resultDiv.className = 'rounded-md p-3 text-sm bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+        resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
         resultDiv.textContent = 'Error: ' + e.message;
     }
 }
