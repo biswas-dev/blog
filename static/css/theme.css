@@ -328,7 +328,13 @@ svg { flex-shrink: 0; }
 .text-emerald-600 { color: #059669; }
 .text-orange-500 { color: #f97316; }
 .text-orange-600 { color: #ea580c; }
+.text-teal-300 { color: #5eead4; }
+.text-teal-400 { color: #2dd4bf; }
+.text-teal-500 { color: #14b8a6; }
 .text-teal-600 { color: var(--accent); }
+.text-teal-700 { color: #0f766e; }
+.dark .text-teal-300 { color: #5eead4; }
+.dark .text-teal-400 { color: #2dd4bf; }
 
 /* Background Colors */
 .bg-white { background-color: #ffffff; }
@@ -381,6 +387,8 @@ svg { flex-shrink: 0; }
 .bg-orange-600 { background-color: #ea580c; }
 .bg-teal-50 { background-color: #f0fdfa; }
 .bg-teal-600 { background-color: var(--accent); }
+.bg-teal-700 { background-color: #0f766e; }
+.bg-teal-900 { background-color: #134e4a; }
 .bg-slate-800 { background-color: #1e293b; }
 .bg-slate-900 { background-color: #0f172a; }
 
@@ -457,7 +465,9 @@ svg { flex-shrink: 0; }
 .border-emerald-800 { border-color: #065f46; }
 .border-orange-200 { border-color: #fed7aa; }
 .border-orange-800 { border-color: #9a3412; }
+.border-teal-300 { border-color: #5eead4; }
 .border-teal-600 { border-color: var(--accent); }
+.dark .border-teal-600 { border-color: var(--accent); }
 
 /* Divide */
 .divide-y > * + * { border-top: 1px solid var(--border); }
@@ -679,6 +689,7 @@ svg { flex-shrink: 0; }
 .dark .dark\:hover\:bg-slate-700:hover { background-color: #334155; }
 .dark .dark\:hover\:bg-gray-600:hover { background-color: #4b5563; }
 .dark .dark\:hover\:bg-gray-700:hover { background-color: #374151; }
+.dark .dark\:hover\:bg-teal-900:hover { background-color: #134e4a; }
 .dark .dark\:hover\:text-gray-200:hover { color: #e5e7eb; }
 .dark .dark\:hover\:text-gray-300:hover { color: #d1d5db; }
 .dark .dark\:hover\:text-indigo-300:hover { color: #a5b4fc; }
@@ -710,6 +721,8 @@ svg { flex-shrink: 0; }
 .hover\:bg-indigo-700:hover { background-color: var(--accent-hover); }
 .hover\:bg-purple-50:hover { background-color: #faf5ff; }
 .hover\:bg-purple-700:hover { background-color: #7e22ce; }
+.hover\:bg-teal-50:hover { background-color: #f0fdfa; }
+.hover\:bg-teal-700:hover { background-color: #0f766e; }
 .hover\:bg-amber-200:hover { background-color: #fde68a; }
 .hover\:bg-emerald-700:hover { background-color: #047857; }
 .hover\:bg-slate-600:hover { background-color: #475569; }
@@ -725,6 +738,7 @@ svg { flex-shrink: 0; }
 .hover\:text-indigo-500:hover { color: #6366f1; }
 .hover\:text-indigo-800:hover { color: #3730a3; }
 .hover\:text-indigo-900:hover { color: #312e81; }
+.hover\:text-teal-500:hover { color: #14b8a6; }
 .hover\:text-red-300:hover { color: #fca5a5; }
 .hover\:text-red-900:hover { color: #7f1d1d; }
 .hover\:text-green-700:hover { color: #15803d; }
@@ -754,7 +768,9 @@ svg { flex-shrink: 0; }
 .focus\:ring-indigo-500:focus { --tw-ring-color: var(--accent); }
 .focus\:ring-blue-500:focus { --tw-ring-color: var(--accent); }
 .focus\:ring-purple-500:focus { --tw-ring-color: #a855f7; }
+.focus\:ring-teal-500:focus { --tw-ring-color: var(--accent); }
 .focus\:ring-red-500:focus { --tw-ring-color: #ef4444; }
+.focus\:border-teal-500:focus { border-color: var(--accent); }
 .focus\:border-indigo-500:focus { border-color: var(--accent); }
 .focus\:border-blue-500:focus { border-color: var(--accent); }
 .focus\:border-transparent:focus { border-color: transparent; }
