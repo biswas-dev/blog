@@ -1,3 +1,17 @@
+{{define "page-title"}}{{.Post.Title}} | Anshuman Biswas{{end}}
+{{define "meta-description"}}<meta name="description" content="{{.OGDescription}}" />{{end}}
+{{define "og-meta"}}
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anshuman Biswas" />
+    <meta property="og:title" content="{{.Post.Title}}" />
+    <meta property="og:description" content="{{.OGDescription}}" />
+    {{if .FullURL}}<meta property="og:url" content="{{.FullURL}}" />{{end}}
+    {{if .OGImage}}<meta property="og:image" content="{{.OGImage}}" />{{end}}
+    <meta name="twitter:card" content="{{if .OGImage}}summary_large_image{{else}}summary{{end}}" />
+    <meta name="twitter:title" content="{{.Post.Title}}" />
+    <meta name="twitter:description" content="{{.OGDescription}}" />
+    {{if .OGImage}}<meta name="twitter:image" content="{{.OGImage}}" />{{end}}
+{{end}}
 {{template "modern-header" .}}
 
 <article class="max-w-4xl mx-auto">
