@@ -185,6 +185,10 @@
       <button type="button" class="fs-tb" data-fs-cmd="hr" title="Horizontal rule">&mdash;</button>
       <button type="button" class="fs-tb" data-fs-cmd="code" title="Inline code">&lt; &gt;</button>
       <button type="button" class="fs-tb" data-fs-cmd="link" title="Link">&#128279;</button>
+      <span class="fs-sep"></span>
+      <button type="button" class="fs-tb" data-fs-cmd="image" title="Insert image URL">Img</button>
+      <button type="button" class="fs-tb" data-fs-cmd="upload" title="Upload image">Upload</button>
+      <button type="button" class="fs-tb" data-fs-cmd="browse" title="Browse images">Browse</button>
     </div>
     <div class="fullscreen-controls">
       <label class="fullscreen-opt">
@@ -617,10 +621,11 @@ document.getElementById('upload-inline-btn').addEventListener('click', async () 
   let pct = (select && select.value) ? select.value : '66%';
   const defaultFilename = f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
   showImageMetaModal(imageUrl, { alt: defaultFilename, size: pct }, (meta) => {
-    const editor = document.getElementById('editor');
-    editor.focus();
+    const ta = getActiveTextarea();
+    ta.focus();
     const html = buildImageHtml(imageUrl, meta.alt, meta.title, meta.caption, meta.size);
-    insertAtCursor(editor, html);
+    insertAtCursor(ta, html);
+    if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
   });
   picker.value = '';
 });
@@ -918,6 +923,15 @@ previewFull.addEventListener('change', () => {
 });
 function syncEditor(){ /* No longer needed - textarea directly submits its value */ }
 
+// Helper: return the active textarea (fullscreen if open, else main editor)
+function getActiveTextarea() {
+  const fsOverlay = document.getElementById('fullscreen-editor');
+  if (fsOverlay && !fsOverlay.classList.contains('hidden')) {
+    return document.getElementById('fullscreen-textarea');
+  }
+  return document.getElementById('editor');
+}
+
 // Helper function to insert text at cursor position in textarea
 function insertAtCursor(textarea, text) {
   console.log('insertAtCursor called with:', {textarea, text});
@@ -1026,9 +1040,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const select = document.getElementById('img-size-select');
         const widthPct = (select && select.value) ? select.value : '66%';
         showImageMetaModal(url, { size: widthPct }, (meta) => {
-          editor.focus();
+          const ta = getActiveTextarea();
+          ta.focus();
           const imageHtml = buildImageHtml(url, meta.alt, meta.title, meta.caption, meta.size);
-          insertAtCursor(editor, imageHtml);
+          insertAtCursor(ta, imageHtml);
+          if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
         });
       }
     });
@@ -1414,20 +1430,21 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('insert-all-btn').addEventListener('click', () => {
         modal.classList.add('hidden');
         showImageMetaModalQueue(result.uploads, (results) => {
-          const editor = document.getElementById('editor');
-          editor.focus();
+          const ta = getActiveTextarea();
+          ta.focus();
           results.forEach(({ url, metadata }) => {
             const html = buildImageHtml(url, metadata.alt, metadata.title, metadata.caption, metadata.size);
-            insertAtCursor(editor, html);
+            insertAtCursor(ta, html);
           });
+          if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
           refreshLightbox();
         });
       });
       
       // Insert as gallery (use filenames as alt, skip per-image modal)
       document.getElementById('insert-gallery-btn').addEventListener('click', () => {
-        const editor = document.getElementById('editor');
-        editor.focus();
+        const ta = getActiveTextarea();
+        ta.focus();
 
         const imageElements = result.uploads.map(upload => {
           const alt = upload.filename ? upload.filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ') : 'Image';
@@ -1437,7 +1454,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const galleryHtml = `<div class="image-gallery" style="display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; justify-content: center;">\n${imageElements}\n</div>\n`;
 
-        insertAtCursor(editor, galleryHtml);
+        insertAtCursor(ta, galleryHtml);
+        if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
         refreshLightbox();
         modal.classList.add('hidden');
       });
@@ -1477,7 +1495,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Function to open existing images modal  
+  // Function to open existing images modal (exposed to window for fullscreen toolbar)
+  window.openExistingImagesModal = openExistingImagesModal;
   async function openExistingImagesModal() {
     const modal = document.getElementById('existing-images-modal');
     if (!modal) {
@@ -1647,10 +1666,11 @@ document.addEventListener('DOMContentLoaded', function() {
             let pct = (select && select.value) ? select.value : '66%';
             document.getElementById('existing-images-modal').classList.add('hidden');
             showImageMetaModal(imageUrl, { alt: defaultAlt, size: pct }, (meta) => {
-              const editor = document.getElementById('editor');
-              editor.focus();
+              const ta = getActiveTextarea();
+              ta.focus();
               const html = buildImageHtml(imageUrl, meta.alt, meta.title, meta.caption, meta.size);
-              insertAtCursor(editor, html);
+              insertAtCursor(ta, html);
+              if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
               refreshLightbox();
             });
           });
@@ -1704,13 +1724,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Function to insert image into editor (with metadata modal)
   function insertImageIntoEditor(imageUrl, widthPct) {
-    const editor = document.getElementById('editor');
     const defaultFilename = imageUrl.split('/').pop().replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
 
     showImageMetaModal(imageUrl, { alt: defaultFilename, size: widthPct || '66%' }, (meta) => {
-      editor.focus();
+      const ta = getActiveTextarea();
+      ta.focus();
       const imageHtml = buildImageHtml(imageUrl, meta.alt, meta.title, meta.caption, meta.size);
-      insertAtCursor(editor, imageHtml);
+      insertAtCursor(ta, imageHtml);
+      if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
       refreshLightbox();
     });
   }
@@ -1857,9 +1878,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // Event: Exit fullscreen
   fsExitBtn.addEventListener('click', exitFullscreen);
 
-  // Event: Escape key exits fullscreen
+  // Event: Escape key exits fullscreen (but not if a modal is open above it)
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && fsActive) {
+      // Don't exit fullscreen if a modal is open on top
+      const openModal = document.querySelector('#image-meta-modal:not(.hidden), #existing-images-modal:not(.hidden), #multi-upload-modal:not(.hidden), #image-picker-modal:not(.hidden), #confirmation-modal:not(.hidden)');
+      if (openModal) return; // let the modal's own Escape handler close it
       exitFullscreen();
       e.preventDefault();
       e.stopPropagation();
@@ -1927,6 +1951,30 @@ document.addEventListener('DOMContentLoaded', function() {
           if (url && text) fsInsert('[' + text + '](' + url + ')');
           break;
         }
+        case 'image': {
+          const imgUrl = prompt('Enter image URL:');
+          if (imgUrl) {
+            const select = document.getElementById('img-size-select');
+            const widthPct = (select && select.value) ? select.value : '66%';
+            showImageMetaModal(imgUrl, { size: widthPct }, (meta) => {
+              const ta = getActiveTextarea();
+              ta.focus();
+              const imageHtml = buildImageHtml(imgUrl, meta.alt, meta.title, meta.caption, meta.size);
+              insertAtCursor(ta, imageHtml);
+              if (ta.id === 'fullscreen-textarea') { mainEditor.value = ta.value; }
+              scheduleRender();
+            });
+          }
+          break;
+        }
+        case 'upload': {
+          document.getElementById('inline-upload').click();
+          break;
+        }
+        case 'browse': {
+          if (window.openExistingImagesModal) window.openExistingImagesModal();
+          break;
+        }
       }
     });
   });
@@ -1976,7 +2024,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- Multi-upload Modal -->
-<div id="multi-upload-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<div id="multi-upload-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] hidden">
   <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-50">Upload Multiple Images</h3>
@@ -1996,7 +2044,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Existing Images Modal -->
-<div id="existing-images-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<div id="existing-images-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] hidden">
   <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-50">Post Images</h3>
@@ -2034,7 +2082,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Modern Confirmation Modal -->
-<div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] hidden">
   <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
     <div class="flex items-center mb-4">
       <div class="flex-shrink-0 w-10 h-10 mx-auto flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900">
@@ -2055,7 +2103,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Image Metadata Modal -->
-<div id="image-meta-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<div id="image-meta-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] hidden">
   <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4 shadow-xl">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-50" id="img-meta-heading">Image Metadata</h3>
@@ -2094,7 +2142,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Image Picker Modal (for Edit Img) -->
-<div id="image-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<div id="image-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] hidden">
   <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-xl">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-50">Select Image to Edit</h3>
@@ -2582,6 +2630,14 @@ document.addEventListener('DOMContentLoaded', function() {
   background: #475569;
   color: #e2e8f0;
 }
+.fs-sep {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: #cbd5e1;
+  margin: 0 4px;
+}
+.dark .fs-sep { background: #475569; }
 
 .fullscreen-controls {
   display: flex;
@@ -3118,19 +3174,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('existing-images-modal')?.classList.add('hidden');
     showImageMetaModalQueue(images, (results) => {
-      const editor = document.getElementById('editor');
-      editor.focus();
+      const ta = getActiveTextarea();
+      ta.focus();
       results.forEach(({ url, metadata }) => {
         const html = buildImageHtml(url, metadata.alt, metadata.title, metadata.caption, metadata.size);
-        insertAtCursor(editor, html);
+        insertAtCursor(ta, html);
       });
+      if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
       refreshLightbox();
     });
   });
   
   document.getElementById('insert-selected-gallery')?.addEventListener('click', () => {
     const selected = Array.from(document.querySelectorAll('.image-checkbox:checked'));
-    const editor = document.getElementById('editor');
+    const ta = getActiveTextarea();
 
     const imageElements = selected.map(checkbox => {
       const url = checkbox.dataset.url;
@@ -3142,8 +3199,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const galleryHtml = `<div class="image-gallery" style="display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; justify-content: center;">\n${imageElements}\n</div>\n`;
 
-    editor.focus();
-    insertAtCursor(editor, galleryHtml);
+    ta.focus();
+    insertAtCursor(ta, galleryHtml);
+    if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
     refreshLightbox();
     document.getElementById('existing-images-modal')?.classList.add('hidden');
   });
@@ -3192,8 +3250,8 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!editImgBtn) return;
 
   editImgBtn.addEventListener('click', () => {
-    const editor = document.getElementById('editor');
-    const content = editor.value;
+    const ta = getActiveTextarea();
+    const content = ta.value;
 
     // Find all image blocks: <figure>...<img...>...</figure> or <p>...<img...>...</p>
     const imgBlocks = [];
@@ -3269,8 +3327,9 @@ document.addEventListener('DOMContentLoaded', function() {
           editMode: true
         }, (meta) => {
           const newHtml = buildImageHtml(block.url, meta.alt, meta.title, meta.caption, meta.size);
-          editor.value = editor.value.replace(block.html, newHtml.trimEnd());
-          editor.focus();
+          ta.value = ta.value.replace(block.html, newHtml.trimEnd());
+          if (ta.id === 'fullscreen-textarea') { document.getElementById('editor').value = ta.value; }
+          ta.focus();
         });
       });
     });
