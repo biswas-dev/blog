@@ -17,6 +17,7 @@ import (
 	"anshumanbiswas.com/blog/templates"
 	"anshumanbiswas.com/blog/views"
 	godraw "github.com/anchoo2kewl/go-draw"
+	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -140,6 +141,15 @@ func main() {
 		DB: DB,
 	}
 
+	// Blog wiki instance configured for the post editor
+	blogWiki := gowiki.New(
+		gowiki.WithPreviewEndpoint("/admin/preview"),
+		gowiki.WithUploadEndpoint("/admin/uploads"),
+		gowiki.WithImageListEndpoint("/admin/uploads/list"),
+		gowiki.WithDrawBasePath("/draw"),
+		gowiki.WithEnableMore(true),
+	)
+
 	// Setup our controllers
 	usersC := controllers.Users{
 		UserService:          &userService,
@@ -149,6 +159,7 @@ func main() {
 		CategoryService:      &categoryService,
 		CloudinaryService:    &cloudinaryService,
 		ImageMetadataService: &imageMetadataService,
+		BlogWiki:             blogWiki,
 	}
 
 	// Initialize Blog controller
