@@ -2,120 +2,172 @@
 
 <!-- Hero Section -->
 <section class="hero">
-    <h1>Engineering Insights</h1>
+    <h1>Engineering <span class="hero-accent">Insights</span></h1>
     <p>
-        Deep dives into software architecture, cloud infrastructure, and scalable system design. 
-        Technical perspectives on modern development and emerging technologies.
+        Deep dives into software architecture, cloud infrastructure, and scalable system design.
     </p>
 </section>
 
-<!-- Blog Posts -->
-<section class="blog-posts">
-    {{if .Posts.Posts}}
-        {{range .Posts.Posts}}
-        <article class="blog-post {{if .Featured}}featured-post{{end}}">
-            <div class="blog-post-meta">
-                <div class="blog-post-date">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <time class="relative-time" datetime="{{.CreatedAt}}">{{.PublicationDate}}</time>
-                </div>
-                <div class="reading-time text-sm text-gray-500">
-                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <span class="read-time" data-content="{{.Content}}">5 min read</span>
-                </div>
-                {{if .Featured}}
-                <div class="featured-badge">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
-                    </svg>
-                    Featured
-                </div>
-                {{end}}
+<!-- Blog Posts — Magazine Layout -->
+{{if .Posts.Posts}}
+    {{range $i, $post := .Posts.Posts}}
+        {{if eq $i 0}}
+        <!-- Hero Card (first post) -->
+        <a href="/blog/{{$post.Slug}}" class="post-hero-card {{if not $post.FeaturedImageURL}}no-image{{end}}" style="text-decoration:none;color:inherit;">
+            {{if $post.FeaturedImageURL}}
+            <div class="post-card-image-wrap">
+                <img src="{{$post.FeaturedImageURL}}" alt="{{$post.Title}}" loading="eager" />
             </div>
-            
-            <h2 class="blog-post-title">
-                <a href="/blog/{{.Slug}}">{{.Title}}</a>
-            </h2>
-            
-            <div class="blog-post-excerpt">
-                {{if .ContentHTML}}
-                    {{.ContentHTML}}
-                {{else}}
-                    {{.Content}}
-                {{end}}
-            </div>
-            
-            <div class="flex items-center justify-between">
-                <a href="/blog/{{.Slug}}" class="read-more">
-                    Read more
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </a>
-            </div>
-        </article>
-        {{end}}
-    {{else}}
-        <div class="text-center py-12">
-            <div class="mb-4">
-                <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-1m-10 4h8m-8 2h8m-8 2h8"></path>
-                </svg>
-            </div>
-            <h3 class="text-xl font-semibold mb-2">No posts yet</h3>
-            <p class="text-gray-600 dark:text-gray-400 mb-6">
-                The blog is ready for your first post!
-            </p>
-            {{if .LoggedIn}}
-                <a href="/admin/posts/new" class="btn btn-primary">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                    </svg>
-                    Create First Post
-                </a>
             {{end}}
-        </div>
+            <div class="post-card-body">
+                <div class="post-card-meta">
+                    <span class="post-card-date">
+                        <time class="relative-time" datetime="{{$post.CreatedAt}}">{{$post.PublicationDate}}</time>
+                    </span>
+                    {{if $post.Featured}}
+                    <span class="featured-badge">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                        Featured
+                    </span>
+                    {{end}}
+                </div>
+                {{if $post.Categories}}
+                <div class="category-pills">
+                    {{range $post.Categories}}
+                    <span class="category-pill">{{.Name}}</span>
+                    {{end}}
+                </div>
+                {{end}}
+                <h2 class="post-card-title">{{$post.Title}}</h2>
+                <div class="post-card-excerpt">
+                    {{if $post.ContentHTML}}{{$post.ContentHTML}}{{else}}{{$post.Content}}{{end}}
+                </div>
+                <span class="read-more">
+                    Read more
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </span>
+            </div>
+        </a>
+
+        <!-- Open grid for remaining posts -->
+        <section class="post-grid">
+        {{else}}
+        <!-- Grid Card -->
+        <a href="/blog/{{$post.Slug}}" class="post-card" style="text-decoration:none;color:inherit;">
+            {{if $post.FeaturedImageURL}}
+            <div class="post-card-image-wrap">
+                <img src="{{$post.FeaturedImageURL}}" alt="{{$post.Title}}" loading="lazy" />
+            </div>
+            {{end}}
+            <div class="post-card-body">
+                <div class="post-card-meta">
+                    <span class="post-card-date">
+                        <time class="relative-time" datetime="{{$post.CreatedAt}}">{{$post.PublicationDate}}</time>
+                    </span>
+                    {{if $post.Featured}}
+                    <span class="featured-badge">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                        Featured
+                    </span>
+                    {{end}}
+                </div>
+                {{if $post.Categories}}
+                <div class="category-pills">
+                    {{range $post.Categories}}
+                    <span class="category-pill">{{.Name}}</span>
+                    {{end}}
+                </div>
+                {{end}}
+                <h2 class="post-card-title">{{$post.Title}}</h2>
+                <div class="post-card-excerpt">
+                    {{if $post.ContentHTML}}{{$post.ContentHTML}}{{else}}{{$post.Content}}{{end}}
+                </div>
+                <div class="post-card-footer">
+                    <span class="read-more">
+                        Read more
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+        {{end}}
     {{end}}
-</section>
+        </section><!-- close .post-grid -->
+{{else}}
+    <div class="text-center py-12">
+        <div class="mb-4">
+            <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-1m-10 4h8m-8 2h8m-8 2h8"></path>
+            </svg>
+        </div>
+        <h3 class="text-xl font-semibold mb-2">No posts yet</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+            The blog is ready for your first post!
+        </p>
+        {{if .LoggedIn}}
+            <a href="/admin/posts/new" class="btn btn-primary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Create First Post
+            </a>
+        {{end}}
+    </div>
+{{end}}
 
 <!-- Infinite Scroll JavaScript -->
 <script>
-let offset = 5; // initial posts rendered by server
+let offset = 5;
 let loading = false;
 let hasMorePosts = true;
 
+function escapeHTML(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 function appendPost(post) {
-    const blogPostsSection = document.querySelector('.blog-posts');
-    const articleHTML = `
-        <article class="blog-post">
-            <div class="blog-post-meta">
-                <div class="blog-post-date">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <time datetime="${post.CreatedAt}">${post.PublicationDate}</time>
+    const grid = document.querySelector('.post-grid');
+    if (!grid) return;
+
+    let imageHTML = '';
+    if (post.FeaturedImageURL) {
+        imageHTML = `<div class="post-card-image-wrap"><img src="${escapeHTML(post.FeaturedImageURL)}" alt="${escapeHTML(post.Title)}" loading="lazy" /></div>`;
+    }
+
+    let categoriesHTML = '';
+    const cats = post.categories || post.Categories;
+    if (cats && cats.length > 0) {
+        categoriesHTML = '<div class="category-pills">' +
+            cats.map(c => `<span class="category-pill">${escapeHTML(c.name || c.Name)}</span>`).join('') +
+            '</div>';
+    }
+
+    const cardHTML = `
+        <a href="/blog/${escapeHTML(post.Slug)}" class="post-card" style="text-decoration:none;color:inherit;">
+            ${imageHTML}
+            <div class="post-card-body">
+                <div class="post-card-meta">
+                    <span class="post-card-date">
+                        <time datetime="${post.CreatedAt}">${post.PublicationDate}</time>
+                    </span>
+                </div>
+                ${categoriesHTML}
+                <h2 class="post-card-title">${escapeHTML(post.Title)}</h2>
+                <div class="post-card-excerpt">
+                    ${post.ContentHTML || (post.Content && post.Content.length > 200 ? escapeHTML(post.Content.substring(0, 200)) + '...' : escapeHTML(post.Content || ''))}
+                </div>
+                <div class="post-card-footer">
+                    <span class="read-more">
+                        Read more
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </span>
                 </div>
             </div>
-            <h2 class="blog-post-title">
-                <a href="/blog/${post.Slug}">${post.Title}</a>
-            </h2>
-            <div class="blog-post-excerpt">
-                ${post.ContentHTML || (post.Content && post.Content.length > 200 ? post.Content.substring(0, 200) + '...' : (post.Content || ''))}
-            </div>
-            <div class="flex items-center justify-between">
-                <a href="/blog/${post.Slug}" class="read-more">
-                    Read more
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </a>
-            </div>
-        </article>`;
-    blogPostsSection.insertAdjacentHTML('beforeend', articleHTML);
+        </a>`;
+    grid.insertAdjacentHTML('beforeend', cardHTML);
 }
 
 function loadMorePosts() {
@@ -137,13 +189,16 @@ function loadMorePosts() {
 }
 
 // Use IntersectionObserver to trigger infinite scroll
-const sentinel = document.createElement('div');
-sentinel.id = 'scroll-sentinel';
-document.querySelector('.blog-posts').after(sentinel);
-const scrollObserver = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) loadMorePosts();
-}, { rootMargin: '200px' });
-scrollObserver.observe(sentinel);
+const grid = document.querySelector('.post-grid');
+if (grid) {
+    const sentinel = document.createElement('div');
+    sentinel.id = 'scroll-sentinel';
+    grid.after(sentinel);
+    const scrollObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) loadMorePosts();
+    }, { rootMargin: '200px' });
+    scrollObserver.observe(sentinel);
+}
 </script>
 
 {{template "modern-footer" .}}

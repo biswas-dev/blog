@@ -144,6 +144,23 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 			}
 		}
 
+		// Load categories for this post
+		categoriesQuery := `SELECT c.category_id, c.category_name, c.created_at
+						   FROM categories c
+						   JOIN post_categories pc ON c.category_id = pc.category_id
+						   WHERE pc.post_id = $1`
+		categoryRows, catErr := pp.DB.Query(categoriesQuery, post.ID)
+		if catErr == nil {
+			var categories []Category
+			for categoryRows.Next() {
+				var category Category
+				categoryRows.Scan(&category.ID, &category.Name, &category.CreatedAt)
+				categories = append(categories, category)
+			}
+			categoryRows.Close()
+			post.Categories = categories
+		}
+
 		// Build preview from raw content to preserve Markdown list/numbering, then trim for length
 		preview := previewContentRaw(post.Content)
 		post.ContentHTML = template.HTML(RenderContent(preview))

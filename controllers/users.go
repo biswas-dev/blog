@@ -494,6 +494,20 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 
 	posts, _ := u.GetTopPosts()
 
+	// Normalize featured image URLs for display
+	if posts != nil {
+		for i := range posts.Posts {
+			p := &posts.Posts[i]
+			if p.FeaturedImageURL != "" && !strings.HasPrefix(p.FeaturedImageURL, "http") && !strings.HasPrefix(p.FeaturedImageURL, "/static/") {
+				if p.FeaturedImageURL == "image.jpg" {
+					p.FeaturedImageURL = ""
+				} else {
+					p.FeaturedImageURL = "/static/" + p.FeaturedImageURL
+				}
+			}
+		}
+	}
+
 	// Get signup disabled setting from environment
 	isSignupDisabled, _ := strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
 
@@ -545,6 +559,20 @@ func (u Users) LoadMorePosts(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 		return
+	}
+
+	// Normalize featured image URLs for display
+	if posts != nil {
+		for i := range posts.Posts {
+			p := &posts.Posts[i]
+			if p.FeaturedImageURL != "" && !strings.HasPrefix(p.FeaturedImageURL, "http") && !strings.HasPrefix(p.FeaturedImageURL, "/static/") {
+				if p.FeaturedImageURL == "image.jpg" {
+					p.FeaturedImageURL = ""
+				} else {
+					p.FeaturedImageURL = "/static/" + p.FeaturedImageURL
+				}
+			}
+		}
 	}
 
 	// Return JSON response
