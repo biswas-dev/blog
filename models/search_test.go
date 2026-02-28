@@ -82,7 +82,7 @@ func TestSearchService_SearchByTitle(t *testing.T) {
 
 	// Create test user
 	var userID int
-	err := db.QueryRow(`INSERT INTO users (email, username, password_hash, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
+	err := db.QueryRow(`INSERT INTO users (email, username, password, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
 		"search-test@test.com", "searchtest", "hash123", 2).Scan(&userID)
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
@@ -122,7 +122,7 @@ func TestSearchService_DraftsNotReturned(t *testing.T) {
 
 	// Create test user
 	var userID int
-	err := db.QueryRow(`INSERT INTO users (email, username, password_hash, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
+	err := db.QueryRow(`INSERT INTO users (email, username, password, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
 		"search-draft@test.com", "searchdraft", "hash123", 2).Scan(&userID)
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
@@ -156,7 +156,7 @@ func TestSearchService_SearchByContent(t *testing.T) {
 	db.Exec(`INSERT INTO roles (role_id, role_name) VALUES (2, 'Administrator') ON CONFLICT DO NOTHING`)
 
 	var userID int
-	err := db.QueryRow(`INSERT INTO users (email, username, password_hash, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
+	err := db.QueryRow(`INSERT INTO users (email, username, password, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
 		"search-content@test.com", "searchcontent", "hash123", 2).Scan(&userID)
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
@@ -193,7 +193,7 @@ func TestSearchService_TitleRanksHigher(t *testing.T) {
 	db.Exec(`INSERT INTO roles (role_id, role_name) VALUES (2, 'Administrator') ON CONFLICT DO NOTHING`)
 
 	var userID int
-	err := db.QueryRow(`INSERT INTO users (email, username, password_hash, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
+	err := db.QueryRow(`INSERT INTO users (email, username, password, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
 		"search-rank@test.com", "searchrank", "hash123", 2).Scan(&userID)
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
