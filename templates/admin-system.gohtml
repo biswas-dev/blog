@@ -228,6 +228,23 @@
         border-color: var(--text-secondary);
     }
     .sys-btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Small action buttons for external system cards */
+    .sys-action-btn {
+        padding: 4px 12px;
+        font-size: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-secondary);
+        background: transparent;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+    }
+    .sys-action-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+    .sys-action-btn.accent { border-color: var(--accent); color: var(--accent); }
+    .sys-action-btn.accent:hover { background: rgba(13,148,136,0.08); }
+    .sys-action-btn.danger { border-color: #ef4444; color: #ef4444; }
+    .sys-action-btn.danger:hover { background: rgba(239,68,68,0.08); }
 </style>
 
 <div class="min-h-screen" style="background: var(--bg-secondary);">
@@ -829,11 +846,11 @@ function renderSystemCard(s) {
             ${s.last_sync_message ? ' &mdash; ' + escapeHtml(s.last_sync_message) : ''}
         </div>
         <div class="flex flex-wrap gap-2">
-            <button onclick="testConnection(${s.id})" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Test Connection</button>
-            <button onclick="openSyncModal(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-teal-300 dark:border-teal-600 rounded-md text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20">Sync</button>
-            <button onclick="openEditSystemModal(${s.id})" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Edit</button>
-            <button onclick="viewSyncLogs(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Logs</button>
-            <button onclick="deleteSystem(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-red-300 dark:border-red-600 rounded-md text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
+            <button onclick="testConnection(${s.id})" class="sys-action-btn">Test Connection</button>
+            <button onclick="openSyncModal(${s.id}, '${escapeHtml(s.name)}')" class="sys-action-btn accent">Sync</button>
+            <button onclick="openEditSystemModal(${s.id})" class="sys-action-btn">Edit</button>
+            <button onclick="viewSyncLogs(${s.id}, '${escapeHtml(s.name)}')" class="sys-action-btn">Logs</button>
+            <button onclick="deleteSystem(${s.id}, '${escapeHtml(s.name)}')" class="sys-action-btn danger">Delete</button>
         </div>
     </div>`;
 }
