@@ -483,7 +483,7 @@ func (ps PostService) Delete(postID int) error {
 }
 
 // defaultWiki is a singleton to avoid re-allocating on every render call.
-var defaultWiki = gowiki.New()
+var defaultWiki = gowiki.New(gowiki.WithDrawBasePath("/draw"))
 
 // RenderContent converts markdown content to HTML using the default renderer.
 func RenderContent(content string) string {
