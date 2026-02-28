@@ -22,13 +22,16 @@ type PageView struct {
 
 // AnalyticsSummary is the response for the dashboard API
 type AnalyticsSummary struct {
-	TimeSeries   []TimeSeriesPoint    `json:"time_series"`
-	TotalViews   int64                `json:"total_views"`
-	UniqueIPs    int64                `json:"unique_ips"`
-	AvgDaily     float64              `json:"avg_daily"`
-	TopPages     []TopItem            `json:"top_pages"`
-	TopReferrers []TopItem            `json:"top_referrers"`
-	ContentTypes []ContentTypeSummary `json:"content_types"`
+	TimeSeries     []TimeSeriesPoint    `json:"time_series"`
+	TotalViews     int64                `json:"total_views"`
+	UniqueIPs      int64                `json:"unique_ips"`
+	AvgDaily       float64              `json:"avg_daily"`
+	TopPages       []TopItem            `json:"top_pages"`
+	TopReferrers   []TopItem            `json:"top_referrers"`
+	ContentTypes   []ContentTypeSummary `json:"content_types"`
+	TopVisitors    []TopVisitor         `json:"top_visitors"`
+	HourlyActivity []HourlyActivity     `json:"hourly_activity"`
+	Browsers       []BrowserStat        `json:"browsers"`
 }
 
 // TimeSeriesPoint is a single data point in the chart
@@ -49,6 +52,36 @@ type ContentTypeSummary struct {
 	ContentType string `json:"content_type"`
 	Views       int64  `json:"views"`
 	Uniques     int64  `json:"uniques"`
+}
+
+// TopVisitor represents a top visitor IP with activity summary
+type TopVisitor struct {
+	IPAddress string `json:"ip_address"`
+	Views     int64  `json:"views"`
+	LastSeen  string `json:"last_seen"`
+	TopPath   string `json:"top_path"`
+	UserAgent string `json:"user_agent"`
+}
+
+// VisitorDetail represents a single page view by a specific IP
+type VisitorDetail struct {
+	Path      string `json:"path"`
+	ViewedAt  string `json:"viewed_at"`
+	UserAgent string `json:"user_agent"`
+	Referrer  string `json:"referrer"`
+}
+
+// HourlyActivity represents views aggregated by hour of day
+type HourlyActivity struct {
+	Hour  int   `json:"hour"`
+	Views int64 `json:"views"`
+}
+
+// BrowserStat represents browser usage breakdown
+type BrowserStat struct {
+	Name    string  `json:"name"`
+	Count   int64   `json:"count"`
+	Percent float64 `json:"percent"`
 }
 
 // LiveStats returns today's real-time counts
@@ -86,6 +119,9 @@ func NewAnalyticsService(db *sql.DB) *AnalyticsService {
 	// Background partition creator: ensures next month's partition exists
 	s.wg.Add(1)
 	go s.partitionLoop()
+
+	// One-time backfill of page_views_daily for any historical dates missing aggregations
+	go s.BackfillDailyAggregates()
 
 	return s
 }
@@ -243,13 +279,22 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 
 	summary := &AnalyticsSummary{}
 
-	// Time series from summary table
+	// Time series from summary table + today's live data
 	rows, err := s.db.Query(`
-		SELECT view_date::text, SUM(total_views), SUM(unique_visitors)
-		FROM page_views_daily
-		WHERE view_date >= $1::date
-		GROUP BY view_date
-		ORDER BY view_date`, since)
+		WITH daily AS (
+			SELECT view_date::text AS date, SUM(total_views) AS views, SUM(unique_visitors) AS uniques
+			FROM page_views_daily
+			WHERE view_date >= $1::date AND view_date < CURRENT_DATE
+			GROUP BY view_date
+		),
+		today AS (
+			SELECT CURRENT_DATE::text AS date, COUNT(*) AS views, COUNT(DISTINCT ip_address) AS uniques
+			FROM page_views WHERE viewed_at >= CURRENT_DATE
+		)
+		SELECT date, views, uniques FROM daily
+		UNION ALL
+		SELECT date, views, uniques FROM today WHERE views > 0
+		ORDER BY date`, since)
 	if err != nil {
 		return nil, fmt.Errorf("time series query: %w", err)
 	}
@@ -271,14 +316,19 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 		summary.AvgDaily = float64(totalViews) / float64(days)
 	}
 
-	// Top pages
+	// Top pages (past aggregated + today's live)
 	topPages, err := s.db.Query(`
-		SELECT path, SUM(total_views) AS views
-		FROM page_views_daily
-		WHERE view_date >= $1::date
-		GROUP BY path
-		ORDER BY views DESC
-		LIMIT 10`, since)
+		WITH past AS (
+			SELECT path, SUM(total_views) AS views FROM page_views_daily
+			WHERE view_date >= $1::date AND view_date < CURRENT_DATE GROUP BY path
+		),
+		today AS (
+			SELECT path, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE GROUP BY path
+		),
+		combined AS (
+			SELECT path, SUM(views) AS views FROM (SELECT * FROM past UNION ALL SELECT * FROM today) t GROUP BY path
+		)
+		SELECT path, views FROM combined ORDER BY views DESC LIMIT 10`, since)
 	if err != nil {
 		return nil, fmt.Errorf("top pages query: %w", err)
 	}
@@ -313,13 +363,23 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 		summary.TopReferrers = append(summary.TopReferrers, item)
 	}
 
-	// Content type breakdown
+	// Content type breakdown (past aggregated + today's live)
 	ctRows, err := s.db.Query(`
-		SELECT content_type, SUM(total_views), SUM(unique_visitors)
-		FROM page_views_daily
-		WHERE view_date >= $1::date
-		GROUP BY content_type
-		ORDER BY SUM(total_views) DESC`, since)
+		WITH past AS (
+			SELECT content_type, SUM(total_views) AS views, SUM(unique_visitors) AS uniques
+			FROM page_views_daily
+			WHERE view_date >= $1::date AND view_date < CURRENT_DATE
+			GROUP BY content_type
+		),
+		today AS (
+			SELECT content_type, COUNT(*) AS views, COUNT(DISTINCT ip_address) AS uniques
+			FROM page_views WHERE viewed_at >= CURRENT_DATE GROUP BY content_type
+		),
+		combined AS (
+			SELECT content_type, SUM(views) AS views, SUM(uniques) AS uniques
+			FROM (SELECT * FROM past UNION ALL SELECT * FROM today) t GROUP BY content_type
+		)
+		SELECT content_type, views, uniques FROM combined ORDER BY views DESC`, since)
 	if err != nil {
 		return nil, fmt.Errorf("content type query: %w", err)
 	}
@@ -331,6 +391,27 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 			return nil, fmt.Errorf("content type scan: %w", err)
 		}
 		summary.ContentTypes = append(summary.ContentTypes, ct)
+	}
+
+	// Top visitors (non-fatal on error)
+	if visitors, err := s.GetTopVisitors(period); err != nil {
+		log.Printf("[analytics] top visitors query failed: %v", err)
+	} else {
+		summary.TopVisitors = visitors
+	}
+
+	// Hourly activity (non-fatal on error)
+	if hourly, err := s.GetHourlyActivity(period); err != nil {
+		log.Printf("[analytics] hourly activity query failed: %v", err)
+	} else {
+		summary.HourlyActivity = hourly
+	}
+
+	// Browser stats (non-fatal on error)
+	if browsers, err := s.GetBrowserStats(period); err != nil {
+		log.Printf("[analytics] browser stats query failed: %v", err)
+	} else {
+		summary.Browsers = browsers
 	}
 
 	return summary, nil
@@ -361,6 +442,169 @@ func ContentTypeForPath(path string) string {
 		return "slide"
 	}
 	return "other"
+}
+
+// BackfillDailyAggregates populates page_views_daily for historical dates
+// that have raw data but no aggregated rows. Safe to run multiple times.
+func (s *AnalyticsService) BackfillDailyAggregates() {
+	_, err := s.db.Exec(`
+		INSERT INTO page_views_daily (view_date, path, content_type, total_views, unique_visitors)
+		SELECT viewed_at::date, path, content_type, COUNT(*), COUNT(DISTINCT ip_address)
+		FROM page_views
+		WHERE viewed_at < CURRENT_DATE
+		GROUP BY viewed_at::date, path, content_type
+		ON CONFLICT (view_date, path, content_type) DO NOTHING`)
+	if err != nil {
+		log.Printf("[analytics] backfill daily aggregates failed: %v", err)
+	} else {
+		log.Printf("[analytics] backfill daily aggregates completed")
+	}
+}
+
+// GetTopVisitors returns the top 20 IPs by view count for the given period
+func (s *AnalyticsService) GetTopVisitors(period string) ([]TopVisitor, error) {
+	days := parsePeriodDays(period)
+	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+
+	rows, err := s.db.Query(`
+		SELECT ip_address::text, COUNT(*) AS views,
+			MAX(viewed_at)::text AS last_seen,
+			MODE() WITHIN GROUP (ORDER BY path) AS top_path,
+			(ARRAY_AGG(user_agent ORDER BY viewed_at DESC))[1] AS user_agent
+		FROM page_views WHERE viewed_at >= $1::date
+		GROUP BY ip_address ORDER BY views DESC LIMIT 20`, since)
+	if err != nil {
+		return nil, fmt.Errorf("top visitors query: %w", err)
+	}
+	defer rows.Close()
+
+	var visitors []TopVisitor
+	for rows.Next() {
+		var v TopVisitor
+		if err := rows.Scan(&v.IPAddress, &v.Views, &v.LastSeen, &v.TopPath, &v.UserAgent); err != nil {
+			return nil, fmt.Errorf("top visitors scan: %w", err)
+		}
+		visitors = append(visitors, v)
+	}
+	return visitors, nil
+}
+
+// GetVisitorActivity returns detailed page views for a specific IP
+func (s *AnalyticsService) GetVisitorActivity(ip string, period string) ([]VisitorDetail, error) {
+	days := parsePeriodDays(period)
+	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+
+	rows, err := s.db.Query(`
+		SELECT path, viewed_at::text, user_agent, COALESCE(NULLIF(referrer,''),'(direct)')
+		FROM page_views WHERE ip_address = $1::inet AND viewed_at >= $2::date
+		ORDER BY viewed_at DESC LIMIT 200`, ip, since)
+	if err != nil {
+		return nil, fmt.Errorf("visitor activity query: %w", err)
+	}
+	defer rows.Close()
+
+	var details []VisitorDetail
+	for rows.Next() {
+		var d VisitorDetail
+		if err := rows.Scan(&d.Path, &d.ViewedAt, &d.UserAgent, &d.Referrer); err != nil {
+			return nil, fmt.Errorf("visitor activity scan: %w", err)
+		}
+		details = append(details, d)
+	}
+	return details, nil
+}
+
+// GetHourlyActivity returns view counts grouped by hour of day
+func (s *AnalyticsService) GetHourlyActivity(period string) ([]HourlyActivity, error) {
+	days := parsePeriodDays(period)
+	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+
+	rows, err := s.db.Query(`
+		SELECT EXTRACT(HOUR FROM viewed_at)::int AS hour, COUNT(*) AS views
+		FROM page_views WHERE viewed_at >= $1::date
+		GROUP BY hour ORDER BY hour`, since)
+	if err != nil {
+		return nil, fmt.Errorf("hourly activity query: %w", err)
+	}
+	defer rows.Close()
+
+	var activity []HourlyActivity
+	for rows.Next() {
+		var h HourlyActivity
+		if err := rows.Scan(&h.Hour, &h.Views); err != nil {
+			return nil, fmt.Errorf("hourly activity scan: %w", err)
+		}
+		activity = append(activity, h)
+	}
+	return activity, nil
+}
+
+// GetBrowserStats returns browser usage breakdown for the given period
+func (s *AnalyticsService) GetBrowserStats(period string) ([]BrowserStat, error) {
+	days := parsePeriodDays(period)
+	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+
+	rows, err := s.db.Query(`
+		SELECT user_agent, COUNT(*) AS cnt
+		FROM page_views WHERE viewed_at >= $1::date
+		GROUP BY user_agent`, since)
+	if err != nil {
+		return nil, fmt.Errorf("browser stats query: %w", err)
+	}
+	defer rows.Close()
+
+	counts := make(map[string]int64)
+	var total int64
+	for rows.Next() {
+		var ua string
+		var cnt int64
+		if err := rows.Scan(&ua, &cnt); err != nil {
+			return nil, fmt.Errorf("browser stats scan: %w", err)
+		}
+		browser := classifyBrowser(ua)
+		counts[browser] += cnt
+		total += cnt
+	}
+
+	var stats []BrowserStat
+	for name, count := range counts {
+		pct := 0.0
+		if total > 0 {
+			pct = float64(count) / float64(total) * 100
+		}
+		stats = append(stats, BrowserStat{Name: name, Count: count, Percent: pct})
+	}
+
+	// Sort by count descending
+	for i := 0; i < len(stats); i++ {
+		for j := i + 1; j < len(stats); j++ {
+			if stats[j].Count > stats[i].Count {
+				stats[i], stats[j] = stats[j], stats[i]
+			}
+		}
+	}
+
+	return stats, nil
+}
+
+func classifyBrowser(ua string) string {
+	ua = strings.ToLower(ua)
+	switch {
+	case strings.Contains(ua, "bot") || strings.Contains(ua, "crawl") || strings.Contains(ua, "spider"):
+		return "Bot"
+	case strings.Contains(ua, "edg"):
+		return "Edge"
+	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "edg"):
+		return "Chrome"
+	case strings.Contains(ua, "firefox"):
+		return "Firefox"
+	case strings.Contains(ua, "safari") && !strings.Contains(ua, "chrome"):
+		return "Safari"
+	case ua == "":
+		return "Unknown"
+	default:
+		return "Other"
+	}
 }
 
 func parsePeriodDays(period string) int {

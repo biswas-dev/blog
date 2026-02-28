@@ -328,6 +328,7 @@ func main() {
 	// Analytics Routes
 	r.Get("/admin/analytics", analyticsC.Dashboard)
 	r.Get("/api/admin/analytics", analyticsC.GetAnalyticsJSON)
+	r.Get("/api/admin/analytics/visitor", analyticsC.GetVisitorDetail)
 
 	// Cloudinary Settings Routes
 	r.Get("/api/admin/cloudinary", systemC.GetCloudinarySettings)
