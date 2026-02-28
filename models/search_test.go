@@ -2,59 +2,11 @@ package models
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
-	"os"
 	"testing"
-
-	_ "github.com/lib/pq"
 )
 
-func setupSearchTestDB(t *testing.T) *sql.DB {
-	t.Helper()
-
-	dbHost := os.Getenv("PG_HOST")
-	if dbHost == "" {
-		dbHost = "127.0.0.1"
-	}
-	dbPort := os.Getenv("PG_PORT")
-	if dbPort == "" {
-		dbPort = "5433"
-	}
-	dbUser := os.Getenv("PG_USER")
-	if dbUser == "" {
-		dbUser = "blog"
-	}
-	dbPassword := os.Getenv("PG_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "testpass"
-	}
-	dbName := os.Getenv("PG_DB")
-	if dbName == "" {
-		dbName = "blog"
-	}
-
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		t.Fatalf("failed to connect to database: %v", err)
-	}
-
-	if err = db.Ping(); err != nil {
-		db.Close()
-		t.Fatalf("failed to ping database: %v", err)
-	}
-
-	t.Cleanup(func() {
-		db.Close()
-	})
-
-	return db
-}
-
 func TestSearchService_EmptyQuery(t *testing.T) {
-	db := setupSearchTestDB(t)
+	db := SetupTestDB(t)
 	ss := &SearchService{DB: db}
 
 	resp, err := ss.Search(context.Background(), "", 10)
@@ -74,30 +26,18 @@ func TestSearchService_EmptyQuery(t *testing.T) {
 }
 
 func TestSearchService_SearchByTitle(t *testing.T) {
-	db := setupSearchTestDB(t)
+	db := SetupTestDB(t)
 	ss := &SearchService{DB: db}
 
-	// Ensure roles exist
-	db.Exec(`INSERT INTO roles (role_id, role_name) VALUES (2, 'Administrator') ON CONFLICT DO NOTHING`)
+	SeedRoles(t, db)
+	userID := SeedUser(t, db, "search-test@test.com", "searchtest", "hash123", 2)
+	defer CleanupUser(t, db, userID)
 
-	// Create test user
-	var userID int
-	err := db.QueryRow(`INSERT INTO users (email, username, password, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
-		"search-test@test.com", "searchtest", "hash123", 2).Scan(&userID)
-	if err != nil {
-		t.Fatalf("failed to create test user: %v", err)
-	}
-	defer db.Exec("DELETE FROM users WHERE user_id = $1", userID)
+	catID := SeedCategory(t, db, "SearchTestCat")
+	defer CleanupCategory(t, db, catID)
 
-	// Create a published post with a unique title
-	var postID int
-	err = db.QueryRow(`INSERT INTO posts (user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured)
-		VALUES ($1, 0, $2, $3, $4, NOW(), NOW(), true, '', NOW(), false) RETURNING post_id`,
-		userID, "Xylophone Kubernetes Tutorial", "Learn about deploying with Kubernetes", "xylophone-k8s-test").Scan(&postID)
-	if err != nil {
-		t.Fatalf("failed to create test post: %v", err)
-	}
-	defer db.Exec("DELETE FROM posts WHERE post_id = $1", postID)
+	postID := SeedPost(t, db, userID, catID, "Xylophone Kubernetes Tutorial", "Learn about deploying with Kubernetes", "xylophone-k8s-test", true)
+	defer CleanupPost(t, db, postID)
 
 	resp, err := ss.Search(context.Background(), "Xylophone Kubernetes", 10)
 	if err != nil {
@@ -114,30 +54,18 @@ func TestSearchService_SearchByTitle(t *testing.T) {
 }
 
 func TestSearchService_DraftsNotReturned(t *testing.T) {
-	db := setupSearchTestDB(t)
+	db := SetupTestDB(t)
 	ss := &SearchService{DB: db}
 
-	// Ensure roles exist
-	db.Exec(`INSERT INTO roles (role_id, role_name) VALUES (2, 'Administrator') ON CONFLICT DO NOTHING`)
+	SeedRoles(t, db)
+	userID := SeedUser(t, db, "search-draft@test.com", "searchdraft", "hash123", 2)
+	defer CleanupUser(t, db, userID)
 
-	// Create test user
-	var userID int
-	err := db.QueryRow(`INSERT INTO users (email, username, password, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
-		"search-draft@test.com", "searchdraft", "hash123", 2).Scan(&userID)
-	if err != nil {
-		t.Fatalf("failed to create test user: %v", err)
-	}
-	defer db.Exec("DELETE FROM users WHERE user_id = $1", userID)
+	catID := SeedCategory(t, db, "DraftTestCat")
+	defer CleanupCategory(t, db, catID)
 
-	// Create an unpublished (draft) post
-	var postID int
-	err = db.QueryRow(`INSERT INTO posts (user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured)
-		VALUES ($1, 0, $2, $3, $4, NOW(), NOW(), false, '', NOW(), false) RETURNING post_id`,
-		userID, "Zephyr Draft Unicorn Post", "This draft should not appear in search", "zephyr-draft-unicorn").Scan(&postID)
-	if err != nil {
-		t.Fatalf("failed to create draft post: %v", err)
-	}
-	defer db.Exec("DELETE FROM posts WHERE post_id = $1", postID)
+	postID := SeedPost(t, db, userID, catID, "Zephyr Draft Unicorn Post", "This draft should not appear in search", "zephyr-draft-unicorn", false)
+	defer CleanupPost(t, db, postID)
 
 	resp, err := ss.Search(context.Background(), "Zephyr Draft Unicorn", 10)
 	if err != nil {
@@ -150,27 +78,18 @@ func TestSearchService_DraftsNotReturned(t *testing.T) {
 }
 
 func TestSearchService_SearchByContent(t *testing.T) {
-	db := setupSearchTestDB(t)
+	db := SetupTestDB(t)
 	ss := &SearchService{DB: db}
 
-	db.Exec(`INSERT INTO roles (role_id, role_name) VALUES (2, 'Administrator') ON CONFLICT DO NOTHING`)
+	SeedRoles(t, db)
+	userID := SeedUser(t, db, "search-content@test.com", "searchcontent", "hash123", 2)
+	defer CleanupUser(t, db, userID)
 
-	var userID int
-	err := db.QueryRow(`INSERT INTO users (email, username, password, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
-		"search-content@test.com", "searchcontent", "hash123", 2).Scan(&userID)
-	if err != nil {
-		t.Fatalf("failed to create test user: %v", err)
-	}
-	defer db.Exec("DELETE FROM users WHERE user_id = $1", userID)
+	catID := SeedCategory(t, db, "ContentTestCat")
+	defer CleanupCategory(t, db, catID)
 
-	var postID int
-	err = db.QueryRow(`INSERT INTO posts (user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured)
-		VALUES ($1, 0, $2, $3, $4, NOW(), NOW(), true, '', NOW(), false) RETURNING post_id`,
-		userID, "Generic Title Here", "This post contains the unique word qwertyuiop for content search testing", "content-search-test").Scan(&postID)
-	if err != nil {
-		t.Fatalf("failed to create test post: %v", err)
-	}
-	defer db.Exec("DELETE FROM posts WHERE post_id = $1", postID)
+	postID := SeedPost(t, db, userID, catID, "Generic Title Here", "This post contains the unique word qwertyuiop for content search testing", "content-search-test", true)
+	defer CleanupPost(t, db, postID)
 
 	resp, err := ss.Search(context.Background(), "qwertyuiop", 10)
 	if err != nil {
@@ -187,38 +106,23 @@ func TestSearchService_SearchByContent(t *testing.T) {
 }
 
 func TestSearchService_TitleRanksHigher(t *testing.T) {
-	db := setupSearchTestDB(t)
+	db := SetupTestDB(t)
 	ss := &SearchService{DB: db}
 
-	db.Exec(`INSERT INTO roles (role_id, role_name) VALUES (2, 'Administrator') ON CONFLICT DO NOTHING`)
+	SeedRoles(t, db)
+	userID := SeedUser(t, db, "search-rank@test.com", "searchrank", "hash123", 2)
+	defer CleanupUser(t, db, userID)
 
-	var userID int
-	err := db.QueryRow(`INSERT INTO users (email, username, password, role_id) VALUES ($1, $2, $3, $4) RETURNING user_id`,
-		"search-rank@test.com", "searchrank", "hash123", 2).Scan(&userID)
-	if err != nil {
-		t.Fatalf("failed to create test user: %v", err)
-	}
-	defer db.Exec("DELETE FROM users WHERE user_id = $1", userID)
+	catID := SeedCategory(t, db, "RankTestCat")
+	defer CleanupCategory(t, db, catID)
 
 	// Post with "flamingo" in title
-	var postIDTitle int
-	err = db.QueryRow(`INSERT INTO posts (user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured)
-		VALUES ($1, 0, $2, $3, $4, NOW(), NOW(), true, '', NOW(), false) RETURNING post_id`,
-		userID, "Flamingo Migration Guide", "How to handle data migration effectively", "flamingo-title-rank").Scan(&postIDTitle)
-	if err != nil {
-		t.Fatalf("failed to create post: %v", err)
-	}
-	defer db.Exec("DELETE FROM posts WHERE post_id = $1", postIDTitle)
+	postIDTitle := SeedPost(t, db, userID, catID, "Flamingo Migration Guide", "How to handle data migration effectively", "flamingo-title-rank", true)
+	defer CleanupPost(t, db, postIDTitle)
 
 	// Post with "flamingo" in content only
-	var postIDContent int
-	err = db.QueryRow(`INSERT INTO posts (user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured)
-		VALUES ($1, 0, $2, $3, $4, NOW(), NOW(), true, '', NOW(), false) RETURNING post_id`,
-		userID, "General Bird Facts", "The flamingo is a beautiful pink bird found in many regions", "flamingo-content-rank").Scan(&postIDContent)
-	if err != nil {
-		t.Fatalf("failed to create post: %v", err)
-	}
-	defer db.Exec("DELETE FROM posts WHERE post_id = $1", postIDContent)
+	postIDContent := SeedPost(t, db, userID, catID, "General Bird Facts", "The flamingo is a beautiful pink bird found in many regions", "flamingo-content-rank", true)
+	defer CleanupPost(t, db, postIDContent)
 
 	resp, err := ss.Search(context.Background(), "flamingo", 10)
 	if err != nil {
