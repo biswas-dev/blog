@@ -1222,9 +1222,6 @@ svg { flex-shrink: 0; }
   font-size: 1.5rem;
   letter-spacing: -0.02em;
 }
-.post-item.post-lead .post-item-excerpt {
-  -webkit-line-clamp: 3;
-}
 
 @media (max-width: 640px) {
   .post-item.post-lead .post-item-image { width: 100%; height: 200px; }
@@ -1250,7 +1247,7 @@ svg { flex-shrink: 0; }
   color: var(--text-primary);
 }
 
-/* Excerpt */
+/* Excerpt — flatten rendered HTML so line-clamp works */
 .post-item-excerpt {
   color: var(--text-secondary);
   font-size: 0.9375rem;
@@ -1260,6 +1257,14 @@ svg { flex-shrink: 0; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.post-item.post-lead .post-item-excerpt { -webkit-line-clamp: 3; }
+.post-item-excerpt * {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+.post-item-excerpt br { display: none; }
+.post-item-excerpt p::after { content: " "; }
 
 /* Category pills */
 .category-pill {
