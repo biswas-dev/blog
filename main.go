@@ -111,6 +111,12 @@ func main() {
 		DB: DB,
 	}
 
+	// Initialize SearchService
+	searchService := &models.SearchService{
+		DB: DB,
+	}
+	searchService.BackfillSlideContent()
+
 	// Initialize SystemService
 	systemService := models.NewSystemService(DB, "migrations", startTime)
 
@@ -166,6 +172,11 @@ func main() {
 		PostService:           &postService,
 		CategoryService:       &categoryService,
 		ExternalSystemService: &externalSystemService,
+	}
+
+	// Initialize Search controller
+	searchC := controllers.Search{
+		SearchService: searchService,
 	}
 
 	// Initialize System controller
@@ -332,6 +343,9 @@ func main() {
 
 	// Public API for lazy loading posts
 	r.Get("/api/posts/load-more", usersC.LoadMorePosts)
+
+	// Public search API
+	r.Get("/api/search", searchC.HandleSearch)
 
 	// REST API endpoints for users
 	r.Route("/api/users", func(r chi.Router) {

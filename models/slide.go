@@ -75,6 +75,10 @@ func (ss *SlideService) Create(userID int, title, slug, content string, isPublis
 	slide.ContentFilePath = contentPath
 	slide.IsPublished = isPublished
 
+	// Update search_content for full-text search indexing
+	plainText := stripHTML(content)
+	ss.DB.Exec(`UPDATE Slides SET search_content = $1 WHERE slide_id = $2`, plainText, slide.ID)
+
 	// Add categories if provided
 	if len(categoryIDs) > 0 {
 		if err := ss.AddCategories(slide.ID, categoryIDs); err != nil {
@@ -239,6 +243,10 @@ func (ss *SlideService) Update(slideID int, title, slug, content string, isPubli
 	if err != nil {
 		return fmt.Errorf("failed to update slide: %v", err)
 	}
+
+	// Update search_content for full-text search indexing
+	plainText := stripHTML(content)
+	ss.DB.Exec(`UPDATE Slides SET search_content = $1 WHERE slide_id = $2`, plainText, slideID)
 
 	// Update categories
 	if err := ss.UpdateCategories(slideID, categoryIDs); err != nil {
