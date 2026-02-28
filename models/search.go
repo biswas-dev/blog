@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"sync"
+
+	"github.com/lib/pq"
 )
 
 // SearchResult represents a single search result (post or slide)
@@ -114,14 +116,25 @@ func (ss *SearchService) searchPosts(ctx context.Context, query string, limit in
 		if err := rows.Scan(&r.Title, &r.Slug, &r.Excerpt, &r.Date, &r.Rank); err != nil {
 			return nil, err
 		}
-
-		// Load categories for this post
-		r.Categories, _ = ss.loadPostCategories(ctx, r.Slug)
-
 		results = append(results, r)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
-	return results, rows.Err()
+	// Batch-load categories for all post results
+	if len(results) > 0 {
+		slugs := make([]string, len(results))
+		for i, r := range results {
+			slugs[i] = r.Slug
+		}
+		catMap, _ := ss.batchLoadPostCategories(ctx, slugs)
+		for i := range results {
+			results[i].Categories = catMap[results[i].Slug]
+		}
+	}
+
+	return results, nil
 }
 
 // searchSlides searches published slides using full-text search
@@ -154,66 +167,77 @@ func (ss *SearchService) searchSlides(ctx context.Context, query string, limit i
 		if err := rows.Scan(&r.Title, &r.Slug, &r.Excerpt, &r.Date, &r.Rank); err != nil {
 			return nil, err
 		}
-
-		// Load categories for this slide
-		r.Categories, _ = ss.loadSlideCategories(ctx, r.Slug)
-
 		results = append(results, r)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
-	return results, rows.Err()
+	// Batch-load categories for all slide results
+	if len(results) > 0 {
+		slugs := make([]string, len(results))
+		for i, r := range results {
+			slugs[i] = r.Slug
+		}
+		catMap, _ := ss.batchLoadSlideCategories(ctx, slugs)
+		for i := range results {
+			results[i].Categories = catMap[results[i].Slug]
+		}
+	}
+
+	return results, nil
 }
 
-// loadPostCategories loads category names for a post by slug
-func (ss *SearchService) loadPostCategories(ctx context.Context, slug string) ([]string, error) {
+// batchLoadPostCategories loads category names for multiple posts by slug in a single query.
+func (ss *SearchService) batchLoadPostCategories(ctx context.Context, slugs []string) (map[string][]string, error) {
 	query := `
-		SELECT c.category_name
+		SELECT p.slug, c.category_name
 		FROM categories c
 		JOIN post_categories pc ON c.category_id = pc.category_id
 		JOIN posts p ON p.post_id = pc.post_id
-		WHERE p.slug = $1
+		WHERE p.slug = ANY($1)
 	`
-	rows, err := ss.DB.QueryContext(ctx, query, slug)
+	rows, err := ss.DB.QueryContext(ctx, query, pq.Array(slugs))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var cats []string
+	result := make(map[string][]string)
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var slug, name string
+		if err := rows.Scan(&slug, &name); err != nil {
 			return nil, err
 		}
-		cats = append(cats, name)
+		result[slug] = append(result[slug], name)
 	}
-	return cats, rows.Err()
+	return result, rows.Err()
 }
 
-// loadSlideCategories loads category names for a slide by slug
-func (ss *SearchService) loadSlideCategories(ctx context.Context, slug string) ([]string, error) {
+// batchLoadSlideCategories loads category names for multiple slides by slug in a single query.
+func (ss *SearchService) batchLoadSlideCategories(ctx context.Context, slugs []string) (map[string][]string, error) {
 	query := `
-		SELECT c.category_name
+		SELECT s.slug, c.category_name
 		FROM categories c
 		JOIN Slide_Categories sc ON c.category_id = sc.category_id
 		JOIN Slides s ON s.slide_id = sc.slide_id
-		WHERE s.slug = $1
+		WHERE s.slug = ANY($1)
 	`
-	rows, err := ss.DB.QueryContext(ctx, query, slug)
+	rows, err := ss.DB.QueryContext(ctx, query, pq.Array(slugs))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var cats []string
+	result := make(map[string][]string)
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var slug, name string
+		if err := rows.Scan(&slug, &name); err != nil {
 			return nil, err
 		}
-		cats = append(cats, name)
+		result[slug] = append(result[slug], name)
 	}
-	return cats, rows.Err()
+	return result, rows.Err()
 }
 
 // BackfillSlideContent reads HTML files for all slides and updates search_content

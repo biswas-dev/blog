@@ -31,8 +31,7 @@ func (ss *SessionService) Create(userID int) (*Session, error) {
 	// TODO: Create the session token
 	token, err := rand.SessionToken()
 	if err != nil {
-		fmt.Println(err)
-		return nil, nil
+		return nil, fmt.Errorf("create session token: %w", err)
 	}
 
 	hashedToken, err := ss.GenerateHashedToken(token)
@@ -50,12 +49,10 @@ func (ss *SessionService) Create(userID int) (*Session, error) {
 	row := ss.DB.QueryRow("")
 
 	if id != 0 {
-		fmt.Println("Session exists. Updating ...")
 		row = ss.DB.QueryRow(`
-		UPDATE sessions set token_hash = $1 where ID = $2 
+		UPDATE sessions set token_hash = $1 where ID = $2
 		RETURNING id`, hashedToken, id)
 	} else {
-		fmt.Println("Session does not exist. Creating ...")
 		row = ss.DB.QueryRow(`
 			INSERT INTO sessions (user_id, token_hash)
 			VALUES ($1, $2) RETURNING id`, userID, hashedToken)
@@ -75,20 +72,18 @@ func (ss *SessionService) Create(userID int) (*Session, error) {
 }
 
 func (ss *SessionService) GetSession(userID int) (int, error) {
-	var session Session
+	var id int
 
-	query := `SELECT * FROM sessions WHERE user_id = $1`
-	row := ss.DB.QueryRow(query, userID)
-	err := row.Scan(&session.ID, &session.UserID, &session.TokenHash, &session.CreatedAt)
+	query := `SELECT id FROM sessions WHERE user_id = $1`
+	err := ss.DB.QueryRow(query, userID).Scan(&id)
 
 	if err != nil {
-		// If no session exists, return 0 (not an error - this is expected for new users)
 		if err == sql.ErrNoRows {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("error fetching session: %w", err)
 	}
-	return session.ID, nil
+	return id, nil
 }
 
 func (ss *SessionService) User(token string, email string) (*User, error) {
@@ -104,7 +99,7 @@ func (ss *SessionService) User(token string, email string) (*User, error) {
 		SELECT s.id, s.token_hash, u.user_id, u.username, u.role_id
 		FROM users AS u
 		INNER JOIN sessions AS s ON u.user_id = s.user_id
-		WHERE u.email LIKE $1`, email)
+		WHERE u.email = $1`, email)
 
 	var dbUserID int
 	err := row.Scan(&session.ID, &session.TokenHash, &dbUserID, &user.Username, &user.Role)
@@ -125,7 +120,7 @@ func (ss *SessionService) Logout(email string) {
 
 	email = strings.ToLower(email)
 
-	ss.DB.QueryRow(`DELETE FROM sessions WHERE user_id IN (SELECT user_id FROM users WHERE email LIKE $1)`, email)
+	ss.DB.QueryRow(`DELETE FROM sessions WHERE user_id IN (SELECT user_id FROM users WHERE email = $1)`, email)
 
 }
 

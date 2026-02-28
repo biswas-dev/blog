@@ -34,9 +34,6 @@ func (us *UserService) Create(email, username, password string, role_id int) (*U
 
 	passwordHash := string(hashedBytes)
 
-	fmt.Println("Password: ", password)
-	fmt.Println("Password Hash: ", passwordHash)
-
 	row := us.DB.QueryRow(`
 		INSERT INTO Users (email, username, password, role_id, registration_date)
 		VALUES ($1, $2, $3, $4, $5) RETURNING user_id`, email, username, passwordHash, role_id, time.Now().UTC())

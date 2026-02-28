@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type SlidesList struct {
@@ -169,13 +171,12 @@ func (ss *SlideService) GetPublishedSlides() (*SlidesList, error) {
 		if err != nil {
 			return &list, fmt.Errorf("failed to scan slide: %v", err)
 		}
-
-		// Load categories for each slide
-		if err := ss.loadSlideCategories(&slide); err != nil {
-			return &list, err
-		}
-
 		list.Slides = append(list.Slides, slide)
+	}
+
+	// Batch-load categories for all slides
+	if err := ss.loadCategoriesForSlides(list.Slides); err != nil {
+		return &list, err
 	}
 
 	return &list, nil
@@ -184,12 +185,12 @@ func (ss *SlideService) GetPublishedSlides() (*SlidesList, error) {
 // GetAllSlides retrieves all slides (for admin)
 func (ss *SlideService) GetAllSlides() (*SlidesList, error) {
 	list := SlidesList{}
-	
-	query := `SELECT s.slide_id, s.user_id, u.username, s.title, s.slug, s.content_file_path, s.is_published, s.created_at, s.updated_at 
+
+	query := `SELECT s.slide_id, s.user_id, u.username, s.title, s.slug, s.content_file_path, s.is_published, s.created_at, s.updated_at
 			  FROM Slides s
 			  JOIN users u ON s.user_id = u.user_id
 			  ORDER BY s.created_at DESC`
-	
+
 	rows, err := ss.DB.Query(query)
 	if err != nil {
 		return &list, fmt.Errorf("failed to query slides: %v", err)
@@ -203,13 +204,12 @@ func (ss *SlideService) GetAllSlides() (*SlidesList, error) {
 		if err != nil {
 			return &list, fmt.Errorf("failed to scan slide: %v", err)
 		}
-
-		// Load categories for each slide
-		if err := ss.loadSlideCategories(&slide); err != nil {
-			return &list, err
-		}
-
 		list.Slides = append(list.Slides, slide)
+	}
+
+	// Batch-load categories for all slides
+	if err := ss.loadCategoriesForSlides(list.Slides); err != nil {
+		return &list, err
 	}
 
 	return &list, nil
@@ -280,14 +280,16 @@ func (ss *SlideService) Delete(slideID int) error {
 	return nil
 }
 
-// AddCategories adds categories to a slide
+// AddCategories adds categories to a slide using a single multi-row insert.
 func (ss *SlideService) AddCategories(slideID int, categoryIDs []int) error {
-	for _, categoryID := range categoryIDs {
-		query := `INSERT INTO Slide_Categories (slide_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
-		_, err := ss.DB.Exec(query, slideID, categoryID)
-		if err != nil {
-			return fmt.Errorf("failed to add category %d: %v", categoryID, err)
-		}
+	if len(categoryIDs) == 0 {
+		return nil
+	}
+	query := `INSERT INTO Slide_Categories (slide_id, category_id)
+			  SELECT $1, unnest($2::int[]) ON CONFLICT DO NOTHING`
+	_, err := ss.DB.Exec(query, slideID, pq.Array(categoryIDs))
+	if err != nil {
+		return fmt.Errorf("failed to add categories: %v", err)
 	}
 	return nil
 }
@@ -344,6 +346,41 @@ func (ss *SlideService) loadSlideCategories(slide *Slide) error {
 
 	slide.Categories = categories
 	return nil
+}
+
+// loadCategoriesForSlides batch-loads categories for all slides in a single query.
+func (ss *SlideService) loadCategoriesForSlides(slides []Slide) error {
+	if len(slides) == 0 {
+		return nil
+	}
+	ids := make([]int, len(slides))
+	idIdx := make(map[int][]int)
+	for i, s := range slides {
+		ids[i] = s.ID
+		idIdx[s.ID] = append(idIdx[s.ID], i)
+	}
+
+	query := `SELECT sc.slide_id, c.category_id, c.category_name, c.created_at
+			  FROM Categories c
+			  JOIN Slide_Categories sc ON c.category_id = sc.category_id
+			  WHERE sc.slide_id = ANY($1)`
+	rows, err := ss.DB.Query(query, pq.Array(ids))
+	if err != nil {
+		return fmt.Errorf("failed to batch-load slide categories: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var slideID int
+		var cat Category
+		if err := rows.Scan(&slideID, &cat.ID, &cat.Name, &cat.CreatedAt); err != nil {
+			return err
+		}
+		for _, idx := range idIdx[slideID] {
+			slides[idx].Categories = append(slides[idx].Categories, cat)
+		}
+	}
+	return rows.Err()
 }
 
 // Helper functions

@@ -6,7 +6,7 @@ import (
 	"html/template"
 	"time"
 
-	"anshumanbiswas.com/blog/internal/render"
+	render "anshumanbiswas.com/blog/internal/render"
 )
 
 type BlogService struct {
@@ -23,12 +23,10 @@ func NewBlogService(db *sql.DB) *BlogService {
 
 func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 	post := Post{}
-	fmt.Printf("DEBUG GetBlogPostBySlug: Looking for slug '%s'\n", slug)
 
 	const query = `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE slug = $1 LIMIT 1`
 	rows, err := bs.DB.Query(query, slug)
 	if err != nil {
-		fmt.Printf("DEBUG GetBlogPostBySlug: DB query failed: %v\n", err)
 		return nil, fmt.Errorf("db query failed: %w", err)
 	}
 	defer rows.Close()
@@ -49,10 +47,8 @@ func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 			&post.Featured,
 		)
 		if err != nil {
-			fmt.Printf("DEBUG GetBlogPostBySlug: Scan failed: %v\n", err)
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
-		fmt.Printf("DEBUG GetBlogPostBySlug: Found post ID %d, title '%s'\n", post.ID, post.Title)
 
 		// Display-friendly dates (assumes RFC3339 strings)
 		if post.CreatedAt != "" {
@@ -82,11 +78,9 @@ func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 	}
 
 	if post.ID == 0 {
-		fmt.Printf("DEBUG GetBlogPostBySlug: No post found with slug '%s'\n", slug)
 		return nil, fmt.Errorf("post not found")
 	}
 
-	fmt.Printf("DEBUG GetBlogPostBySlug: Returning post ID %d\n", post.ID)
 	return &post, nil
 }
 

@@ -513,13 +513,6 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 
 	user, err := u.isUserLoggedIn(r)
 	if err != nil {
-		fmt.Printf("DEBUG HOME: User not logged in, error: %v\n", err)
-		fmt.Printf("DEBUG HOME: Session token from cookie: %v\n", func() string {
-			if cookie, err := r.Cookie("session"); err == nil {
-				return cookie.Value
-			}
-			return "NO_COOKIE"
-		}())
 		data.LoggedIn = false
 		data.Posts = posts
 		data.SignupDisabled = isSignupDisabled
@@ -529,6 +522,7 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 		data.IsAdmin = false
 		data.Email = ""
 		data.UserPermissions = models.GetPermissions(models.RoleCommenter)
+		w.Header().Set("Cache-Control", "public, max-age=30")
 		u.Templates.Home.Execute(w, r, data)
 		return
 	}
@@ -538,11 +532,11 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 	data.LoggedIn = true
 	data.Posts = posts
 	data.IsAdmin = models.IsAdmin(user.Role)
-	fmt.Printf("DEBUG HOME: User logged in: %s, Email: %s, Role: %d, IsAdmin: %v\n", user.Username, user.Email, user.Role, data.IsAdmin)
 	data.SignupDisabled = isSignupDisabled
 	data.Description = "Engineering Insights - Anshuman Biswas Blog"
 	data.CurrentPage = "home"
 	data.UserPermissions = models.GetPermissions(user.Role)
+	w.Header().Set("Cache-Control", "public, max-age=30")
 	u.Templates.Home.Execute(w, r, data)
 }
 
@@ -612,13 +606,11 @@ func (u Users) ProcessSignIn(w http.ResponseWriter, r *http.Request) {
 
 	user, err := u.UserService.Authenticate(data.Email, data.Password)
 	if err != nil {
-		fmt.Println(err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 	session, err := u.SessionService.Create(user.UserID)
 	if err != nil {
-		fmt.Println(err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -632,17 +624,13 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	username := r.FormValue("username")
 	password := r.FormValue("password")
-	fmt.Printf("[Creating user: %s/%s]", email, username)
 	user, err := u.UserService.Create(email, username, password, 1)
 	if err != nil {
-		fmt.Println(err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 	session, err := u.SessionService.Create(user.UserID)
 	if err != nil {
-		fmt.Println(err)
-		// TODO: Long term, we should show a warning about not being able to sign the user in.
 		http.Redirect(w, r, "/signin", http.StatusFound)
 		return
 	}
@@ -738,7 +726,6 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := u.isUserLoggedIn(r)
 	if err != nil {
-		fmt.Println(err)
 		http.Redirect(w, r, "/signin", http.StatusFound)
 		return
 	}
@@ -772,7 +759,6 @@ func (u Users) Logout(w http.ResponseWriter, r *http.Request) {
 
 	email, err := readCookie(r, CookieUserEmail)
 	if err != nil {
-		fmt.Println(err)
 		http.Redirect(w, r, "/signin", http.StatusFound)
 		return
 	}

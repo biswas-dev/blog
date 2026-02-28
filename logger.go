@@ -1,19 +1,15 @@
 package main
 
 import (
-	"log"
+	"os"
 
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
-func sugarLog() *zap.SugaredLogger {
-	logger, err := zap.NewProduction()
-	if err != nil {
-		log.Fatal(err)
-	}
+var logger zerolog.Logger
 
-	sugar := logger.Sugar()
-	defer logger.Sync()
-
-	return sugar
+func initLogger() zerolog.Logger {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
+	return logger
 }
