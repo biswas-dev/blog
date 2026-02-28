@@ -41,7 +41,7 @@
                 <a href="/blog/{{.Slug}}">{{.Title}}</a>
             </h2>
             
-            <div class="blog-post-excerpt prose dark:prose-invert max-w-none">
+            <div class="blog-post-excerpt">
                 {{if .ContentHTML}}
                     {{.ContentHTML}}
                 {{else}}
@@ -103,8 +103,7 @@ function appendPost(post) {
             <h2 class="blog-post-title">
                 <a href="/blog/${post.Slug}">${post.Title}</a>
             </h2>
-            <div class="blog-post-excerpt prose dark:prose-invert max-w-none">
-            <div class="blog-post-excerpt prose dark:prose-invert max-w-none">
+            <div class="blog-post-excerpt">
                 ${post.ContentHTML || (post.Content && post.Content.length > 200 ? post.Content.substring(0, 200) + '...' : (post.Content || ''))}
             </div>
             <div class="flex items-center justify-between">
@@ -137,14 +136,14 @@ function loadMorePosts() {
         .finally(() => { loading = false; });
 }
 
-// Trigger when near bottom (10px from bottom)
-window.addEventListener('scroll', () => {
-    const scrollPosition = window.scrollY + window.innerHeight;
-    const threshold = document.body.offsetHeight - 10; // trigger 10px before bottom
-    if (scrollPosition >= threshold) {
-        loadMorePosts();
-    }
-});
+// Use IntersectionObserver to trigger infinite scroll
+const sentinel = document.createElement('div');
+sentinel.id = 'scroll-sentinel';
+document.querySelector('.blog-posts').after(sentinel);
+const scrollObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) loadMorePosts();
+}, { rootMargin: '200px' });
+scrollObserver.observe(sentinel);
 </script>
 
 {{template "modern-footer" .}}

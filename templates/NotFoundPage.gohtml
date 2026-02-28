@@ -4,26 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>404 - Page Not Found</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/theme.css">
 </head>
-<body class="bg-gray-100 flex justify-center items-center h-screen">
-  <div class="text-center">
-    <h1 class="text-4xl font-bold text-gray-800 mb-4">Oops! Page not found.</h1>
-    <p class="text-lg text-gray-600 mb-4">Looks like you've ventured into uncharted territory.</p>
-    <p class="text-lg text-gray-600 mb-4">But don't worry, you can always</p>
-    <button onclick="goBack()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded mr-2">Go Back</button>
-    <p class="inline-block">or</p>
-    <button onclick="goHome()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded ml-2">Go to Blog's home!</button>
+<body style="display: flex; justify-content: center; align-items: center; min-height: 100vh;">
+  <div class="text-center p-8">
+    <h1 class="text-4xl font-bold mb-4" style="color: var(--text-primary);">Oops! Page not found.</h1>
+    <p class="text-lg mb-4" style="color: var(--text-secondary);">Looks like you've ventured into uncharted territory.</p>
+    <p class="text-lg mb-8" style="color: var(--text-secondary);">But don't worry, you can always</p>
+    <div class="flex gap-4 justify-center">
+      <button onclick="window.history.back()" class="btn btn-secondary">Go Back</button>
+      <button onclick="window.location.href='/'" class="btn btn-primary">Go to Blog's home!</button>
+    </div>
   </div>
-
-  <script>
-    function goBack() {
-      window.history.back();
-    }
-
-    function goHome() {
-      window.location.href = "/";
-    }
-  </script>
 </body>
 </html>

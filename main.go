@@ -48,6 +48,7 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "application/json", "image/svg+xml"))
 
 	dbUser, dbPassword, dbName, dbHost, dbPort :=
 		os.Getenv("PG_USER"),
@@ -377,13 +378,20 @@ func main() {
 		http.ServeFile(w, r, "./static/favicon.svg")
 	})
 
-	// Serve static files from ./static/ directory with proper content-type for SVG
+	// Serve static files with cache headers
 	staticFileServer := http.FileServer(http.Dir("./static/"))
 	r.Handle("/static/*", http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set correct content-type for SVG files
-		if strings.HasSuffix(r.URL.Path, ".svg") {
+		path := r.URL.Path
+		switch {
+		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"):
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		case strings.HasSuffix(path, ".svg"):
 			w.Header().Set("Content-Type", "image/svg+xml")
-			w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+		case strings.HasSuffix(path, ".png"), strings.HasSuffix(path, ".jpg"),
+			strings.HasSuffix(path, ".jpeg"), strings.HasSuffix(path, ".webp"),
+			strings.HasSuffix(path, ".gif"), strings.HasSuffix(path, ".ico"):
+			w.Header().Set("Cache-Control", "public, max-age=604800")
 		}
 		staticFileServer.ServeHTTP(w, r)
 	})))
