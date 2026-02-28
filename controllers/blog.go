@@ -158,7 +158,8 @@ func ogExcerpt(content string, maxLen int) string {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "![") ||
 			strings.HasPrefix(trimmed, "---") || strings.HasPrefix(trimmed, "```") ||
-			strings.HasPrefix(trimmed, "|") {
+			strings.HasPrefix(trimmed, "|") || strings.HasPrefix(trimmed, "<more") ||
+			strings.HasPrefix(trimmed, "<!--") {
 			continue
 		}
 		// Strip inline markdown
