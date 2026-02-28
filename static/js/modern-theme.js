@@ -137,146 +137,209 @@
         // Create search modal
         createSearchModal() {
             const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-20';
+            modal.className = 'search-modal-overlay';
             modal.innerHTML = `
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
-                    <div class="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
-                        <svg class="w-5 h-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="search-modal">
+                    <div class="search-modal-header">
+                        <svg class="search-modal-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
-                        <input 
-                            type="text" 
-                            placeholder="Search posts..." 
-                            class="flex-1 bg-transparent outline-none text-gray-900 dark:text-gray-100"
+                        <input
+                            type="text"
+                            placeholder="Search posts and slides..."
+                            class="search-modal-input"
                         />
-                        <button class="ml-3 text-gray-400 hover:text-gray-600">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
+                        <kbd class="search-kbd">ESC</kbd>
                     </div>
-                    <div class="max-h-80 overflow-y-auto p-4" id="search-results">
-                        <div class="text-center py-8 text-gray-500">
-                            <svg class="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="search-results-container" id="search-results">
+                        <div class="search-placeholder">
+                            <svg class="search-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
-                            <p>Start typing to search posts...</p>
+                            <p>Start typing to search posts and slides...</p>
                         </div>
                     </div>
                 </div>
             `;
-            
+
             // Close modal events
-            const closeBtn = modal.querySelector('button');
-            closeBtn.addEventListener('click', () => modal.remove());
-            
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) modal.remove();
             });
-            
+
             document.addEventListener('keydown', function escHandler(e) {
                 if (e.key === 'Escape') {
                     modal.remove();
                     document.removeEventListener('keydown', escHandler);
                 }
             });
-            
+
             return modal;
         },
-        
+
         // Setup search input functionality
         setupSearchInput(input, modal) {
             let searchTimeout;
-            
+            let abortController = null;
+            this._searchActiveIndex = -1;
+
             input.addEventListener('input', (e) => {
                 const query = e.target.value.trim();
-                
+
                 clearTimeout(searchTimeout);
-                
+
                 if (query.length < 2) {
+                    if (abortController) abortController.abort();
                     this.showSearchPlaceholder();
+                    this._searchActiveIndex = -1;
                     return;
                 }
-                
+
                 searchTimeout = setTimeout(() => {
-                    this.performSearch(query);
-                }, 300);
+                    if (abortController) abortController.abort();
+                    abortController = new AbortController();
+                    this.performSearch(query, abortController.signal);
+                }, 150);
+            });
+
+            // Keyboard navigation
+            input.addEventListener('keydown', (e) => {
+                const items = document.querySelectorAll('.search-result-item');
+                if (!items.length) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this._searchActiveIndex = Math.min(this._searchActiveIndex + 1, items.length - 1);
+                    this._updateSearchActiveItem(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this._searchActiveIndex = Math.max(this._searchActiveIndex - 1, -1);
+                    this._updateSearchActiveItem(items);
+                } else if (e.key === 'Enter' && this._searchActiveIndex >= 0) {
+                    e.preventDefault();
+                    items[this._searchActiveIndex].click();
+                }
             });
         },
-        
+
+        // Update active search result highlight
+        _updateSearchActiveItem(items) {
+            items.forEach((item, i) => {
+                if (i === this._searchActiveIndex) {
+                    item.classList.add('search-result-active');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('search-result-active');
+                }
+            });
+        },
+
         // Perform search
-        async performSearch(query) {
+        async performSearch(query, signal) {
             const resultsContainer = document.getElementById('search-results');
-            
+
             // Show loading
             resultsContainer.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p class="text-gray-500">Searching...</p>
+                <div class="search-loading">
+                    <div class="search-spinner"></div>
+                    <p>Searching...</p>
                 </div>
             `;
-            
+
             try {
-                // This would be replaced with actual search API call
-                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal });
                 const results = await response.json();
-                
+
+                this._searchActiveIndex = -1;
                 this.displaySearchResults(results);
             } catch (error) {
+                if (error.name === 'AbortError') return;
                 console.error('Search error:', error);
                 this.showSearchError();
             }
         },
-        
-        // Display search results
+
+        // Escape HTML to prevent XSS (titles are escaped, excerpts use server <mark> tags)
+        _escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        },
+
+        // Display search results grouped by type
         displaySearchResults(results) {
             const resultsContainer = document.getElementById('search-results');
-            
-            if (results.length === 0) {
+
+            if (!results || (results.posts.length === 0 && results.slides.length === 0)) {
                 resultsContainer.innerHTML = `
-                    <div class="text-center py-8 text-gray-500">
-                        <svg class="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="search-placeholder">
+                        <svg class="search-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
-                        <p>No posts found for your search.</p>
+                        <p>No results found for "${this._escapeHTML(results ? results.query : '')}"</p>
                     </div>
                 `;
                 return;
             }
-            
-            const resultsHTML = results.map(result => `
-                <a href="/blog/${result.slug}" class="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <h3 class="font-semibold mb-1">${result.title}</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">${result.excerpt}</p>
-                    <div class="text-xs text-gray-500">${result.date}</div>
-                </a>
-            `).join('');
-            
-            resultsContainer.innerHTML = resultsHTML;
+
+            let html = '';
+
+            // Posts section
+            if (results.posts.length > 0) {
+                html += `<div class="search-section-header">Posts</div>`;
+                html += results.posts.map(r => this._renderSearchResult(r, 'post')).join('');
+            }
+
+            // Slides section
+            if (results.slides.length > 0) {
+                html += `<div class="search-section-header">Slides</div>`;
+                html += results.slides.map(r => this._renderSearchResult(r, 'slide')).join('');
+            }
+
+            resultsContainer.innerHTML = html;
         },
-        
+
+        // Render a single search result item
+        _renderSearchResult(result, type) {
+            const href = type === 'post' ? `/blog/${result.slug}` : `/slides/${result.slug}`;
+            const cats = (result.categories || [])
+                .map(c => `<span class="search-category-tag">${this._escapeHTML(c)}</span>`)
+                .join('');
+
+            return `
+                <a href="${href}" class="search-result-item">
+                    <div class="search-result-title">${this._escapeHTML(result.title)}</div>
+                    <div class="search-result-excerpt line-clamp-2">${result.excerpt}</div>
+                    <div class="search-result-meta">
+                        <span class="search-result-date">${this._escapeHTML(result.date)}</span>
+                        ${cats ? `<div class="search-result-categories">${cats}</div>` : ''}
+                    </div>
+                </a>
+            `;
+        },
+
         // Show search placeholder
         showSearchPlaceholder() {
             const resultsContainer = document.getElementById('search-results');
             if (resultsContainer) {
                 resultsContainer.innerHTML = `
-                    <div class="text-center py-8 text-gray-500">
-                        <svg class="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="search-placeholder">
+                        <svg class="search-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
-                        <p>Start typing to search posts...</p>
+                        <p>Start typing to search posts and slides...</p>
                     </div>
                 `;
             }
         },
-        
+
         // Show search error
         showSearchError() {
             const resultsContainer = document.getElementById('search-results');
             if (resultsContainer) {
                 resultsContainer.innerHTML = `
-                    <div class="text-center py-8 text-red-500">
-                        <svg class="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="search-error">
+                        <svg class="search-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <p>Search is temporarily unavailable. Please try again later.</p>

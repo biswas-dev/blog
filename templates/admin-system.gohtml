@@ -1,269 +1,458 @@
 {{template "modern-header" .}}
 
-<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<style>
+    .sys-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .dark .sys-card {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    .sys-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .sys-card-header {
+        border-color: var(--border);
+    }
+    .sys-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .sys-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+    .sys-icon-teal { background: rgba(13,148,136,0.1); color: #0d9488; }
+    .dark .sys-icon-teal { background: rgba(45,212,191,0.15); color: #2dd4bf; }
+    .sys-icon-green { background: rgba(22,163,74,0.1); color: #16a34a; }
+    .dark .sys-icon-green { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .sys-icon-amber { background: rgba(217,119,6,0.1); color: #d97706; }
+    .dark .sys-icon-amber { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .sys-icon-blue { background: rgba(37,99,235,0.1); color: #2563eb; }
+    .dark .sys-icon-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .sys-icon-red { background: rgba(220,38,38,0.1); color: #dc2626; }
+    .dark .sys-icon-red { background: rgba(248,113,113,0.15); color: #f87171; }
+    .sys-card-header h3 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .sys-card-body {
+        padding: 16px 20px;
+    }
+    .sys-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+    }
+    .sys-row + .sys-row {
+        border-top: 1px solid var(--border-light);
+    }
+    .dark .sys-row + .sys-row {
+        border-top-color: var(--border);
+    }
+    .sys-label {
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+    }
+    .sys-value {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        text-align: right;
+    }
+    .sys-value-mono {
+        font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+        font-size: 0.75rem;
+    }
+    .sys-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+    .sys-badge-green { background: rgba(22,163,74,0.1); color: #16a34a; }
+    .dark .sys-badge-green { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .sys-badge-red { background: rgba(220,38,38,0.1); color: #dc2626; }
+    .dark .sys-badge-red { background: rgba(248,113,113,0.15); color: #f87171; }
+    .sys-badge-yellow { background: rgba(217,119,6,0.1); color: #d97706; }
+    .dark .sys-badge-yellow { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .sys-grid {
+        display: grid;
+        grid-template-columns: repeat(1, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    @media (min-width: 768px) {
+        .sys-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .sys-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+    }
+    .sys-page-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .sys-page-header p {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin: 4px 0 0 0;
+    }
+    .sys-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .sys-back-btn:hover {
+        color: var(--text-primary);
+        border-color: var(--text-secondary);
+    }
+    .sys-section-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+    .dark .sys-section-card {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    .sys-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .sys-section-header {
+        border-color: var(--border);
+    }
+    .sys-section-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .sys-section-header h3 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .sys-section-header p {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin: 2px 0 0 0;
+    }
+    .sys-section-body {
+        padding: 20px;
+    }
+    .sys-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #fff;
+        background: var(--accent);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .sys-btn-primary:hover { background: var(--accent-hover); }
+    .sys-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .sys-btn-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #fff;
+        background: #dc2626;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .sys-btn-danger:hover { background: #b91c1c; }
+    .sys-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+    .sys-btn-outline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .sys-btn-outline:hover {
+        color: var(--text-primary);
+        border-color: var(--text-secondary);
+    }
+    .sys-btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+
+<div class="min-h-screen" style="background: var(--bg-secondary);">
+    <div class="max-w-7xl mx-auto px-4 py-8" style="max-width: 1100px;">
         <!-- Header -->
-        <div class="mb-8">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">System Information</h1>
-                    <p class="text-gray-600 dark:text-gray-400 mt-1">Application and database information dashboard</p>
-                </div>
-                <a href="/admin/posts" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                    ← Back to Posts
-                </a>
+        <div class="sys-page-header">
+            <div>
+                <h1>System Information</h1>
+                <p>Application and infrastructure dashboard</p>
             </div>
+            <a href="/admin/posts" class="sys-back-btn">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                Back to Posts
+            </a>
         </div>
 
         <!-- Success/Error Messages -->
         <div id="message-container" class="mb-6 hidden">
-            <div id="success-message" class="hidden p-4 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p id="success-text" class="text-sm text-green-800 dark:text-green-200"></p>
-                    </div>
-                </div>
+            <div id="success-message" class="hidden p-4 rounded-lg" style="background: rgba(22,163,74,0.08); border: 1px solid rgba(22,163,74,0.2);">
+                <p id="success-text" class="text-sm" style="color: #16a34a;"></p>
             </div>
-            <div id="error-message" class="hidden p-4 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p id="error-text" class="text-sm text-red-800 dark:text-red-200"></p>
-                    </div>
-                </div>
+            <div id="error-message" class="hidden p-4 rounded-lg" style="background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.2);">
+                <p id="error-text" class="text-sm" style="color: #dc2626;"></p>
             </div>
         </div>
 
         <!-- Grid Layout for Info Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="sys-grid">
             <!-- Application Information Card -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Application</h3>
+            <div class="sys-card">
+                <div class="sys-card-header">
+                    <div class="sys-icon sys-icon-teal">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                        </svg>
                     </div>
+                    <h3>Application</h3>
                 </div>
-                <div class="px-6 py-4">
-                    <dl class="space-y-3">
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Version</dt>
-                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{.SystemInfo.Application.Version}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Git Commit</dt>
-                            <dd class="text-sm font-mono text-gray-900 dark:text-white">{{.SystemInfo.Application.GitCommit}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Build Time</dt>
-                            <dd class="text-sm text-gray-900 dark:text-white">{{.SystemInfo.Application.BuildTime}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Go Version</dt>
-                            <dd class="text-sm text-gray-900 dark:text-white">{{.SystemInfo.Application.GoVersion}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Platform</dt>
-                            <dd class="text-sm text-gray-900 dark:text-white">{{.SystemInfo.Application.Platform}}</dd>
-                        </div>
-                    </dl>
+                <div class="sys-card-body">
+                    <div class="sys-row">
+                        <span class="sys-label">Version</span>
+                        <span class="sys-value">{{.SystemInfo.Application.Version}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Git Commit</span>
+                        <span class="sys-value sys-value-mono">{{.SystemInfo.Application.GitCommit}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Build Time</span>
+                        <span class="sys-value">{{.SystemInfo.Application.BuildTime}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Go Version</span>
+                        <span class="sys-value">{{.SystemInfo.Application.GoVersion}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Platform</span>
+                        <span class="sys-value">{{.SystemInfo.Application.Platform}}</span>
+                    </div>
                 </div>
             </div>
 
             <!-- Database Information Card -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z"/>
-                                <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z"/>
-                                <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z"/>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Database</h3>
+            <div class="sys-card">
+                <div class="sys-card-header">
+                    <div class="sys-icon sys-icon-green">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z"/>
+                            <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z"/>
+                            <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z"/>
+                        </svg>
                     </div>
+                    <h3>Database</h3>
                 </div>
-                <div class="px-6 py-4">
-                    <dl class="space-y-3">
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Type</dt>
-                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{.SystemInfo.Database.Type}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Connection Status</dt>
-                            <dd class="text-sm">
-                                {{if .SystemInfo.Database.Connected}}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                                        Connected
-                                    </span>
-                                {{else}}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-                                        Disconnected
-                                    </span>
-                                {{end}}
-                            </dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Total Migrations</dt>
-                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{.SystemInfo.Database.TotalMigrations}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Applied Migrations</dt>
-                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{.SystemInfo.Database.AppliedMigrations}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Pending Migrations</dt>
-                            <dd class="text-sm">
-                                {{if gt .SystemInfo.Database.PendingMigrations 0}}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
-                                        {{.SystemInfo.Database.PendingMigrations}}
-                                    </span>
-                                {{else}}
-                                    <span class="text-gray-900 dark:text-white font-medium">0</span>
-                                {{end}}
-                            </dd>
-                        </div>
-                    </dl>
+                <div class="sys-card-body">
+                    <div class="sys-row">
+                        <span class="sys-label">Type</span>
+                        <span class="sys-value">{{.SystemInfo.Database.Type}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Connection</span>
+                        <span class="sys-value">
+                            {{if .SystemInfo.Database.Connected}}
+                                <span class="sys-badge sys-badge-green">Connected</span>
+                            {{else}}
+                                <span class="sys-badge sys-badge-red">Disconnected</span>
+                            {{end}}
+                        </span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Current Version</span>
+                        <span class="sys-value sys-value-mono">{{.SystemInfo.Database.CurrentVersion}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Migrations</span>
+                        <span class="sys-value">{{.SystemInfo.Database.AppliedMigrations}} / {{.SystemInfo.Database.TotalMigrations}} applied</span>
+                    </div>
+                    {{if gt .SystemInfo.Database.PendingMigrations 0}}
+                    <div class="sys-row">
+                        <span class="sys-label">Pending</span>
+                        <span class="sys-value"><span class="sys-badge sys-badge-yellow">{{.SystemInfo.Database.PendingMigrations}} pending</span></span>
+                    </div>
+                    {{end}}
+                    <div class="sys-row">
+                        <span class="sys-label">Dirty State</span>
+                        <span class="sys-value">
+                            {{if .SystemInfo.Database.Dirty}}
+                                <span class="sys-badge sys-badge-red">Dirty</span>
+                            {{else}}
+                                <span class="sys-badge sys-badge-green">Clean</span>
+                            {{end}}
+                        </span>
+                    </div>
                 </div>
             </div>
 
             <!-- Environment Information Card -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Environment</h3>
+            <div class="sys-card">
+                <div class="sys-card-header">
+                    <div class="sys-icon sys-icon-amber">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                        </svg>
                     </div>
+                    <h3>Environment</h3>
                 </div>
-                <div class="px-6 py-4">
-                    <dl class="space-y-3">
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Environment</dt>
-                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{.SystemInfo.Environment.Name}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Server Time</dt>
-                            <dd class="text-sm text-gray-900 dark:text-white">{{.SystemInfo.Environment.ServerTime}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Uptime</dt>
-                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{.SystemInfo.Environment.UptimeStr}}</dd>
-                        </div>
-                    </dl>
+                <div class="sys-card-body">
+                    <div class="sys-row">
+                        <span class="sys-label">Environment</span>
+                        <span class="sys-value">{{.SystemInfo.Environment.Name}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Server Time</span>
+                        <span class="sys-value">{{.SystemInfo.Environment.ServerTime}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Uptime</span>
+                        <span class="sys-value">{{.SystemInfo.Environment.UptimeStr}}</span>
+                    </div>
                 </div>
             </div>
 
             <!-- Deployment Information Card -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Deployment</h3>
+            <div class="sys-card">
+                <div class="sys-card-header">
+                    <div class="sys-icon sys-icon-blue">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"/>
+                        </svg>
                     </div>
+                    <h3>Deployment</h3>
                 </div>
-                <div class="px-6 py-4">
-                    <dl class="space-y-3">
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Method</dt>
-                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{.SystemInfo.Deployment.Method}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Last Deploy</dt>
-                            <dd class="text-sm text-gray-900 dark:text-white">{{.SystemInfo.Deployment.LastDeployTime}}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-sm text-gray-500 dark:text-gray-400">Branch</dt>
-                            <dd class="text-sm font-mono text-gray-900 dark:text-white">{{.SystemInfo.Deployment.Branch}}</dd>
-                        </div>
-                    </dl>
+                <div class="sys-card-body">
+                    <div class="sys-row">
+                        <span class="sys-label">Method</span>
+                        <span class="sys-value">{{.SystemInfo.Deployment.Method}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Last Deploy</span>
+                        <span class="sys-value">{{.SystemInfo.Deployment.LastDeployTime}}</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">Branch</span>
+                        <span class="sys-value sys-value-mono">{{.SystemInfo.Deployment.Branch}}</span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Database Backup/Restore Section -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <div class="flex items-center">
-                    <div class="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center mr-3">
-                        <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-red">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
                             <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"/>
                         </svg>
                     </div>
                     <div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Database Backup & Restore</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Export or import database backups</p>
+                        <h3>Database Backup & Restore</h3>
+                        <p>Export or import database backups</p>
                     </div>
                 </div>
             </div>
-            <div class="px-6 py-4">
+            <div class="sys-section-body">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Export Section -->
                     <div>
-                        <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Export Database</h4>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Download a complete SQL dump of the database.</p>
-                        <button onclick="exportDatabase()"
-                                id="export-btn"
-                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
-                            <svg id="export-icon" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <h4 style="font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">Export Database</h4>
+                        <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 12px;">Download a complete SQL dump.</p>
+                        <button onclick="exportDatabase()" id="export-btn" class="sys-btn-primary">
+                            <svg id="export-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                             </svg>
-                            <svg id="export-spinner" class="hidden animate-spin w-4 h-4 mr-2 text-white" fill="none" viewBox="0 0 24 24">
+                            <svg id="export-spinner" class="hidden animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                             <span id="export-text">Export Database</span>
                         </button>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Rate limited: 1 export per 5 minutes</p>
+                        <p style="font-size: 0.6875rem; color: var(--text-tertiary); margin-top: 8px;">Rate limited: 1 export per 5 minutes</p>
                     </div>
 
                     <!-- Import Section -->
                     <div>
-                        <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Import Database</h4>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Restore database from a SQL backup file.</p>
-                        <form id="import-form" class="space-y-2">
+                        <h4 style="font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">Import Database</h4>
+                        <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 12px;">Restore from a SQL backup file.</p>
+                        <form id="import-form" style="display: flex; flex-direction: column; gap: 8px;">
                             <input type="file"
                                    id="backup-file-input"
                                    accept=".sql"
-                                   class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md cursor-pointer bg-gray-50 dark:bg-slate-700 focus:outline-none">
-                            <button type="submit"
-                                    id="import-btn"
-                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50">
-                                <svg id="import-icon" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   style="font-size: 0.8125rem; color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; background: var(--bg-tertiary);">
+                            <button type="submit" id="import-btn" class="sys-btn-danger">
+                                <svg id="import-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                                 </svg>
-                                <svg id="import-spinner" class="hidden animate-spin w-4 h-4 mr-2 text-white" fill="none" viewBox="0 0 24 24">
+                                <svg id="import-spinner" class="hidden animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                                 <span id="import-text">Import Database</span>
                             </button>
                         </form>
-                        <div class="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-                            <p class="text-xs text-yellow-800 dark:text-yellow-200">
-                                ⚠️ Warning: This will overwrite the current database. Use with caution!
-                            </p>
+                        <div style="margin-top: 8px; padding: 8px 12px; background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.2); border-radius: 8px;">
+                            <p style="font-size: 0.6875rem; color: #d97706;">Warning: This will overwrite the current database.</p>
                         </div>
                     </div>
                 </div>
@@ -271,66 +460,60 @@
         </div>
 
         <!-- External Systems Section -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg mt-8">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">External Blog Systems</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Connect and sync posts with other blog instances</p>
-                        </div>
-                    </div>
-                    <button onclick="openAddSystemModal()"
-                            class="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-teal">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
                         </svg>
-                        Add System
-                    </button>
+                    </div>
+                    <div>
+                        <h3>External Blog Systems</h3>
+                        <p>Connect and sync posts with other blog instances</p>
+                    </div>
                 </div>
+                <button onclick="openAddSystemModal()" class="sys-btn-primary">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add System
+                </button>
             </div>
-            <div class="px-6 py-4">
-                <div id="ext-systems-loading" class="text-center py-8 text-gray-500 dark:text-gray-400">Loading external systems...</div>
-                <div id="ext-systems-empty" class="hidden text-center py-8">
-                    <p class="text-gray-500 dark:text-gray-400">No external systems registered yet.</p>
-                    <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Add a blog instance to start syncing posts.</p>
+            <div class="sys-section-body">
+                <div id="ext-systems-loading" style="text-align: center; padding: 24px 0; color: var(--text-secondary); font-size: 0.8125rem;">Loading external systems...</div>
+                <div id="ext-systems-empty" class="hidden" style="text-align: center; padding: 24px 0;">
+                    <p style="color: var(--text-secondary); font-size: 0.8125rem;">No external systems registered yet.</p>
+                    <p style="color: var(--text-tertiary); font-size: 0.75rem; margin-top: 4px;">Add a blog instance to start syncing posts.</p>
                 </div>
                 <div id="ext-systems-list" class="hidden space-y-4"></div>
             </div>
         </div>
 
         <!-- Cloudinary Image Storage Section -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg mt-8">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M5.5 17a4.5 4.5 0 01-1.44-8.765 4.5 4.5 0 018.302-3.046 3.5 3.5 0 014.504 4.272A4 4 0 0115 17H5.5zm3.75-2.75a.75.75 0 001.5 0V9.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0l-3.25 3.5a.75.75 0 101.1 1.02l1.95-2.1v4.59z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Cloudinary Image Storage</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Store uploaded images in the cloud for cross-environment access</p>
-                        </div>
-                    </div>
-                    <button onclick="openCloudinaryModal()"
-                            class="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-teal">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5.5 17a4.5 4.5 0 01-1.44-8.765 4.5 4.5 0 018.302-3.046 3.5 3.5 0 014.504 4.272A4 4 0 0115 17H5.5zm3.75-2.75a.75.75 0 001.5 0V9.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0l-3.25 3.5a.75.75 0 101.1 1.02l1.95-2.1v4.59z" clip-rule="evenodd"/>
                         </svg>
-                        Configure
-                    </button>
+                    </div>
+                    <div>
+                        <h3>Cloudinary Image Storage</h3>
+                        <p>Cloud image storage for cross-environment access</p>
+                    </div>
                 </div>
+                <button onclick="openCloudinaryModal()" class="sys-btn-outline">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Configure
+                </button>
             </div>
-            <div class="px-6 py-4">
-                <div id="cloudinary-status" class="text-center py-4 text-gray-500 dark:text-gray-400">Loading...</div>
+            <div class="sys-section-body">
+                <div id="cloudinary-status" style="text-align: center; padding: 12px 0; color: var(--text-secondary); font-size: 0.8125rem;">Loading...</div>
             </div>
         </div>
 
@@ -344,17 +527,17 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cloud Name</label>
                             <input type="text" id="cld-cloud-name" placeholder="e.g., my-cloud"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500">
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
                             <input type="text" id="cld-api-key" placeholder="e.g., 123456789012345"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500">
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Secret</label>
                             <input type="password" id="cld-api-secret" placeholder="Leave blank to keep existing"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500">
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
                             <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Encrypted at rest. Leave blank when editing to keep the existing secret.</p>
                         </div>
                         <div id="cld-test-result" class="hidden rounded-md p-3 text-sm"></div>
@@ -370,11 +553,11 @@
                                 Cancel
                             </button>
                             <button onclick="testCloudinary()"
-                                    class="px-4 py-2 border border-purple-300 dark:border-purple-600 rounded-md text-sm font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900">
+                                    class="px-4 py-2 border border-teal-300 dark:border-teal-600 rounded-md text-sm font-medium text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900">
                                 Test Connection
                             </button>
                             <button onclick="saveCloudinary()"
-                                    class="px-4 py-2 bg-purple-600 hover:bg-purple-700 border border-transparent rounded-md text-sm font-medium text-white">
+                                    class="px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-transparent rounded-md text-sm font-medium text-white">
                                 Save
                             </button>
                         </div>
@@ -394,24 +577,24 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                             <input type="text" id="modal-name" placeholder="e.g., Production Blog"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500">
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base URL</label>
                             <input type="url" id="modal-base-url" placeholder="https://blog.example.com"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500">
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
                             <input type="password" id="modal-api-key" placeholder="Bearer token for authentication"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500">
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-teal-500 focus:border-teal-500">
                             <p id="modal-api-key-hint" class="hidden text-xs text-gray-500 dark:text-gray-400 mt-1">Leave blank to keep existing key</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Custom Headers</label>
                             <div id="modal-headers" class="space-y-2"></div>
                             <button type="button" onclick="addHeaderRow()"
-                                    class="mt-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500">
+                                    class="mt-2 text-sm text-teal-600 dark:text-teal-400 hover:text-teal-500">
                                 + Add Header
                             </button>
                         </div>
@@ -430,7 +613,7 @@
                                 Cancel
                             </button>
                             <button onclick="saveSystem()" id="modal-save-btn"
-                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700">
                                 Save
                             </button>
                         </div>
@@ -450,12 +633,12 @@
                         <div class="flex space-x-4">
                             <label class="inline-flex items-center">
                                 <input type="radio" name="sync-direction" value="pull" checked
-                                       class="text-indigo-600 focus:ring-indigo-500">
+                                       class="text-teal-600 focus:ring-teal-500">
                                 <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Pull (remote to local)</span>
                             </label>
                             <label class="inline-flex items-center">
                                 <input type="radio" name="sync-direction" value="push"
-                                       class="text-indigo-600 focus:ring-indigo-500">
+                                       class="text-teal-600 focus:ring-teal-500">
                                 <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Push (local to remote)</span>
                             </label>
                         </div>
@@ -465,7 +648,7 @@
                                 Preview
                             </button>
                             <button onclick="executeSync()" id="sync-execute-btn" disabled
-                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50">
                                 Execute Sync
                             </button>
                         </div>
@@ -647,7 +830,7 @@ function renderSystemCard(s) {
         </div>
         <div class="flex flex-wrap gap-2">
             <button onclick="testConnection(${s.id})" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Test Connection</button>
-            <button onclick="openSyncModal(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-indigo-300 dark:border-indigo-600 rounded-md text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20">Sync</button>
+            <button onclick="openSyncModal(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-teal-300 dark:border-teal-600 rounded-md text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20">Sync</button>
             <button onclick="openEditSystemModal(${s.id})" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Edit</button>
             <button onclick="viewSyncLogs(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Logs</button>
             <button onclick="deleteSystem(${s.id}, '${escapeHtml(s.name)}')" class="px-3 py-1 text-xs border border-red-300 dark:border-red-600 rounded-md text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>

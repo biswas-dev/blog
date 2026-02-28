@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -17,7 +18,6 @@ type Database struct {
 }
 
 func Initialize(username, password, database string, host string, port string) (Database, error) {
-	sugar := sugarLog()
 	db := Database{}
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, username, password, database)
@@ -27,11 +27,18 @@ func Initialize(username, password, database string, host string, port string) (
 	}
 
 	db.Conn = conn
+
+	// Connection pool configuration
+	db.Conn.SetMaxOpenConns(25)
+	db.Conn.SetMaxIdleConns(10)
+	db.Conn.SetConnMaxLifetime(5 * time.Minute)
+	db.Conn.SetConnMaxIdleTime(1 * time.Minute)
+
 	err = db.Conn.Ping()
 	if err != nil {
 		return db, err
 	}
-	sugar.Infof("Database connection established!")
+	logger.Info().Msg("database connection established")
 	DB = db.Conn
 	return db, nil
 }

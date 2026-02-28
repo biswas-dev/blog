@@ -67,7 +67,7 @@
     </header>
     
     <!-- Article Content -->
-    <div class="prose prose-lg dark:prose-invert max-w-none mb-12" id="article-content">
+    <div class="prose prose-lg dark:prose-invert max-w-none mb-8" id="article-content">
         {{if .Post.ContentHTML}}
             {{.Post.ContentHTML}}
         {{else}}
@@ -76,7 +76,7 @@
     </div>
     
     <!-- Social Share -->
-    <div class="border-t border-b py-8 mb-12" style="border-color: var(--border-light);">
+    <div class="border-t border-b py-6 mb-6" style="border-color: var(--border-light);">
         <p class="text-center text-sm font-medium mb-4" style="color: var(--text-secondary);">Share this post</p>
         <div class="flex flex-wrap justify-center gap-3">
             <a href="https://twitter.com/intent/tweet?url={{.FullURL}}&text={{.Post.Title}}"
@@ -99,38 +99,35 @@
         </div>
     </div>
     
-    <!-- Navigation -->
-    <nav class="border-t border-gray-200 dark:border-gray-700 pt-8">
-        <div class="flex justify-between items-center">
+    <!-- Navigation (only shown when prev/next posts exist) -->
+    {{if or .PrevPost .NextPost}}
+    <nav class="post-nav">
+        <div class="post-nav-inner">
             {{if .PrevPost}}
-            <a href="/blog/{{.PrevPost.Slug}}" class="group flex items-center gap-3 p-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors max-w-sm">
-                <svg class="w-6 h-6 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="/blog/{{.PrevPost.Slug}}" class="post-nav-link post-nav-prev">
+                <svg class="post-nav-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
                 <div>
-                    <div class="text-sm text-gray-500 mb-1">Previous</div>
-                    <div class="font-semibold group-hover:text-blue-600 transition-colors">{{if gt (len .PrevPost.Title) 50}}{{slice .PrevPost.Title 0 50}}...{{else}}{{.PrevPost.Title}}{{end}}</div>
+                    <div class="post-nav-label">Previous</div>
+                    <div class="post-nav-title">{{if gt (len .PrevPost.Title) 50}}{{slice .PrevPost.Title 0 50}}...{{else}}{{.PrevPost.Title}}{{end}}</div>
                 </div>
             </a>
-            {{else}}
-            <div></div>
-            {{end}}
-            
+            {{else}}<div></div>{{end}}
             {{if .NextPost}}
-            <a href="/blog/{{.NextPost.Slug}}" class="group flex items-center gap-3 p-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors max-w-sm text-right">
+            <a href="/blog/{{.NextPost.Slug}}" class="post-nav-link post-nav-next">
                 <div>
-                    <div class="text-sm text-gray-500 mb-1">Next</div>
-                    <div class="font-semibold group-hover:text-blue-600 transition-colors">{{if gt (len .NextPost.Title) 50}}{{slice .NextPost.Title 0 50}}...{{else}}{{.NextPost.Title}}{{end}}</div>
+                    <div class="post-nav-label">Next</div>
+                    <div class="post-nav-title">{{if gt (len .NextPost.Title) 50}}{{slice .NextPost.Title 0 50}}...{{else}}{{.NextPost.Title}}{{end}}</div>
                 </div>
-                <svg class="w-6 h-6 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="post-nav-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
             </a>
-            {{else}}
-            <div></div>
-            {{end}}
+            {{else}}<div></div>{{end}}
         </div>
     </nav>
+    {{end}}
 </article>
 
 <!-- Back to Top -->
@@ -204,6 +201,8 @@
     width: 100vw;
     height: 100vh;
     padding: 0;
+}
+.lightbox-dialog[open] {
     display: flex;
     align-items: center;
     justify-content: center;
