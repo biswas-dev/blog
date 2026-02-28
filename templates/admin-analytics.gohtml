@@ -221,6 +221,82 @@
         color: var(--text-secondary);
         font-size: 0.875rem;
     }
+
+    /* Visitor rows - clickable */
+    .visitor-row {
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .visitor-row:hover {
+        background: rgba(13,148,136,0.06);
+    }
+    .dark .visitor-row:hover {
+        background: rgba(45,212,191,0.08);
+    }
+
+    /* IP detail modal */
+    .ip-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    .ip-modal-overlay.active {
+        display: flex;
+    }
+    .ip-modal-content {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+        padding: 24px;
+    }
+    .dark .ip-modal-content {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    .ip-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    .ip-modal-header h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .ip-modal-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 4px;
+        font-size: 1.25rem;
+        line-height: 1;
+    }
+    .ip-modal-close:hover { color: var(--text-primary); }
+
+    .ua-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.6875rem;
+        font-weight: 500;
+        background: rgba(13,148,136,0.1);
+        color: #0d9488;
+    }
+    .dark .ua-badge {
+        background: rgba(45,212,191,0.15);
+        color: #2dd4bf;
+    }
 </style>
 
 <div class="min-h-screen" style="background: var(--bg-secondary);">
@@ -331,6 +407,56 @@
                 </div>
             </div>
         </div>
+
+        <!-- Top Visitors -->
+        <div class="sys-card" style="margin-bottom: 24px;">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-purple">
+                    <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+                </div>
+                <h3>Top Visitors</h3>
+            </div>
+            <div class="sys-card-body" style="padding: 0;">
+                <table class="analytics-table">
+                    <thead><tr><th>IP Address</th><th>Views</th><th>Last Seen</th><th>Top Page</th><th>Browser</th></tr></thead>
+                    <tbody id="top-visitors-body">
+                        <tr><td colspan="5" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Hourly Activity + Browser Breakdown -->
+        <div class="tables-grid">
+            <div class="chart-container" style="margin-bottom: 0;">
+                <h3 class="chart-title">Hourly Activity</h3>
+                <div style="position: relative; height: 220px;">
+                    <canvas id="hourly-chart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container" style="margin-bottom: 0;">
+                <h3 class="chart-title">Browser Breakdown</h3>
+                <div style="position: relative; height: 220px;">
+                    <canvas id="browser-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- IP Detail Modal -->
+        <div class="ip-modal-overlay" id="ip-modal-overlay" onclick="if(event.target===this)closeIPModal()">
+            <div class="ip-modal-content">
+                <div class="ip-modal-header">
+                    <h3 id="ip-modal-title">Visitor Details</h3>
+                    <button class="ip-modal-close" onclick="closeIPModal()">&times;</button>
+                </div>
+                <table class="analytics-table">
+                    <thead><tr><th>Time</th><th>Page</th><th>Referrer</th><th>User Agent</th></tr></thead>
+                    <tbody id="ip-modal-body">
+                        <tr><td colspan="4" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -346,15 +472,26 @@
         text:    { light: '#6b7280', dark: '#9ca3af' },
     };
 
+    const browserColors = {
+        'Chrome':  '#4285F4',
+        'Firefox': '#FF7139',
+        'Safari':  '#006CFF',
+        'Edge':    '#0078D7',
+        'Bot':     '#9CA3AF',
+        'Other':   '#D97706',
+        'Unknown': '#6B7280',
+    };
+
     function getColor(key) {
         return isDark() ? colors[key].dark : colors[key].light;
     }
 
     let viewsChart = null;
     let contentChart = null;
+    let hourlyChart = null;
+    let browserChart = null;
     let currentPeriod = '30d';
 
-    // Initialize charts
     function initViewsChart(data) {
         const ctx = document.getElementById('views-chart').getContext('2d');
         if (viewsChart) viewsChart.destroy();
@@ -445,6 +582,94 @@
         });
     }
 
+    function initHourlyChart(data) {
+        const ctx = document.getElementById('hourly-chart').getContext('2d');
+        if (hourlyChart) hourlyChart.destroy();
+
+        // Fill all 24 hours
+        const hourMap = {};
+        (data || []).forEach(d => { hourMap[d.hour] = d.views; });
+        const labels = [];
+        const values = [];
+        for (let h = 0; h < 24; h++) {
+            labels.push(h.toString().padStart(2, '0') + ':00');
+            values.push(hourMap[h] || 0);
+        }
+
+        hourlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Views',
+                    data: values,
+                    backgroundColor: getColor('views') + '80',
+                    borderColor: getColor('views'),
+                    borderWidth: 1,
+                    borderRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: getColor('text'), maxTicksLimit: 12, font: { size: 10 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: getColor('grid') },
+                        ticks: { color: getColor('text') }
+                    }
+                }
+            }
+        });
+    }
+
+    function initBrowserChart(data) {
+        const ctx = document.getElementById('browser-chart').getContext('2d');
+        if (browserChart) browserChart.destroy();
+
+        if (!data || data.length === 0) {
+            browserChart = null;
+            return;
+        }
+
+        browserChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.map(d => d.name),
+                datasets: [{
+                    data: data.map(d => d.count),
+                    backgroundColor: data.map(d => browserColors[d.name] || '#6B7280'),
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: getColor('text'), usePointStyle: true, pointStyle: 'circle', padding: 12, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const d = data[ctx.dataIndex];
+                                return d.name + ': ' + fmtNum(d.count) + ' (' + d.percent.toFixed(1) + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     function fmtNum(n) {
         if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
         if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
@@ -455,6 +680,25 @@
         const d = document.createElement('div');
         d.textContent = s;
         return d.innerHTML;
+    }
+
+    function classifyBrowserJS(ua) {
+        if (!ua) return 'Unknown';
+        const l = ua.toLowerCase();
+        if (l.includes('bot') || l.includes('crawl') || l.includes('spider')) return 'Bot';
+        if (l.includes('edg')) return 'Edge';
+        if (l.includes('chrome') && !l.includes('edg')) return 'Chrome';
+        if (l.includes('firefox')) return 'Firefox';
+        if (l.includes('safari') && !l.includes('chrome')) return 'Safari';
+        return 'Other';
+    }
+
+    function formatTimestamp(ts) {
+        if (!ts) return '';
+        // Handle postgres text format "YYYY-MM-DD HH:MM:SS..."
+        const d = new Date(ts.replace(' ', 'T'));
+        if (isNaN(d)) return ts.substring(0, 19);
+        return d.toLocaleString();
     }
 
     async function loadData(period) {
@@ -508,10 +752,77 @@
                     `<tr><td class="path" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td class="num">${fmtNum(r.count)}</td></tr>`
                 ).join('');
             }
+
+            // Top visitors
+            const tvBody = document.getElementById('top-visitors-body');
+            const visitors = data.top_visitors || [];
+            if (visitors.length === 0) {
+                tvBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:20px;">No data yet</td></tr>';
+            } else {
+                tvBody.innerHTML = visitors.map(v =>
+                    `<tr class="visitor-row" onclick="openIPModal('${escapeHtml(v.ip_address)}')">
+                        <td style="font-family:'SF Mono','Fira Code',monospace;font-size:0.75rem;">${escapeHtml(v.ip_address)}</td>
+                        <td class="num">${fmtNum(v.views)}</td>
+                        <td style="font-size:0.75rem;color:var(--text-secondary);">${formatTimestamp(v.last_seen)}</td>
+                        <td class="path" title="${escapeHtml(v.top_path)}">${escapeHtml(v.top_path)}</td>
+                        <td><span class="ua-badge">${escapeHtml(classifyBrowserJS(v.user_agent))}</span></td>
+                    </tr>`
+                ).join('');
+            }
+
+            // Hourly activity chart
+            initHourlyChart(data.hourly_activity || []);
+
+            // Browser breakdown chart
+            initBrowserChart(data.browsers || []);
+
         } catch (err) {
             console.error('Analytics load error:', err);
         }
     }
+
+    // IP detail modal
+    window.openIPModal = async function(ip) {
+        const overlay = document.getElementById('ip-modal-overlay');
+        const title = document.getElementById('ip-modal-title');
+        const body = document.getElementById('ip-modal-body');
+
+        title.textContent = 'Visitor Details - ' + ip;
+        body.innerHTML = '<tr><td colspan="4" class="analytics-loading">Loading...</td></tr>';
+        overlay.classList.add('active');
+
+        try {
+            const resp = await fetch('/api/admin/analytics/visitor?ip=' + encodeURIComponent(ip) + '&period=' + currentPeriod);
+            if (!resp.ok) throw new Error('Failed to load');
+            const details = await resp.json();
+
+            if (!details || details.length === 0) {
+                body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:20px;">No activity found</td></tr>';
+                return;
+            }
+
+            body.innerHTML = details.map(d =>
+                `<tr>
+                    <td style="font-size:0.75rem;white-space:nowrap;">${formatTimestamp(d.viewed_at)}</td>
+                    <td class="path" title="${escapeHtml(d.path)}">${escapeHtml(d.path)}</td>
+                    <td class="path" title="${escapeHtml(d.referrer)}">${escapeHtml(d.referrer)}</td>
+                    <td style="font-size:0.6875rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(d.user_agent)}">${escapeHtml(d.user_agent)}</td>
+                </tr>`
+            ).join('');
+        } catch (err) {
+            body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">Failed to load details</td></tr>';
+            console.error('Visitor detail error:', err);
+        }
+    };
+
+    window.closeIPModal = function() {
+        document.getElementById('ip-modal-overlay').classList.remove('active');
+    };
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeIPModal();
+    });
 
     // Period button handlers
     document.querySelectorAll('.period-btn').forEach(btn => {
@@ -526,13 +837,8 @@
     // Load initial data
     loadData(currentPeriod);
 
-    // Auto-refresh today's count every 30s
-    setInterval(async () => {
-        try {
-            const resp = await fetch('/api/admin/analytics?period=1d');
-            // We just reload the current period to keep everything fresh
-        } catch (e) { /* ignore */ }
-    }, 30000);
+    // Auto-refresh every 60s
+    setInterval(() => { loadData(currentPeriod); }, 60000);
 })();
 </script>
 
