@@ -16,6 +16,8 @@ import (
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/templates"
 	"anshumanbiswas.com/blog/views"
+	godraw "github.com/anchoo2kewl/go-draw"
+	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -139,6 +141,15 @@ func main() {
 		DB: DB,
 	}
 
+	// Blog wiki instance configured for the post editor
+	blogWiki := gowiki.New(
+		gowiki.WithPreviewEndpoint("/admin/preview"),
+		gowiki.WithUploadEndpoint("/admin/uploads"),
+		gowiki.WithImageListEndpoint("/admin/uploads/list"),
+		gowiki.WithDrawBasePath("/draw"),
+		gowiki.WithEnableMore(true),
+	)
+
 	// Setup our controllers
 	usersC := controllers.Users{
 		UserService:          &userService,
@@ -148,6 +159,7 @@ func main() {
 		CategoryService:      &categoryService,
 		CloudinaryService:    &cloudinaryService,
 		ImageMetadataService: &imageMetadataService,
+		BlogWiki:             blogWiki,
 	}
 
 	// Initialize Blog controller
@@ -327,6 +339,7 @@ func main() {
 	// Analytics Routes
 	r.Get("/admin/analytics", analyticsC.Dashboard)
 	r.Get("/api/admin/analytics", analyticsC.GetAnalyticsJSON)
+	r.Get("/api/admin/analytics/visitor", analyticsC.GetVisitorDetail)
 
 	// Cloudinary Settings Routes
 	r.Get("/api/admin/cloudinary", systemC.GetCloudinarySettings)
@@ -394,6 +407,13 @@ func main() {
 		r.Put("/{id}", categoriesC.UpdateCategory)
 		r.Delete("/{id}", categoriesC.DeleteCategory)
 	})
+
+	// go-draw canvas editor
+	drawHandler, err := godraw.New(godraw.WithBasePath("/draw"))
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not initialize go-draw")
+	}
+	r.Handle("/draw/*", drawHandler.Handler())
 
 	// Define a custom 404 handler
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {

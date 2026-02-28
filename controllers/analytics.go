@@ -93,3 +93,38 @@ func (a *Analytics) GetAnalyticsJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(summary)
 }
+
+// GetVisitorDetail returns detailed page views for a specific IP address (admin-only)
+func (a *Analytics) GetVisitorDetail(w http.ResponseWriter, r *http.Request) {
+	user, err := utils.IsUserLoggedIn(r, a.SessionService)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		return
+	}
+
+	ip := r.URL.Query().Get("ip")
+	if ip == "" {
+		http.Error(w, "Missing ip parameter", http.StatusBadRequest)
+		return
+	}
+
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "30d"
+	}
+
+	details, err := a.AnalyticsService.GetVisitorActivity(ip, period)
+	if err != nil {
+		log.Printf("Error getting visitor detail for %s: %v", ip, err)
+		http.Error(w, "Failed to get visitor details", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(details)
+}

@@ -6,18 +6,18 @@ import (
 	"html/template"
 	"time"
 
-	render "anshumanbiswas.com/blog/internal/render"
+	gowiki "github.com/anchoo2kewl/go-wiki"
 )
 
 type BlogService struct {
-	DB       *sql.DB
-	renderer *render.Renderer
+	DB   *sql.DB
+	wiki *gowiki.Wiki
 }
 
 func NewBlogService(db *sql.DB) *BlogService {
 	return &BlogService{
-		DB:       db,
-		renderer: render.NewRenderer(render.DefaultOptions()),
+		DB:   db,
+		wiki: gowiki.New(gowiki.WithDrawBasePath("/draw")),
 	}
 }
 
@@ -70,7 +70,7 @@ func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 		}
 
 		// --- Render ---
-		html := bs.renderer.Render(post.Content)
+		html := bs.wiki.RenderContent(post.Content)
 		post.ContentHTML = template.HTML(html)
 	}
 	if err := rows.Err(); err != nil {
@@ -84,7 +84,7 @@ func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 	return &post, nil
 }
 
-// If you want to expose a preview that returns intermediate stages for debugging:
+// RenderPreviewDebug returns intermediate stages for debugging.
 func (bs *BlogService) RenderPreviewDebug(raw string) (final string, stages map[string]string) {
-	return bs.renderer.RenderWithDebug(raw, true)
+	return bs.wiki.RenderContentDebug(raw)
 }

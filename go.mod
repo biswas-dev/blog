@@ -3,6 +3,7 @@ module anshumanbiswas.com/blog
 go 1.23.0
 
 require (
+	github.com/anchoo2kewl/go-wiki v0.1.1-0.20260228215946-8d61e00351fb
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/rs/zerolog v1.34.0
 	github.com/russross/blackfriday/v2 v2.1.0
@@ -17,6 +18,7 @@ require (
 )
 
 require (
+	github.com/anchoo2kewl/go-draw v0.0.0-20260228200306-4995b30e1408
 	github.com/gorilla/csrf v1.7.1
 	github.com/lib/pq v1.10.9
 	golang.org/x/crypto v0.35.0

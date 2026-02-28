@@ -19,6 +19,7 @@ import (
 
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/utils"
+	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -82,13 +83,14 @@ type Users struct {
 		APIAccess  Template
 		PostEditor Template
 	}
-	UserService       *models.UserService
-	SessionService    *models.SessionService
-	PostService       *models.PostService
-	APITokenService   *models.APITokenService
-	CategoryService   *models.CategoryService
+	UserService          *models.UserService
+	SessionService       *models.SessionService
+	PostService          *models.PostService
+	APITokenService      *models.APITokenService
+	CategoryService      *models.CategoryService
 	CloudinaryService    *models.CloudinaryService
 	ImageMetadataService *models.ImageMetadataService
+	BlogWiki             *gowiki.Wiki
 }
 
 // UploadImage handles image uploads (cover or inline). Returns JSON {url}
@@ -1015,6 +1017,12 @@ func (u Users) NewPost(w http.ResponseWriter, r *http.Request) {
 		categories = []models.Category{} // fallback to empty slice
 	}
 
+	// Generate editor HTML from go-wiki
+	editorHTML, err := u.BlogWiki.EditorHTML("")
+	if err != nil {
+		log.Printf("Error generating editor HTML: %v", err)
+	}
+
 	var data struct {
 		Email              string
 		LoggedIn           bool
@@ -1028,6 +1036,7 @@ func (u Users) NewPost(w http.ResponseWriter, r *http.Request) {
 		Post               *models.Post
 		Categories         []models.Category
 		SelectedCategories []int
+		EditorHTML         template.HTML
 	}
 	data.Email = user.Email
 	data.Username = user.Username
@@ -1041,6 +1050,7 @@ func (u Users) NewPost(w http.ResponseWriter, r *http.Request) {
 	data.Post = &models.Post{}
 	data.Categories = categories
 	data.SelectedCategories = []int{} // empty for new posts
+	data.EditorHTML = editorHTML
 	u.Templates.PostEditor.Execute(w, r, data)
 }
 
@@ -1126,8 +1136,6 @@ func (u Users) EditPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
-	// Ensure ContentHTML for prefill
-	post.ContentHTML = template.HTML(post.Content)
 
 	// Load all categories for the form
 	categories, err := u.CategoryService.GetAll()
@@ -1149,6 +1157,12 @@ func (u Users) EditPost(w http.ResponseWriter, r *http.Request) {
 		selectedCategories[i] = cat.ID
 	}
 
+	// Generate editor HTML from go-wiki
+	editorHTML, err := u.BlogWiki.EditorHTML(post.Content)
+	if err != nil {
+		log.Printf("Error generating editor HTML: %v", err)
+	}
+
 	var data struct {
 		Email              string
 		LoggedIn           bool
@@ -1162,6 +1176,7 @@ func (u Users) EditPost(w http.ResponseWriter, r *http.Request) {
 		Post               *models.Post
 		Categories         []models.Category
 		SelectedCategories []int
+		EditorHTML         template.HTML
 	}
 	data.Email = user.Email
 	data.Username = user.Username
@@ -1175,6 +1190,7 @@ func (u Users) EditPost(w http.ResponseWriter, r *http.Request) {
 	data.Post = post
 	data.Categories = categories
 	data.SelectedCategories = selectedCategories
+	data.EditorHTML = editorHTML
 	u.Templates.PostEditor.Execute(w, r, data)
 }
 
