@@ -1,83 +1,57 @@
 {{template "modern-header" .}}
-<div class="py-12 flex justify-center">
-  <div class="px-8 py-8 bg-white rounded shadow">
-    <h1 class="pt-4 pb-8 text-center text-3xl font-bold text-gray-900">
-      Start managing the Tansh Portal!
-    </h1>
+<div class="max-w-md mx-auto mt-16 mb-16">
+  <div class="rounded-2xl p-8 border" style="background: var(--surface); border-color: var(--border-light); box-shadow: 0 10px 25px rgba(0,0,0,0.08);">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold mb-2" style="color: var(--text-primary);">Create Account</h1>
+      <p style="color: var(--text-secondary);">Start managing the blog</p>
+    </div>
+
     {{ if .IsSignupDisabled }}
-        <div class="py-2">
-            Signups are currently disabled!
+        <div class="p-4 rounded-lg text-center" style="background: var(--bg-secondary); color: var(--text-secondary);">
+            Signups are currently disabled.
         </div>
     {{else}}
-        <form action="/signup" method="post">
+        <form action="/signup" method="post" class="space-y-6">
         <div class="hidden">
             {{csrfField}}
         </div>
-        <div class="py-2">
-            <label for="email" class="text-sm font-semibold text-gray-800">
+        <div>
+            <label for="email" class="block text-sm font-semibold mb-2" style="color: var(--text-secondary);">
             Email Address
             </label>
-            <input
-            name="email"
-            id="email"
-            type="email"
-            placeholder="Email address"
-            required
-            autocomplete="email"
-            class="w-full px-3 py-2 border border-gray-300 placeholder-gray-500
-                text-gray-800 rounded"
-            value="{{.Email}}"
-            {{if not .Email}}autofocus{{end}}
-            />
+            <input name="email" id="email" type="email" placeholder="Email address" required
+                   autocomplete="email" class="form-input" value="{{.Email}}"
+                   {{if not .Email}}autofocus{{end}} />
         </div>
-        <div class="py-2">
-            <label for="username" class="text-sm font-semibold text-gray-800">
+        <div>
+            <label for="username" class="block text-sm font-semibold mb-2" style="color: var(--text-secondary);">
             Username
             </label>
-            <input
-            name="username"
-            id="username"
-            type="text"
-            placeholder="Username"
-            required
-            class="w-full px-3 py-2 border border-gray-300 placeholder-gray-500
-                text-gray-800 rounded"
-            value="{{.Username}}"
-            {{if not .Username}}autofocus{{end}}
-            />
+            <input name="username" id="username" type="text" placeholder="Username" required
+                   class="form-input" value="{{.Username}}"
+                   {{if not .Username}}autofocus{{end}} />
         </div>
-        <div class="py-2">
-            <label for="password" class="text-sm font-semibold text-gray-800">
+        <div>
+            <label for="password" class="block text-sm font-semibold mb-2" style="color: var(--text-secondary);">
             Password
             </label>
-            <input
-            name="password"
-            id="password"
-            type="password"
-            placeholder="Password"
-            required
-            class="w-full px-3 py-2 border border-gray-300 placeholder-gray-500
-                text-gray-800 rounded"
-            {{if .Email}}autofocus{{end}}
-            />
+            <input name="password" id="password" type="password" placeholder="Password" required
+                   class="form-input" {{if .Email}}autofocus{{end}} />
         </div>
-        <div class="py-4">
-            <button class="w-full py-4 px-2 bg-indigo-600 hover:bg-indigo-700
-            text-white rounded font-bold text-lg">
-            Sign up
-            </button>
+        <div>
+            <button type="submit" class="btn btn-primary w-full">Sign up</button>
         </div>
-        <div class="py-2 w-full flex justify-between">
-            <p class="text-xs text-gray-500">
+        <div class="flex justify-between text-sm">
+            <p style="color: var(--text-secondary);">
             Already have an account?
-            <a href="/signin" class="underline">Sign in</a>
+            <a href="/signin" class="hover:underline" style="color: var(--accent);">Sign in</a>
             </p>
-            <p class="text-xs text-gray-500">
-            <a href="/reset-pw" class="underline">Forgot your password?</a>
+            <p>
+            <a href="/reset-pw" class="hover:underline" style="color: var(--accent);">Forgot your password?</a>
             </p>
         </div>
         </form>
     {{end}}
   </div>
 </div>
-{{template "footer" .}}
+{{template "modern-footer" .}}
