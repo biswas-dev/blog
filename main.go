@@ -346,6 +346,9 @@ func main() {
 	// Public search API
 	r.Get("/api/search", searchC.HandleSearch)
 
+	// RSS Feed
+	r.Get("/rss", rssHandler(&postService))
+
 	// REST API endpoints for users
 	r.Route("/api/users", func(r chi.Router) {
 		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
@@ -582,4 +585,84 @@ func jsonResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+// rssHandler returns an RSS 2.0 feed of published posts.
+func rssHandler(ps *models.PostService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		posts, err := ps.GetTopPostsWithPagination(20, 0)
+		if err != nil || posts == nil {
+			http.Error(w, "Failed to generate feed", http.StatusInternalServerError)
+			return
+		}
+
+		baseURL := os.Getenv("APP_BASE_URL")
+		if baseURL == "" {
+			baseURL = "http://localhost:22222"
+		}
+
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=300")
+
+		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Anshuman Biswas - Engineering Insights</title>
+  <link>%s</link>
+  <description>Deep dives into software architecture, cloud infrastructure, and scalable system design.</description>
+  <language>en-us</language>
+  <atom:link href="%s/rss" rel="self" type="application/rss+xml"/>
+`, baseURL, baseURL)
+
+		for _, post := range posts.Posts {
+			if !post.IsPublished {
+				continue
+			}
+			// Escape XML special characters in title and content
+			title := xmlEscape(post.Title)
+			link := fmt.Sprintf("%s/blog/%s", baseURL, post.Slug)
+			desc := xmlEscape(stripHTMLTags(string(post.ContentHTML)))
+			if len(desc) > 500 {
+				desc = desc[:500] + "..."
+			}
+			fmt.Fprintf(w, `  <item>
+    <title>%s</title>
+    <link>%s</link>
+    <guid>%s</guid>
+    <description>%s</description>
+    <pubDate>%s</pubDate>
+  </item>
+`, title, link, link, desc, post.CreatedAt)
+		}
+
+		fmt.Fprint(w, "</channel>\n</rss>")
+	}
+}
+
+func xmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	s = strings.ReplaceAll(s, "'", "&apos;")
+	return s
+}
+
+func stripHTMLTags(s string) string {
+	var result strings.Builder
+	inTag := false
+	for _, r := range s {
+		if r == '<' {
+			inTag = true
+			continue
+		}
+		if r == '>' {
+			inTag = false
+			continue
+		}
+		if !inTag {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
