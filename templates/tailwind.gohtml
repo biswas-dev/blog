@@ -17,6 +17,8 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="alternate" type="application/rss+xml" title="Anshuman Biswas - Engineering Insights" href="/rss">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Styles -->
@@ -197,10 +199,11 @@
 
                 <!-- Search -->
                 <li>
-                    <button id="search-toggle" class="nav-link" aria-label="Search">
+                    <button id="search-toggle" class="nav-link" aria-label="Search" style="display:inline-flex;align-items:center;">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
+                        <kbd class="search-kbd">&#8984;K</kbd>
                     </button>
                 </li>
             </ul>
@@ -345,9 +348,126 @@
             });
         }
 
-        // Search toggle (placeholder)
+        // Search functionality
+        const Search = {
+            _activeIndex: -1,
+
+            open() {
+                const overlay = document.createElement('div');
+                overlay.className = 'search-modal-overlay';
+                overlay.innerHTML = `
+                    <div class="search-modal">
+                        <div class="search-modal-header">
+                            <svg class="search-modal-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input type="text" placeholder="Search posts and slides..." class="search-modal-input" />
+                            <kbd class="search-kbd">ESC</kbd>
+                        </div>
+                        <div class="search-results-container" id="search-results">
+                            <div class="search-placeholder">
+                                <svg class="search-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <p>Start typing to search posts and slides...</p>
+                            </div>
+                        </div>
+                    </div>`;
+                document.body.appendChild(overlay);
+
+                const input = overlay.querySelector('input');
+                setTimeout(() => input.focus(), 100);
+
+                // Close on overlay click or Escape
+                overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+                const escHandler = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+                document.addEventListener('keydown', escHandler);
+
+                let timer, abort = null;
+                this._activeIndex = -1;
+
+                input.addEventListener('input', (e) => {
+                    const q = e.target.value.trim();
+                    clearTimeout(timer);
+                    if (q.length < 2) { if (abort) abort.abort(); this._showPlaceholder(); this._activeIndex = -1; return; }
+                    timer = setTimeout(() => { if (abort) abort.abort(); abort = new AbortController(); this._doSearch(q, abort.signal); }, 150);
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    const items = document.querySelectorAll('.search-result-item');
+                    if (!items.length) return;
+                    if (e.key === 'ArrowDown') { e.preventDefault(); this._activeIndex = Math.min(this._activeIndex + 1, items.length - 1); this._highlight(items); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); this._activeIndex = Math.max(this._activeIndex - 1, -1); this._highlight(items); }
+                    else if (e.key === 'Enter' && this._activeIndex >= 0) { e.preventDefault(); items[this._activeIndex].click(); }
+                });
+            },
+
+            _highlight(items) {
+                items.forEach((el, i) => { el.classList.toggle('search-result-active', i === this._activeIndex); if (i === this._activeIndex) el.scrollIntoView({ block: 'nearest' }); });
+            },
+
+            async _doSearch(q, signal) {
+                const c = document.getElementById('search-results');
+                c.innerHTML = '<div class="search-loading"><div class="search-spinner"></div><p>Searching...</p></div>';
+                try {
+                    const r = await fetch('/api/search?q=' + encodeURIComponent(q), { signal });
+                    const data = await r.json();
+                    this._activeIndex = -1;
+                    this._render(data);
+                } catch (e) { if (e.name !== 'AbortError') { c.innerHTML = '<div class="search-error"><p>Search unavailable. Try again later.</p></div>'; } }
+            },
+
+            _esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; },
+
+            _render(data) {
+                const c = document.getElementById('search-results');
+                if (!data || (data.posts.length === 0 && data.slides.length === 0)) {
+                    c.innerHTML = '<div class="search-placeholder"><p>No results found for "' + this._esc(data ? data.query : '') + '"</p></div>';
+                    return;
+                }
+                let h = '';
+                if (data.posts.length > 0) {
+                    h += '<div class="search-section-header">Posts</div>';
+                    h += data.posts.map(r => this._item(r, 'post')).join('');
+                }
+                if (data.slides.length > 0) {
+                    h += '<div class="search-section-header">Slides</div>';
+                    h += data.slides.map(r => this._item(r, 'slide')).join('');
+                }
+                c.innerHTML = h;
+            },
+
+            _item(r, type) {
+                const href = type === 'post' ? '/blog/' + r.slug : '/slides/' + r.slug;
+                const cats = (r.categories || []).map(c => '<span class="search-category-tag">' + this._esc(c) + '</span>').join('');
+                return '<a href="' + href + '" class="search-result-item">' +
+                    '<div class="search-result-title">' + this._esc(r.title) + '</div>' +
+                    '<div class="search-result-excerpt line-clamp-2">' + (r.excerpt || '') + '</div>' +
+                    '<div class="search-result-meta"><span class="search-result-date">' + this._esc(r.date || '') + '</span>' +
+                    (cats ? '<div class="search-result-categories">' + cats + '</div>' : '') +
+                    '</div></a>';
+            },
+
+            _showPlaceholder() {
+                const c = document.getElementById('search-results');
+                if (c) c.innerHTML = '<div class="search-placeholder"><svg class="search-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg><p>Start typing to search posts and slides...</p></div>';
+            }
+        };
+
         document.getElementById('search-toggle').addEventListener('click', () => {
-            console.log('Search clicked');
+            const existing = document.querySelector('.search-modal-overlay');
+            if (existing) { existing.remove(); return; }
+            Search.open();
+        });
+
+        // Keyboard shortcut: Ctrl/Cmd + K (toggle)
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                const existing = document.querySelector('.search-modal-overlay');
+                if (existing) { existing.remove(); return; }
+                Search.open();
+            }
         });
 
         // DOMContentLoaded utilities

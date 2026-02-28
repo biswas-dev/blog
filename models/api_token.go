@@ -5,10 +5,24 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+// tokenCacheEntry caches a validated token -> user mapping with expiry.
+type tokenCacheEntry struct {
+	user      *User
+	tokenID   int
+	expiresAt time.Time
+}
+
+// tokenCache avoids re-scanning all tokens + bcrypt on every API request.
+// Entries expire after 5 minutes.
+var tokenCache sync.Map // map[string]*tokenCacheEntry
+
+const tokenCacheTTL = 5 * time.Minute
 
 type APIToken struct {
 	ID          int    `json:"id"`
@@ -102,6 +116,17 @@ func (ats *APITokenService) GetByUser(userID int) ([]*APIToken, error) {
 }
 
 func (ats *APITokenService) ValidateToken(token string) (*User, error) {
+	// Check cache first to avoid expensive DB scan + bcrypt on every request
+	if entry, ok := tokenCache.Load(token); ok {
+		cached := entry.(*tokenCacheEntry)
+		if time.Now().Before(cached.expiresAt) {
+			// Update last_used asynchronously
+			go ats.updateLastUsed(cached.tokenID)
+			return cached.user, nil
+		}
+		tokenCache.Delete(token) // expired
+	}
+
 	query := `
 		SELECT at.id, at.user_id, at.token_hash, at.expires_at, at.is_active,
 		       u.user_id, u.username, u.email, u.role_id
@@ -109,48 +134,55 @@ func (ats *APITokenService) ValidateToken(token string) (*User, error) {
 		JOIN users u ON at.user_id = u.user_id
 		WHERE at.is_active = true
 	`
-	
+
 	rows, err := ats.DB.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query API tokens: %w", err)
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var tokenID, userID, userRole int
 		var tokenHash, username, email string
 		var expiresAt *string
 		var isActive bool
-		
+
 		err := rows.Scan(&tokenID, &userID, &tokenHash, &expiresAt, &isActive,
 			&userID, &username, &email, &userRole)
 		if err != nil {
-			continue // Skip invalid rows
+			continue
 		}
-		
+
 		// Check if token is expired
 		if expiresAt != nil {
 			expiry, err := time.Parse(time.RFC3339, *expiresAt)
 			if err == nil && time.Now().UTC().After(expiry) {
-				continue // Skip expired tokens
+				continue
 			}
 		}
-		
+
 		// Compare the provided token with the hash
 		err = bcrypt.CompareHashAndPassword([]byte(tokenHash), []byte(token))
 		if err == nil {
-			// Update last used timestamp
-			ats.updateLastUsed(tokenID)
-			
-			return &User{
+			user := &User{
 				UserID:   userID,
 				Username: username,
 				Email:    email,
 				Role:     userRole,
-			}, nil
+			}
+
+			// Cache the validated token
+			tokenCache.Store(token, &tokenCacheEntry{
+				user:      user,
+				tokenID:   tokenID,
+				expiresAt: time.Now().Add(tokenCacheTTL),
+			})
+
+			ats.updateLastUsed(tokenID)
+			return user, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("invalid API token")
 }
 
@@ -160,6 +192,14 @@ func (ats *APITokenService) updateLastUsed(tokenID int) {
 }
 
 func (ats *APITokenService) Revoke(tokenID int, userID int) error {
+	// Clear cache entries for this token
+	tokenCache.Range(func(key, value interface{}) bool {
+		if entry, ok := value.(*tokenCacheEntry); ok && entry.tokenID == tokenID {
+			tokenCache.Delete(key)
+		}
+		return true
+	})
+
 	query := `UPDATE api_tokens SET is_active = false WHERE id = $1 AND user_id = $2`
 	result, err := ats.DB.Exec(query, tokenID, userID)
 	if err != nil {

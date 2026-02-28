@@ -132,11 +132,13 @@ func renderMarkdown(content string) string {
 
 // ---- Generic helpers shared by filters ----
 
+// preBlockRe matches <pre>...</pre> blocks (case-insensitive, dotall).
+var preBlockRe = regexp.MustCompile(`(?is)<pre[\s\S]*?</pre>`)
+
 // Protects <pre> blocks with placeholders while f runs, then restores them.
 func protectPreBlocks(s string, f func(string) string) string {
-	preRe := regexp.MustCompile(`(?is)<pre[\s\S]*?</pre>`)
 	var stash []string
-	s = preRe.ReplaceAllStringFunc(s, func(m string) string {
+	s = preBlockRe.ReplaceAllStringFunc(s, func(m string) string {
 		stash = append(stash, m)
 		return placeholder("PRE", len(stash)-1)
 	})

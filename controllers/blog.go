@@ -22,8 +22,6 @@ type Blog struct {
 }
 
 func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("DEBUG Controller: GetBlogPost called\n")
-
 	var data struct {
 		LoggedIn        bool
 		Email           string
@@ -43,21 +41,11 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 	// Extract the slug from the URL
 	slug := chi.URLParam(r, "slug")
 
-	fmt.Println("Slug:", slug)
-	fmt.Printf("DEBUG Controller: About to call BlogService.GetBlogPostBySlug with slug '%s'\n", slug)
-	fmt.Printf("DEBUG Controller: BlogService is: %+v\n", b.BlogService)
-	// Fetch the blog post using the BlogService
 	post, err := b.BlogService.GetBlogPostBySlug(slug)
-	fmt.Printf("DEBUG Controller: GetBlogPostBySlug call completed, err: %v\n", err)
 	if err != nil {
-		fmt.Printf("DEBUG Controller: BlogService.GetBlogPostBySlug returned error: %v\n", err)
-		// Handle error (e.g., render a 404 page)
 		http.NotFound(w, r)
 		return
 	}
-	fmt.Printf("DEBUG Controller: BlogService.GetBlogPostBySlug returned post ID %d\n", post.ID)
-
-	fmt.Println("Post:", post)
 
 	// Initialize default data
 	data.LoggedIn = false
@@ -85,8 +73,6 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 	data.ReadTime = fmt.Sprintf("%d", readingMinutes)
 
 	if post.ID == 0 {
-		// Handle case where post is not found
-		fmt.Println("Post not found")
 		http.Redirect(w, r, "/404", http.StatusFound)
 		return
 	}
@@ -137,7 +123,6 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 	// ContentHTML is already prepared by BlogService (Markdown -> HTML, list/blockquote tweaks)
 
 	user, _ := utils.IsUserLoggedIn(r, b.SessionService)
-	fmt.Print(user)
 	if user != nil {
 		data.LoggedIn = true
 		data.Email = user.Email
@@ -145,7 +130,6 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		data.IsAdmin = (user.Role == 2) // Administrator role
 		data.UserPermissions = models.GetPermissions(user.Role)
 	}
-	// Render the blog post template with the retrieved data
-	// Example: b.Templates.BlogPost.Execute(w, r, post)
+	w.Header().Set("Cache-Control", "public, max-age=60")
 	b.Templates.Post.Execute(w, r, data)
 }

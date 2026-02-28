@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"anshumanbiswas.com/blog/internal/render"
+	"github.com/lib/pq"
 )
 
 type PostsList struct {
@@ -65,11 +66,10 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 
 		// Parse and format CreatedAt
 		t, err := time.Parse(time.RFC3339, post.CreatedAt)
-		if err != nil {
-			fmt.Println(err)
+		if err == nil {
+			post.CreatedAt = t.Format(time.RFC3339)            // Keep original for JavaScript
+			post.PublicationDate = t.Format("January 2, 2006") // Readable fallback
 		}
-		post.CreatedAt = t.Format(time.RFC3339)            // Keep original for JavaScript
-		post.PublicationDate = t.Format("January 2, 2006") // Readable fallback
 
 		// Parse and format PublicationDate if it's different from CreatedAt
 		if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
@@ -79,34 +79,22 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 			}
 		}
 
-		// Load categories for this post
-		categoriesQuery := `SELECT c.category_id, c.category_name, c.created_at 
-						   FROM categories c 
-						   JOIN post_categories pc ON c.category_id = pc.category_id 
-						   WHERE pc.post_id = $1`
-		categoryRows, catErr := pp.DB.Query(categoriesQuery, post.ID)
-		if catErr == nil {
-			var categories []Category
-			for categoryRows.Next() {
-				var category Category
-				categoryRows.Scan(&category.ID, &category.Name, &category.CreatedAt)
-				categories = append(categories, category)
-			}
-			categoryRows.Close()
-			post.Categories = categories
-		}
-
-		// Build preview from raw content to preserve Markdown list/numbering, then trim for length
-		preview := previewContentRaw(post.Content)
-		post.ContentHTML = template.HTML(RenderContent(preview))
-
 		list.Posts = append(list.Posts, post)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("create post: %w", err)
-	} else {
-		fmt.Printf("Posts fetched successfully! Count: %d\n", len(list.Posts))
+		return nil, fmt.Errorf("get top posts: %w", err)
+	}
+
+	// Batch-load categories for all posts
+	if err := pp.loadCategoriesForPosts(list.Posts); err != nil {
+		return nil, fmt.Errorf("load categories: %w", err)
+	}
+
+	// Render previews
+	for i := range list.Posts {
+		preview := previewContentRaw(list.Posts[i].Content)
+		list.Posts[i].ContentHTML = template.HTML(RenderContent(preview))
 	}
 
 	return &list, nil
@@ -130,11 +118,10 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 
 		// Parse and format CreatedAt
 		t, err := time.Parse(time.RFC3339, post.CreatedAt)
-		if err != nil {
-			fmt.Println(err)
+		if err == nil {
+			post.CreatedAt = t.Format(time.RFC3339)            // Keep original for JavaScript
+			post.PublicationDate = t.Format("January 2, 2006") // Readable fallback
 		}
-		post.CreatedAt = t.Format(time.RFC3339)            // Keep original for JavaScript
-		post.PublicationDate = t.Format("January 2, 2006") // Readable fallback
 
 		// Parse and format PublicationDate if it's different from CreatedAt
 		if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
@@ -144,17 +131,22 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 			}
 		}
 
-		// Build preview from raw content to preserve Markdown list/numbering, then trim for length
-		preview := previewContentRaw(post.Content)
-		post.ContentHTML = template.HTML(RenderContent(preview))
-
 		list.Posts = append(list.Posts, post)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("get paginated posts: %w", err)
-	} else {
-		fmt.Printf("Paginated posts fetched successfully! Limit: %d, Offset: %d\n", limit, offset)
+	}
+
+	// Batch-load categories for all posts
+	if err := pp.loadCategoriesForPosts(list.Posts); err != nil {
+		return nil, fmt.Errorf("load categories: %w", err)
+	}
+
+	// Render previews
+	for i := range list.Posts {
+		preview := previewContentRaw(list.Posts[i].Content)
+		list.Posts[i].ContentHTML = template.HTML(RenderContent(preview))
 	}
 
 	return &list, nil
@@ -182,11 +174,10 @@ func (pp *PostService) GetAllPosts() (*PostsList, error) {
 
 		// Parse and format CreatedAt
 		t, err := time.Parse(time.RFC3339, post.CreatedAt)
-		if err != nil {
-			fmt.Println(err)
+		if err == nil {
+			post.CreatedAt = t.Format(time.RFC3339)
+			post.PublicationDate = t.Format("January 2, 2006")
 		}
-		post.CreatedAt = t.Format(time.RFC3339)
-		post.PublicationDate = t.Format("January 2, 2006")
 
 		// Parse and format PublicationDate if it's different from CreatedAt
 		if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
@@ -226,11 +217,10 @@ func (pp *PostService) GetPostsByUser(userID int) (*PostsList, error) {
 
 		// Parse and format CreatedAt
 		t, err := time.Parse(time.RFC3339, post.CreatedAt)
-		if err != nil {
-			fmt.Println(err)
+		if err == nil {
+			post.CreatedAt = t.Format(time.RFC3339)
+			post.PublicationDate = t.Format("January 2, 2006")
 		}
-		post.CreatedAt = t.Format(time.RFC3339)
-		post.PublicationDate = t.Format("January 2, 2006")
 
 		// Parse and format PublicationDate if it's different from CreatedAt
 		if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
@@ -404,15 +394,11 @@ func (pp *PostService) Create(userID int, categoryID int, title, content string,
 		RETURNING post_id
 	`
 	var postID int
-	println(userID, categoryID, title, content, isPublished, featured, featuredImageURL)
 	err := pp.DB.QueryRow(query, userID, categoryID, title, content, slug, timefmt,
 		timefmt, isPublished, featured, featuredImageURL, timefmt).Scan(&postID)
 	if err != nil {
-		fmt.Printf("Error: %v", err)
 		return nil, fmt.Errorf("create post: %w", err)
 	}
-	fmt.Println("Post created successfully!")
-	fmt.Println(postID)
 
 	return &Post{
 		ID:               postID,
@@ -496,8 +482,46 @@ func (ps PostService) Delete(postID int) error {
 	return nil
 }
 
+// defaultRenderer is a singleton to avoid re-allocating on every render call.
+var defaultRenderer = render.NewRenderer(render.DefaultOptions())
+
 // RenderContent converts markdown content to HTML using the default renderer
 func RenderContent(content string) string {
-	renderer := render.NewRenderer(render.DefaultOptions())
-	return renderer.Render(content)
+	return defaultRenderer.Render(content)
+}
+
+// loadCategoriesForPosts batch-loads categories for all posts in a single query,
+// replacing the N+1 pattern of querying categories per-post inside a loop.
+func (pp *PostService) loadCategoriesForPosts(posts []Post) error {
+	if len(posts) == 0 {
+		return nil
+	}
+	ids := make([]int, len(posts))
+	idIdx := make(map[int][]int) // post_id -> indices in posts slice
+	for i, p := range posts {
+		ids[i] = p.ID
+		idIdx[p.ID] = append(idIdx[p.ID], i)
+	}
+
+	query := `SELECT pc.post_id, c.category_id, c.category_name, c.created_at
+			  FROM categories c
+			  JOIN post_categories pc ON c.category_id = pc.category_id
+			  WHERE pc.post_id = ANY($1)`
+	rows, err := pp.DB.Query(query, pq.Array(ids))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var postID int
+		var cat Category
+		if err := rows.Scan(&postID, &cat.ID, &cat.Name, &cat.CreatedAt); err != nil {
+			return err
+		}
+		for _, idx := range idIdx[postID] {
+			posts[idx].Categories = append(posts[idx].Categories, cat)
+		}
+	}
+	return rows.Err()
 }

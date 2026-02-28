@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -33,14 +32,14 @@ func main() {
 	// Track application start time for uptime calculation
 	startTime := time.Now()
 
-	sugar := sugarLog()
+	initLogger()
 
 	apiToken := os.Getenv("API_TOKEN")
 
 	if apiToken == "" {
-		log.Fatal("API token not set in environment variable: API_TOKEN")
+		logger.Fatal().Msg("API token not set in environment variable: API_TOKEN")
 	} else {
-		sugar.Infof("API Token: %s", apiToken)
+		logger.Info().Str("token", apiToken).Msg("API token loaded")
 	}
 
 	listenAddr := flag.String("listen-addr", ":"+getAppPort(), "server listen address")
@@ -60,7 +59,7 @@ func main() {
 	database, err := Initialize(dbUser, dbPassword, dbName, dbHost, dbPort)
 
 	if err != nil {
-		log.Fatalf("Could not set up database: %v", err)
+		logger.Fatal().Err(err).Msg("could not set up database")
 	}
 	defer database.Conn.Close()
 
@@ -110,6 +109,12 @@ func main() {
 	slideService := models.SlideService{
 		DB: DB,
 	}
+
+	// Initialize SearchService
+	searchService := &models.SearchService{
+		DB: DB,
+	}
+	searchService.BackfillSlideContent()
 
 	// Initialize SystemService
 	systemService := models.NewSystemService(DB, "migrations", startTime)
@@ -168,6 +173,11 @@ func main() {
 		ExternalSystemService: &externalSystemService,
 	}
 
+	// Initialize Search controller
+	searchC := controllers.Search{
+		SearchService: searchService,
+	}
+
 	// Initialize System controller
 	systemC := controllers.System{
 		SystemService:         systemService,
@@ -184,10 +194,10 @@ func main() {
 	isSignupDisabled, _ := strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
 
 	if isSignupDisabled {
-		fmt.Println("Signups Disabled ...")
+		logger.Info().Msg("signups disabled")
 		r.Get("/signup", usersC.Disabled)
 	} else {
-		fmt.Println("Signups Enabled ...")
+		logger.Info().Msg("signups enabled")
 		r.Get("/signup", usersC.New)
 		r.Post("/signup", usersC.Create)
 	}
@@ -333,6 +343,12 @@ func main() {
 	// Public API for lazy loading posts
 	r.Get("/api/posts/load-more", usersC.LoadMorePosts)
 
+	// Public search API
+	r.Get("/api/search", searchC.HandleSearch)
+
+	// RSS Feed
+	r.Get("/rss", rssHandler(&postService))
+
 	// REST API endpoints for users
 	r.Route("/api/users", func(r chi.Router) {
 		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
@@ -366,7 +382,7 @@ func main() {
 		http.ServeFile(w, r, "templates/NotFoundPage.gohtml")
 	})
 
-	sugar.Infof("server listening on %s", *listenAddr)
+	logger.Info().Str("addr", *listenAddr).Msg("server listening")
 
 	// Serve favicon at root level for both GET and HEAD requests
 	r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
@@ -400,7 +416,15 @@ func main() {
 	cssFileServer := http.FileServer(http.Dir("./css/"))
 	r.Handle("/css/*", http.StripPrefix("/css/", cssFileServer))
 
-	http.ListenAndServe(*listenAddr, r)
+	server := &http.Server{
+		Addr:              *listenAddr,
+		Handler:           r,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	server.ListenAndServe()
 }
 
 // AuthMiddleware is a middleware function to check API token
@@ -540,7 +564,7 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 	// Decode the JSON request to newPost
 	err := json.NewDecoder(r.Body).Decode(&newPost)
 	if err != nil {
-		log.Printf("Error decoding JSON: %v", err)
+		logger.Error().Err(err).Msg("error decoding JSON")
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
@@ -561,4 +585,84 @@ func jsonResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+// rssHandler returns an RSS 2.0 feed of published posts.
+func rssHandler(ps *models.PostService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		posts, err := ps.GetTopPostsWithPagination(20, 0)
+		if err != nil || posts == nil {
+			http.Error(w, "Failed to generate feed", http.StatusInternalServerError)
+			return
+		}
+
+		baseURL := os.Getenv("APP_BASE_URL")
+		if baseURL == "" {
+			baseURL = "http://localhost:22222"
+		}
+
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=300")
+
+		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Anshuman Biswas - Engineering Insights</title>
+  <link>%s</link>
+  <description>Deep dives into software architecture, cloud infrastructure, and scalable system design.</description>
+  <language>en-us</language>
+  <atom:link href="%s/rss" rel="self" type="application/rss+xml"/>
+`, baseURL, baseURL)
+
+		for _, post := range posts.Posts {
+			if !post.IsPublished {
+				continue
+			}
+			// Escape XML special characters in title and content
+			title := xmlEscape(post.Title)
+			link := fmt.Sprintf("%s/blog/%s", baseURL, post.Slug)
+			desc := xmlEscape(stripHTMLTags(string(post.ContentHTML)))
+			if len(desc) > 500 {
+				desc = desc[:500] + "..."
+			}
+			fmt.Fprintf(w, `  <item>
+    <title>%s</title>
+    <link>%s</link>
+    <guid>%s</guid>
+    <description>%s</description>
+    <pubDate>%s</pubDate>
+  </item>
+`, title, link, link, desc, post.CreatedAt)
+		}
+
+		fmt.Fprint(w, "</channel>\n</rss>")
+	}
+}
+
+func xmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	s = strings.ReplaceAll(s, "'", "&apos;")
+	return s
+}
+
+func stripHTMLTags(s string) string {
+	var result strings.Builder
+	inTag := false
+	for _, r := range s {
+		if r == '<' {
+			inTag = true
+			continue
+		}
+		if r == '>' {
+			inTag = false
+			continue
+		}
+		if !inTag {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }

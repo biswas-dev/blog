@@ -87,46 +87,12 @@ func (t Template) Execute(w http.ResponseWriter, r *http.Request, data interface
 		http.Error(w, "There was an error rendering the page.", http.StatusInternalServerError)
 		return
 	}
+	// Only re-register csrfField since it needs the per-request *http.Request.
+	// All other funcs (contains, upper, add, initial, where) are already registered at parse time.
 	tpl = tpl.Funcs(
 		template.FuncMap{
 			"csrfField": func() template.HTML {
 				return csrf.TemplateField(r)
-			},
-			"contains": func(s, substr string) bool {
-				return strings.Contains(s, substr)
-			},
-			"upper": func(s string) string { return strings.ToUpper(s) },
-			"add": func(a, b int) int {
-				return a + b
-			},
-			"initial": func(s string) string {
-				if s == "" {
-					return ""
-				}
-				r := []rune(s)
-				return strings.ToUpper(string(r[0]))
-			},
-			"where": func(slice interface{}, field string, value interface{}) interface{} {
-				sliceValue := reflect.ValueOf(slice)
-				if sliceValue.Kind() != reflect.Slice {
-					return slice
-				}
-
-				result := reflect.MakeSlice(sliceValue.Type(), 0, 0)
-				for i := 0; i < sliceValue.Len(); i++ {
-					item := sliceValue.Index(i)
-					if item.Kind() == reflect.Ptr {
-						item = item.Elem()
-					}
-
-					if item.Kind() == reflect.Struct {
-						fieldValue := item.FieldByName(field)
-						if fieldValue.IsValid() && reflect.DeepEqual(fieldValue.Interface(), value) {
-							result = reflect.Append(result, sliceValue.Index(i))
-						}
-					}
-				}
-				return result.Interface()
 			},
 		},
 	)

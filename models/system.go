@@ -37,6 +37,8 @@ type DatabaseInfo struct {
 	TotalMigrations    int    `json:"total_migrations"`
 	AppliedMigrations  int    `json:"applied_migrations"`
 	PendingMigrations  int    `json:"pending_migrations"`
+	CurrentVersion     int    `json:"current_version"`
+	Dirty              bool   `json:"dirty"`
 	Connected          bool   `json:"connected"`
 	ConnectionError    string `json:"connection_error,omitempty"`
 	ServerTimeUTC      string `json:"server_time_utc"`
@@ -132,8 +134,9 @@ func (s *SystemService) getDatabaseInfo() DatabaseInfo {
 	// Count total migrations (*.up.sql files)
 	info.TotalMigrations = s.countMigrationFiles()
 
-	// Count applied migrations from schema_migrations table
-	info.AppliedMigrations = s.countAppliedMigrations()
+	// Get current migration version and dirty state from schema_migrations
+	info.CurrentVersion, info.Dirty = s.getMigrationState()
+	info.AppliedMigrations = info.CurrentVersion
 
 	// Calculate pending migrations
 	info.PendingMigrations = info.TotalMigrations - info.AppliedMigrations
@@ -217,17 +220,15 @@ func (s *SystemService) countMigrationFiles() int {
 	return count
 }
 
-// countAppliedMigrations counts migrations in the schema_migrations table
-func (s *SystemService) countAppliedMigrations() int {
-	var count int
-
-	err := s.db.QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE dirty = false").Scan(&count)
+// getMigrationState reads the current version and dirty flag from schema_migrations.
+// golang-migrate stores exactly one row: (version bigint, dirty boolean).
+func (s *SystemService) getMigrationState() (version int, dirty bool) {
+	err := s.db.QueryRow("SELECT version, dirty FROM schema_migrations LIMIT 1").Scan(&version, &dirty)
 	if err != nil {
 		// Table might not exist yet
-		return 0
+		return 0, false
 	}
-
-	return count
+	return version, dirty
 }
 
 // formatDuration formats a duration into a human-readable string
