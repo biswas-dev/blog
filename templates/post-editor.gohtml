@@ -149,6 +149,12 @@
               <input type="checkbox" id="preview-full" checked /> Full
             </label>
           </div>
+          <button type="button" id="fullscreen-btn" class="btn btn-fullscreen" title="Fullscreen split view (F11)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+            Fullscreen
+          </button>
         </div>
 
         <textarea id="editor" name="content" class="form-input w-full" style="min-height: 400px; font-family: ui-monospace, SFMono-Regular, Consolas, Monaco, monospace; font-size: 14px; line-height: 1.5; resize: vertical;">{{.Post.Content}}</textarea>
@@ -160,6 +166,44 @@
     </div>
   </form>
 </section>
+
+<!-- Fullscreen Split-View Editor -->
+<div id="fullscreen-editor" class="fullscreen-editor hidden">
+  <div class="fullscreen-topbar">
+    <div class="fullscreen-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <span id="fullscreen-post-title">Editing Post</span>
+    </div>
+    <div class="fullscreen-controls">
+      <label class="fullscreen-opt">
+        <input type="checkbox" id="fullscreen-preview-full" checked /> Show full content
+      </label>
+      <button type="button" id="fullscreen-exit" class="btn-fullscreen-exit" title="Exit fullscreen (Esc)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+        </svg>
+        Exit
+      </button>
+    </div>
+  </div>
+  <div class="fullscreen-split">
+    <div class="fullscreen-pane fullscreen-pane-editor">
+      <div class="pane-header">
+        <span class="pane-label">Markdown</span>
+        <span class="pane-hint">Raw editor</span>
+      </div>
+      <textarea id="fullscreen-textarea" class="fullscreen-textarea" spellcheck="true"></textarea>
+    </div>
+    <div class="fullscreen-divider" id="fullscreen-divider"></div>
+    <div class="fullscreen-pane fullscreen-pane-preview">
+      <div class="pane-header">
+        <span class="pane-label">Preview</span>
+        <span class="pane-hint" id="fullscreen-preview-status">Live</span>
+      </div>
+      <div id="fullscreen-preview-content" class="fullscreen-preview-content prose dark:prose-invert max-w-none"></div>
+    </div>
+  </div>
+</div>
 
 <style>
 /* CRITICAL: Reset and force the editor layout with maximum specificity */
@@ -1690,6 +1734,187 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+// ==================== FULLSCREEN SPLIT-VIEW EDITOR ====================
+(function() {
+  const fsOverlay = document.getElementById('fullscreen-editor');
+  const fsTextarea = document.getElementById('fullscreen-textarea');
+  const fsPreview = document.getElementById('fullscreen-preview-content');
+  const fsStatus = document.getElementById('fullscreen-preview-status');
+  const fsTitleEl = document.getElementById('fullscreen-post-title');
+  const fsFullCheck = document.getElementById('fullscreen-preview-full');
+  const fsExitBtn = document.getElementById('fullscreen-exit');
+  const fsBtn = document.getElementById('fullscreen-btn');
+  const fsDivider = document.getElementById('fullscreen-divider');
+  const mainEditor = document.getElementById('editor');
+
+  let fsActive = false;
+  let renderTimer = null;
+  let renderAbort = null;
+  const DEBOUNCE_MS = 350;
+
+  function enterFullscreen() {
+    // Copy content from main editor to fullscreen textarea
+    fsTextarea.value = mainEditor.value;
+
+    // Set title
+    const titleInput = document.querySelector('input[name="title"]');
+    fsTitleEl.textContent = titleInput && titleInput.value ? titleInput.value : 'Editing Post';
+
+    // Show fullscreen overlay
+    fsOverlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    fsActive = true;
+
+    // Focus the textarea
+    fsTextarea.focus();
+
+    // Trigger initial render
+    scheduleRender();
+  }
+
+  function exitFullscreen() {
+    if (!fsActive) return;
+
+    // Copy content back to main editor
+    mainEditor.value = fsTextarea.value;
+
+    // Hide fullscreen overlay
+    fsOverlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    fsActive = false;
+
+    // Cancel pending renders
+    if (renderTimer) clearTimeout(renderTimer);
+    if (renderAbort) renderAbort.abort();
+  }
+
+  function scheduleRender() {
+    if (renderTimer) clearTimeout(renderTimer);
+    fsStatus.textContent = 'Typing...';
+    fsStatus.classList.remove('rendering');
+
+    renderTimer = setTimeout(doRender, DEBOUNCE_MS);
+  }
+
+  async function doRender() {
+    let content = fsTextarea.value;
+
+    if (!content.trim()) {
+      fsPreview.innerHTML = '<div class="preview-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Start typing to see a live preview</span></div>';
+      fsStatus.textContent = 'Live';
+      fsStatus.classList.remove('rendering');
+      return;
+    }
+
+    content = fsFullCheck.checked ? removeMore(content) : cutAtMore(content);
+
+    // Cancel previous in-flight request
+    if (renderAbort) renderAbort.abort();
+    renderAbort = new AbortController();
+
+    fsStatus.textContent = 'Rendering...';
+    fsStatus.classList.add('rendering');
+
+    try {
+      const body = new URLSearchParams();
+      body.set('content', content);
+      const res = await fetch('/admin/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+        signal: renderAbort.signal
+      });
+      const j = res.ok ? await res.json() : { html: convertFences(content) };
+      fsPreview.innerHTML = j.html || convertFences(content);
+    } catch (e) {
+      if (e.name === 'AbortError') return; // Superseded by newer request
+      fsPreview.innerHTML = convertFences(content);
+    }
+
+    enhanceArticle(fsPreview);
+    if (window.Prism) Prism.highlightAllUnder(fsPreview);
+
+    fsStatus.textContent = 'Live';
+    fsStatus.classList.remove('rendering');
+  }
+
+  // Event: Enter fullscreen
+  fsBtn.addEventListener('click', enterFullscreen);
+
+  // Event: Exit fullscreen
+  fsExitBtn.addEventListener('click', exitFullscreen);
+
+  // Event: Escape key exits fullscreen
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && fsActive) {
+      exitFullscreen();
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // F11 toggles fullscreen (only when not in a modal)
+    if (e.key === 'F11' && !document.querySelector('.fixed:not(.hidden)')) {
+      e.preventDefault();
+      if (fsActive) exitFullscreen();
+      else enterFullscreen();
+    }
+  });
+
+  // Event: Live typing → real-time preview
+  fsTextarea.addEventListener('input', scheduleRender);
+
+  // Event: Full content toggle
+  fsFullCheck.addEventListener('change', () => {
+    if (fsActive) scheduleRender();
+  });
+
+  // Sync content back to main editor on every change (safety net)
+  fsTextarea.addEventListener('input', () => {
+    mainEditor.value = fsTextarea.value;
+  });
+
+  // Resizable divider (drag to resize panes)
+  let isDragging = false;
+  fsDivider.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    fsDivider.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const split = document.querySelector('.fullscreen-split');
+    const rect = split.getBoundingClientRect();
+    const pct = ((e.clientX - rect.left) / rect.width) * 100;
+    const clamped = Math.min(Math.max(pct, 20), 80);
+    const editorPane = document.querySelector('.fullscreen-pane-editor');
+    const previewPane = document.querySelector('.fullscreen-pane-preview');
+    editorPane.style.flex = 'none';
+    editorPane.style.width = clamped + '%';
+    previewPane.style.flex = 'none';
+    previewPane.style.width = (100 - clamped) + '%';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    fsDivider.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+
+  // Tab key inserts spaces instead of moving focus
+  fsTextarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = fsTextarea.selectionStart;
+      const end = fsTextarea.selectionEnd;
+      fsTextarea.value = fsTextarea.value.substring(0, start) + '  ' + fsTextarea.value.substring(end);
+      fsTextarea.selectionStart = fsTextarea.selectionEnd = start + 2;
+      scheduleRender();
+    }
+  });
+})();
 </script>
 
 <!-- Multi-upload Modal -->
@@ -2195,6 +2420,276 @@ document.addEventListener('DOMContentLoaded', function() {
   width: 24px;
   height: 24px;
   color: #6b7280;
+}
+
+/* ==================== FULLSCREEN SPLIT-VIEW EDITOR ==================== */
+.btn-fullscreen {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px !important;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px !important;
+  border: 1px solid #d1d5db !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #fff !important;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-fullscreen:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+.btn-fullscreen svg { stroke: #fff; }
+
+.fullscreen-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dark .fullscreen-editor {
+  background: #0f172a;
+}
+.fullscreen-editor.hidden { display: none; }
+
+/* Top bar */
+.fullscreen-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  height: 48px;
+  box-sizing: border-box;
+}
+.dark .fullscreen-topbar {
+  background: #1e293b;
+  border-bottom-color: #334155;
+}
+.fullscreen-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50%;
+}
+.dark .fullscreen-title { color: #e2e8f0; }
+.fullscreen-title svg { stroke: #6366f1; flex-shrink: 0; }
+.dark .fullscreen-title svg { stroke: #818cf8; }
+
+.fullscreen-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.fullscreen-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #64748b;
+  cursor: pointer;
+  user-select: none;
+}
+.dark .fullscreen-opt { color: #94a3b8; }
+
+.btn-fullscreen-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-fullscreen-exit:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+.dark .btn-fullscreen-exit {
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+.dark .btn-fullscreen-exit:hover {
+  background: #334155;
+}
+
+/* Split panes */
+.fullscreen-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.fullscreen-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.fullscreen-pane-editor {
+  flex: 1;
+  border-right: none;
+}
+.fullscreen-pane-preview {
+  flex: 1;
+}
+
+/* Resizable divider */
+.fullscreen-divider {
+  width: 6px;
+  background: #e2e8f0;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+}
+.fullscreen-divider:hover,
+.fullscreen-divider.dragging {
+  background: #6366f1;
+}
+.dark .fullscreen-divider {
+  background: #334155;
+}
+.dark .fullscreen-divider:hover,
+.dark .fullscreen-divider.dragging {
+  background: #818cf8;
+}
+
+/* Pane headers */
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  height: 34px;
+  box-sizing: border-box;
+}
+.dark .pane-header {
+  background: #1e293b;
+  border-bottom-color: #334155;
+}
+.pane-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+.dark .pane-label { color: #94a3b8; }
+.pane-hint {
+  font-size: 11px;
+  color: #94a3b8;
+}
+.pane-hint.rendering {
+  color: #f59e0b;
+}
+.dark .pane-hint { color: #64748b; }
+
+/* Textarea */
+.fullscreen-textarea {
+  flex: 1;
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 20px 24px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #1e293b;
+  background: #ffffff;
+  overflow-y: auto;
+  box-sizing: border-box;
+  tab-size: 2;
+}
+.dark .fullscreen-textarea {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+.fullscreen-textarea::placeholder {
+  color: #94a3b8;
+}
+.fullscreen-textarea:focus {
+  outline: none;
+}
+
+/* Preview content */
+.fullscreen-preview-content {
+  flex: 1;
+  padding: 20px 28px;
+  overflow-y: auto;
+  background: #ffffff;
+  color: #1e293b;
+}
+.dark .fullscreen-preview-content {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Preview typography */
+.fullscreen-preview-content h1 { font-size: 1.875rem; line-height: 2.25rem; font-weight: 700; margin: 1.2em 0 .6em; }
+.fullscreen-preview-content h2 { font-size: 1.5rem; line-height: 2rem; font-weight: 700; margin: 1.1em 0 .6em; border-bottom: 1px solid #e2e8f0; padding-bottom: .3em; }
+.dark .fullscreen-preview-content h2 { border-bottom-color: #334155; }
+.fullscreen-preview-content h3 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; margin: 1em 0 .5em; }
+.fullscreen-preview-content p { margin: 1em 0; line-height: 1.75; }
+.fullscreen-preview-content ul { list-style: disc; padding-left: 1.5rem; margin: .75em 0; }
+.fullscreen-preview-content ol { list-style: decimal; padding-left: 1.5rem; margin: .75em 0; }
+.fullscreen-preview-content li { margin: .25em 0; line-height: 1.7; }
+.fullscreen-preview-content blockquote { border-left: 4px solid #6366f1; padding: .5rem 1rem; margin: 1rem 0; background: #f8fafc; border-radius: 0 8px 8px 0; color: #475569; }
+.dark .fullscreen-preview-content blockquote { background: #1e293b; border-left-color: #818cf8; color: #94a3b8; }
+.fullscreen-preview-content pre { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; font-size: 13px; line-height: 1.6; }
+.fullscreen-preview-content code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em; }
+.fullscreen-preview-content :not(pre) > code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #e11d48; }
+.dark .fullscreen-preview-content :not(pre) > code { background: #1e293b; color: #fb7185; }
+.fullscreen-preview-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+.fullscreen-preview-content table { border: 1.5px solid rgba(0,0,0,0.15); border-radius: 12px; border-collapse: separate; overflow: hidden; width: 100%; margin: 1rem 0; }
+.fullscreen-preview-content th, .fullscreen-preview-content td { border-bottom: 1.5px solid rgba(0,0,0,0.12); padding: .6rem .9rem; }
+.fullscreen-preview-content th { background: linear-gradient(135deg, #f8fafc, #e2e8f0); font-weight: 700; }
+.dark .fullscreen-preview-content th { background: linear-gradient(135deg, #1f2937, #374151); }
+.fullscreen-preview-content a { color: #2563eb; font-weight: 500; text-decoration: none; }
+.fullscreen-preview-content a:hover { text-decoration: underline; }
+.dark .fullscreen-preview-content a { color: #60a5fa; }
+.fullscreen-preview-content hr { border: 0; height: 3px; background: linear-gradient(90deg, rgba(99,102,241,0) 0%, rgba(99,102,241,0.5) 50%, rgba(99,102,241,0) 100%); margin: 2rem 0; }
+
+/* Synced scroll indicator */
+.fullscreen-preview-content .preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #94a3b8;
+  font-size: 14px;
+  gap: 12px;
+}
+.fullscreen-preview-content .preview-empty svg {
+  stroke: #cbd5e1;
+}
+.dark .fullscreen-preview-content .preview-empty svg {
+  stroke: #475569;
 }
 
 .cover-upload-text {
