@@ -17,7 +17,7 @@ type BlogService struct {
 func NewBlogService(db *sql.DB) *BlogService {
 	return &BlogService{
 		DB:   db,
-		wiki: gowiki.New(),
+		wiki: gowiki.New(gowiki.WithDrawBasePath("/draw")),
 	}
 }
 
