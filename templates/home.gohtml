@@ -12,7 +12,7 @@
 {{if .Posts.Posts}}
 <section class="post-feed">
     {{range $i, $post := .Posts.Posts}}
-    <a href="/blog/{{$post.Slug}}" class="post-item {{if eq $i 0}}post-lead{{end}}">
+    <article class="post-item {{if eq $i 0}}post-lead{{end}}" data-href="/blog/{{$post.Slug}}">
         <div class="post-item-inner">
             <div class="post-item-text">
                 <div class="post-item-meta">
@@ -33,7 +33,7 @@
                     </div>
                     {{end}}
                 </div>
-                <h2 class="post-item-title">{{$post.Title}}</h2>
+                <h2 class="post-item-title"><a href="/blog/{{$post.Slug}}">{{$post.Title}}</a></h2>
                 <div class="post-item-excerpt">
                     {{if $post.ContentHTML}}{{$post.ContentHTML}}{{else}}{{$post.Content}}{{end}}
                 </div>
@@ -48,7 +48,7 @@
             </div>
             {{end}}
         </div>
-    </a>
+    </article>
     {{end}}
 </section>
 {{else}}
@@ -104,14 +104,14 @@ function appendPost(post) {
     }
 
     const itemHTML = `
-        <a href="/blog/${escapeHTML(post.Slug)}" class="post-item">
+        <article class="post-item" data-href="/blog/${escapeHTML(post.Slug)}">
             <div class="post-item-inner">
                 <div class="post-item-text">
                     <div class="post-item-meta">
                         <time datetime="${post.CreatedAt}">${post.PublicationDate}</time>
                         ${categoriesHTML}
                     </div>
-                    <h2 class="post-item-title">${escapeHTML(post.Title)}</h2>
+                    <h2 class="post-item-title"><a href="/blog/${escapeHTML(post.Slug)}">${escapeHTML(post.Title)}</a></h2>
                     <div class="post-item-excerpt">
                         ${post.ContentHTML || (post.Content && post.Content.length > 200 ? escapeHTML(post.Content.substring(0, 200)) + '...' : escapeHTML(post.Content || ''))}
                     </div>
@@ -122,7 +122,7 @@ function appendPost(post) {
                 </div>
                 ${imageHTML}
             </div>
-        </a>`;
+        </article>`;
     feed.insertAdjacentHTML('beforeend', itemHTML);
 }
 
@@ -143,6 +143,15 @@ function loadMorePosts() {
         .catch(() => { /* ignore */ })
         .finally(() => { loading = false; });
 }
+
+// Make post items clickable (using <article> to avoid nested <a> issues)
+document.addEventListener('click', (e) => {
+    const item = e.target.closest('.post-item[data-href]');
+    if (!item) return;
+    // Don't navigate if user clicked an actual link inside the item
+    if (e.target.closest('a')) return;
+    window.location.href = item.dataset.href;
+});
 
 // Use IntersectionObserver to trigger infinite scroll
 const feed = document.querySelector('.post-feed');
