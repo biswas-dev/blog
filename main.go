@@ -16,6 +16,7 @@ import (
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/templates"
 	"anshumanbiswas.com/blog/views"
+	godraw "github.com/anchoo2kewl/go-draw"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -394,6 +395,13 @@ func main() {
 		r.Put("/{id}", categoriesC.UpdateCategory)
 		r.Delete("/{id}", categoriesC.DeleteCategory)
 	})
+
+	// go-draw canvas editor
+	drawHandler, err := godraw.New(godraw.WithBasePath("/draw"))
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not initialize go-draw")
+	}
+	r.Handle("/draw/*", drawHandler.Handler())
 
 	// Define a custom 404 handler
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
