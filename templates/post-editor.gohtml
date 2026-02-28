@@ -189,6 +189,14 @@
       <button type="button" class="fs-tb" data-fs-cmd="image" title="Insert image URL">Img</button>
       <button type="button" class="fs-tb" data-fs-cmd="upload" title="Upload image">Upload</button>
       <button type="button" class="fs-tb" data-fs-cmd="browse" title="Browse images">Browse</button>
+      <span class="fs-sep"></span>
+      <select id="fs-img-size-select" class="fs-select" title="Image size">
+        <option value="33%">Small</option>
+        <option value="66%" selected>Medium</option>
+        <option value="100%">Large</option>
+      </select>
+      <button type="button" class="fs-tb" data-fs-cmd="applysize" title="Apply size to image at cursor">Apply Size</button>
+      <button type="button" class="fs-tb" data-fs-cmd="editimg" title="Edit image metadata">Edit Img</button>
     </div>
     <div class="fullscreen-controls">
       <label class="fullscreen-opt">
@@ -203,12 +211,18 @@
     </div>
   </div>
   <div class="fullscreen-split">
-    <div class="fullscreen-pane fullscreen-pane-editor">
+    <div class="fullscreen-pane fullscreen-pane-editor" id="fs-editor-pane">
       <div class="pane-header">
         <span class="pane-label">Markdown</span>
-        <span class="pane-hint">Raw editor</span>
+        <span class="pane-hint">Raw editor &mdash; drop images here</span>
       </div>
-      <textarea id="fullscreen-textarea" class="fullscreen-textarea" spellcheck="true"></textarea>
+      <div class="fs-drop-wrapper">
+        <textarea id="fullscreen-textarea" class="fullscreen-textarea" spellcheck="true"></textarea>
+        <div id="fs-drop-overlay" class="fs-drop-overlay hidden">
+          <svg class="fs-drop-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+          <span class="fs-drop-text">Drop images here</span>
+        </div>
+      </div>
     </div>
     <div class="fullscreen-divider" id="fullscreen-divider"></div>
     <div class="fullscreen-pane fullscreen-pane-preview">
@@ -1975,9 +1989,85 @@ document.addEventListener('DOMContentLoaded', function() {
           if (window.openExistingImagesModal) window.openExistingImagesModal();
           break;
         }
+        case 'applysize': {
+          const sizeSelect = document.getElementById('fs-img-size-select');
+          const pct = (sizeSelect && sizeSelect.value) ? sizeSelect.value : '66%';
+          // Find image HTML at or near cursor and update its width
+          const pos = fsTextarea.selectionStart;
+          const val = fsTextarea.value;
+          // Look for <img ... style="width:XX%" near cursor
+          const imgRegex = /<img\s[^>]*style="[^"]*width:\s*[^;]+/g;
+          let match;
+          let closest = null;
+          while ((match = imgRegex.exec(val)) !== null) {
+            if (match.index <= pos && match.index + match[0].length + 50 >= pos) {
+              closest = match;
+            }
+          }
+          if (closest) {
+            const fullImgMatch = val.substring(closest.index).match(/<img\s[^>]*>/);
+            if (fullImgMatch) {
+              const oldTag = fullImgMatch[0];
+              const newTag = oldTag.replace(/width:\s*[^;%]+%?/, 'width:' + pct);
+              fsTextarea.value = val.substring(0, closest.index) + val.substring(closest.index).replace(oldTag, newTag);
+              mainEditor.value = fsTextarea.value;
+              scheduleRender();
+            }
+          }
+          break;
+        }
+        case 'editimg': {
+          // Trigger the existing edit-img-meta handler (it already uses getActiveTextarea)
+          document.getElementById('edit-img-meta')?.click();
+          break;
+        }
       }
     });
   });
+
+  // Fullscreen drag & drop image upload
+  const fsEditorPane = document.getElementById('fs-editor-pane');
+  const fsDropOverlay = document.getElementById('fs-drop-overlay');
+  let dragCounter = 0;
+
+  if (fsEditorPane && fsDropOverlay) {
+    fsEditorPane.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+        fsDropOverlay.classList.remove('hidden');
+      }
+    });
+    fsEditorPane.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    });
+    fsEditorPane.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        fsDropOverlay.classList.add('hidden');
+      }
+    });
+    fsEditorPane.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      fsDropOverlay.classList.add('hidden');
+
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      if (files.length === 0) return;
+
+      // Feed files into the existing multi-upload input and trigger its change handler
+      const multiInput = document.getElementById('multi-upload');
+      if (multiInput) {
+        const dt = new DataTransfer();
+        files.forEach(f => dt.items.add(f));
+        multiInput.files = dt.files;
+        multiInput.dispatchEvent(new Event('change'));
+      }
+    });
+  }
 
   // Resizable divider (drag to resize panes)
   let isDragging = false;
@@ -2638,6 +2728,50 @@ document.addEventListener('DOMContentLoaded', function() {
   margin: 0 4px;
 }
 .dark .fs-sep { background: #475569; }
+.fs-select {
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  line-height: 1.5;
+}
+.dark .fs-select {
+  background: #334155;
+  border-color: #475569;
+  color: #94a3b8;
+}
+.fs-drop-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.fs-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(99, 102, 241, 0.12);
+  border: 3px dashed #6366f1;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 10;
+  pointer-events: none;
+}
+.fs-drop-overlay.hidden { display: none; }
+.fs-drop-icon { width: 48px; height: 48px; color: #6366f1; }
+.fs-drop-text { font-size: 14px; font-weight: 600; color: #6366f1; }
+.dark .fs-drop-overlay {
+  background: rgba(129, 140, 248, 0.10);
+  border-color: #818cf8;
+}
+.dark .fs-drop-icon { color: #818cf8; }
+.dark .fs-drop-text { color: #818cf8; }
 
 .fullscreen-controls {
   display: flex;
