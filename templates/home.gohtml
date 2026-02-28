@@ -8,38 +8,33 @@
     </p>
 </section>
 
-<!-- Blog Posts — Magazine Layout -->
+<!-- Blog Posts — Editorial Layout -->
 {{if .Posts.Posts}}
+<section class="post-feed">
     {{range $i, $post := .Posts.Posts}}
-        {{if eq $i 0}}
-        <!-- Hero Card (first post) -->
-        <a href="/blog/{{$post.Slug}}" class="post-hero-card {{if not $post.FeaturedImageURL}}no-image{{end}}" style="text-decoration:none;color:inherit;">
-            {{if $post.FeaturedImageURL}}
-            <div class="post-card-image-wrap">
-                <img src="{{$post.FeaturedImageURL}}" alt="{{$post.Title}}" loading="eager" />
-            </div>
-            {{end}}
-            <div class="post-card-body">
-                <div class="post-card-meta">
-                    <span class="post-card-date">
-                        <time class="relative-time" datetime="{{$post.CreatedAt}}">{{$post.PublicationDate}}</time>
-                    </span>
+    <a href="/blog/{{$post.Slug}}" class="post-item {{if eq $i 0}}post-lead{{end}}">
+        <div class="post-item-inner">
+            <div class="post-item-text">
+                <div class="post-item-meta">
+                    <time class="relative-time" datetime="{{$post.CreatedAt}}">{{$post.PublicationDate}}</time>
                     {{if $post.Featured}}
+                    <span class="sep">&middot;</span>
                     <span class="featured-badge">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                        <svg fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
                         Featured
                     </span>
                     {{end}}
-                </div>
-                {{if $post.Categories}}
-                <div class="category-pills">
-                    {{range $post.Categories}}
-                    <span class="category-pill">{{.Name}}</span>
+                    {{if $post.Categories}}
+                    <span class="sep">&middot;</span>
+                    <div class="category-pills">
+                        {{range $post.Categories}}
+                        <span class="category-pill">{{.Name}}</span>
+                        {{end}}
+                    </div>
                     {{end}}
                 </div>
-                {{end}}
-                <h2 class="post-card-title">{{$post.Title}}</h2>
-                <div class="post-card-excerpt">
+                <h2 class="post-item-title">{{$post.Title}}</h2>
+                <div class="post-item-excerpt">
                     {{if $post.ContentHTML}}{{$post.ContentHTML}}{{else}}{{$post.Content}}{{end}}
                 </div>
                 <span class="read-more">
@@ -47,52 +42,15 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                 </span>
             </div>
-        </a>
-
-        <!-- Open grid for remaining posts -->
-        <section class="post-grid">
-        {{else}}
-        <!-- Grid Card -->
-        <a href="/blog/{{$post.Slug}}" class="post-card" style="text-decoration:none;color:inherit;">
             {{if $post.FeaturedImageURL}}
-            <div class="post-card-image-wrap">
-                <img src="{{$post.FeaturedImageURL}}" alt="{{$post.Title}}" loading="lazy" />
+            <div class="post-item-image">
+                <img src="{{$post.FeaturedImageURL}}" alt="{{$post.Title}}" loading="{{if eq $i 0}}eager{{else}}lazy{{end}}" />
             </div>
             {{end}}
-            <div class="post-card-body">
-                <div class="post-card-meta">
-                    <span class="post-card-date">
-                        <time class="relative-time" datetime="{{$post.CreatedAt}}">{{$post.PublicationDate}}</time>
-                    </span>
-                    {{if $post.Featured}}
-                    <span class="featured-badge">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
-                        Featured
-                    </span>
-                    {{end}}
-                </div>
-                {{if $post.Categories}}
-                <div class="category-pills">
-                    {{range $post.Categories}}
-                    <span class="category-pill">{{.Name}}</span>
-                    {{end}}
-                </div>
-                {{end}}
-                <h2 class="post-card-title">{{$post.Title}}</h2>
-                <div class="post-card-excerpt">
-                    {{if $post.ContentHTML}}{{$post.ContentHTML}}{{else}}{{$post.Content}}{{end}}
-                </div>
-                <div class="post-card-footer">
-                    <span class="read-more">
-                        Read more
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                    </span>
-                </div>
-            </div>
-        </a>
-        {{end}}
+        </div>
+    </a>
     {{end}}
-        </section><!-- close .post-grid -->
+</section>
 {{else}}
     <div class="text-center py-12">
         <div class="mb-4">
@@ -129,45 +87,43 @@ function escapeHTML(str) {
 }
 
 function appendPost(post) {
-    const grid = document.querySelector('.post-grid');
-    if (!grid) return;
+    const feed = document.querySelector('.post-feed');
+    if (!feed) return;
 
     let imageHTML = '';
     if (post.FeaturedImageURL) {
-        imageHTML = `<div class="post-card-image-wrap"><img src="${escapeHTML(post.FeaturedImageURL)}" alt="${escapeHTML(post.Title)}" loading="lazy" /></div>`;
+        imageHTML = `<div class="post-item-image"><img src="${escapeHTML(post.FeaturedImageURL)}" alt="${escapeHTML(post.Title)}" loading="lazy" /></div>`;
     }
 
     let categoriesHTML = '';
     const cats = post.categories || post.Categories;
     if (cats && cats.length > 0) {
-        categoriesHTML = '<div class="category-pills">' +
+        categoriesHTML = '<span class="sep">&middot;</span><div class="category-pills">' +
             cats.map(c => `<span class="category-pill">${escapeHTML(c.name || c.Name)}</span>`).join('') +
             '</div>';
     }
 
-    const cardHTML = `
-        <a href="/blog/${escapeHTML(post.Slug)}" class="post-card" style="text-decoration:none;color:inherit;">
-            ${imageHTML}
-            <div class="post-card-body">
-                <div class="post-card-meta">
-                    <span class="post-card-date">
+    const itemHTML = `
+        <a href="/blog/${escapeHTML(post.Slug)}" class="post-item">
+            <div class="post-item-inner">
+                <div class="post-item-text">
+                    <div class="post-item-meta">
                         <time datetime="${post.CreatedAt}">${post.PublicationDate}</time>
-                    </span>
-                </div>
-                ${categoriesHTML}
-                <h2 class="post-card-title">${escapeHTML(post.Title)}</h2>
-                <div class="post-card-excerpt">
-                    ${post.ContentHTML || (post.Content && post.Content.length > 200 ? escapeHTML(post.Content.substring(0, 200)) + '...' : escapeHTML(post.Content || ''))}
-                </div>
-                <div class="post-card-footer">
+                        ${categoriesHTML}
+                    </div>
+                    <h2 class="post-item-title">${escapeHTML(post.Title)}</h2>
+                    <div class="post-item-excerpt">
+                        ${post.ContentHTML || (post.Content && post.Content.length > 200 ? escapeHTML(post.Content.substring(0, 200)) + '...' : escapeHTML(post.Content || ''))}
+                    </div>
                     <span class="read-more">
                         Read more
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                     </span>
                 </div>
+                ${imageHTML}
             </div>
         </a>`;
-    grid.insertAdjacentHTML('beforeend', cardHTML);
+    feed.insertAdjacentHTML('beforeend', itemHTML);
 }
 
 function loadMorePosts() {
@@ -189,11 +145,11 @@ function loadMorePosts() {
 }
 
 // Use IntersectionObserver to trigger infinite scroll
-const grid = document.querySelector('.post-grid');
-if (grid) {
+const feed = document.querySelector('.post-feed');
+if (feed) {
     const sentinel = document.createElement('div');
     sentinel.id = 'scroll-sentinel';
-    grid.after(sentinel);
+    feed.after(sentinel);
     const scrollObserver = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) loadMorePosts();
     }, { rootMargin: '200px' });
