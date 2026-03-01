@@ -90,6 +90,15 @@
   </form>
 </section>
 
+{{if eq .Mode "edit"}}
+<script>
+if (window.__goWikiConfig) {
+  window.__goWikiConfig.postId = "{{.Post.ID}}";
+  window.__goWikiConfig.cloudinaryFolder = "blog/{{.Post.ID}}";
+}
+</script>
+{{end}}
+
 <!-- Featured image sidebar JS (blog-specific) -->
 <script>
 (function() {

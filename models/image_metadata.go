@@ -80,6 +80,28 @@ func (s *ImageMetadataService) GetByURLs(urls []string) (map[string]*ImageMetada
 	return result, rows.Err()
 }
 
+// List returns all tracked image metadata, newest first (up to 200).
+func (s *ImageMetadataService) List() ([]ImageMetadata, error) {
+	rows, err := s.DB.Query(`
+		SELECT id, image_url, alt_text, title, caption, created_at, updated_at
+		FROM image_metadata ORDER BY created_at DESC LIMIT 200
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var images []ImageMetadata
+	for rows.Next() {
+		var m ImageMetadata
+		if err := rows.Scan(&m.ID, &m.ImageURL, &m.AltText, &m.Title, &m.Caption, &m.CreatedAt, &m.UpdatedAt); err != nil {
+			return nil, err
+		}
+		images = append(images, m)
+	}
+	return images, rows.Err()
+}
+
 // Delete removes metadata for an image URL.
 func (s *ImageMetadataService) Delete(imageURL string) error {
 	_, err := s.DB.Exec(`DELETE FROM image_metadata WHERE image_url = $1`, imageURL)
