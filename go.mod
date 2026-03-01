@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	github.com/anchoo2kewl/go-draw v0.0.0-20260301222312-c87597be0e03
+	github.com/anchoo2kewl/go-draw v0.0.0-20260301224604-f6768346ab92
 	github.com/gorilla/csrf v1.7.3
 	github.com/lib/pq v1.11.2
 	golang.org/x/crypto v0.48.0
