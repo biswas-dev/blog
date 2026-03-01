@@ -1,7 +1,7 @@
 github.com/anchoo2kewl/go-draw v0.0.0-20260301170510-0600e0901316 h1:BHS4zSVmr1wEQDDjUCVXaS3HO5/bku/wVA048xgvvfc=
 github.com/anchoo2kewl/go-draw v0.0.0-20260301170510-0600e0901316/go.mod h1:h2kv0Lf5piPFn28Me2HA3o1uocEmu7775N8KUxML0xE=
-github.com/anchoo2kewl/go-wiki v0.1.1-0.20260301172119-e8b7938f600a h1:wp1XbMQzF6VG1tv4Het4fKnYeXub1zK/v/Y6O784iH0=
-github.com/anchoo2kewl/go-wiki v0.1.1-0.20260301172119-e8b7938f600a/go.mod h1:SdNfnXOnrAfDdswO14eYvIb12gA5eacOtz+cz3lAnQw=
+github.com/anchoo2kewl/go-wiki v0.1.1-0.20260301174240-ff5256511578 h1:n1vRHHG+X4o+oNqrWTXYOyfF+cacCFKyoPkSfDV/n1A=
+github.com/anchoo2kewl/go-wiki v0.1.1-0.20260301174240-ff5256511578/go.mod h1:SdNfnXOnrAfDdswO14eYvIb12gA5eacOtz+cz3lAnQw=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/go-chi/chi/v5 v5.2.5 h1:Eg4myHZBjyvJmAFjFvWgrqDTXFyOzjj7YIm3L3mu6Ug=
 github.com/go-chi/chi/v5 v5.2.5/go.mod h1:X7Gx4mteadT3eDOMTsXzmI4/rwUpOwBHLpAfupzFJP0=

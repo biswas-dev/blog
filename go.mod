@@ -3,7 +3,7 @@ module anshumanbiswas.com/blog
 go 1.26.0
 
 require (
-	github.com/anchoo2kewl/go-wiki v0.1.1-0.20260301172119-e8b7938f600a
+	github.com/anchoo2kewl/go-wiki v0.1.1-0.20260301174240-ff5256511578
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/rs/zerolog v1.34.0
 	github.com/russross/blackfriday/v2 v2.1.0
