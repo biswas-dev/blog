@@ -17,6 +17,7 @@ import (
 	"anshumanbiswas.com/blog/templates"
 	"anshumanbiswas.com/blog/views"
 	godraw "github.com/anchoo2kewl/go-draw"
+	godrawstore "github.com/anchoo2kewl/go-draw/store"
 	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -408,8 +409,12 @@ func main() {
 		r.Delete("/{id}", categoriesC.DeleteCategory)
 	})
 
-	// go-draw canvas editor
-	drawHandler, err := godraw.New(godraw.WithBasePath("/draw"))
+	// go-draw canvas editor — use /data/draw-data for persistent storage
+	drawStore, err := godrawstore.NewFileStore("/data/draw-data")
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not initialize go-draw store")
+	}
+	drawHandler, err := godraw.New(godraw.WithBasePath("/draw"), godraw.WithStore(drawStore))
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not initialize go-draw")
 	}
