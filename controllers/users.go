@@ -1491,6 +1491,95 @@ func (u Users) DeleteAPITokenJSON(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ListTrackedImages returns all image metadata records from the database.
+// GET /api/admin/images
+func (u Users) ListTrackedImages(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !models.CanEditPosts(user.Role) && !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	if u.ImageMetadataService == nil {
+		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	images, err := u.ImageMetadataService.List()
+	if err != nil {
+		http.Error(w, "failed to list images: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if images == nil {
+		images = []models.ImageMetadata{}
+	}
+
+	// Transform to the format expected by the JS image browser
+	type imageEntry struct {
+		URL       string `json:"url"`
+		Filename  string `json:"filename"`
+		AltText   string `json:"alt_text"`
+		Caption   string `json:"caption"`
+		Title     string `json:"title"`
+		CreatedAt string `json:"created_at"`
+	}
+	entries := make([]imageEntry, len(images))
+	for i, img := range images {
+		// Derive filename from URL
+		filename := img.ImageURL
+		if idx := strings.LastIndex(filename, "/"); idx >= 0 {
+			filename = filename[idx+1:]
+		}
+		entries[i] = imageEntry{
+			URL:       img.ImageURL,
+			Filename:  filename,
+			AltText:   img.AltText,
+			Caption:   img.Caption,
+			Title:     img.Title,
+			CreatedAt: img.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"images": entries,
+	})
+}
+
+// DeleteImageMetadata handles DELETE /api/admin/image-metadata?url=... — remove metadata for one image.
+func (u Users) DeleteImageMetadata(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !models.CanEditPosts(user.Role) && !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	if u.ImageMetadataService == nil {
+		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	imageURL := r.URL.Query().Get("url")
+	if imageURL == "" {
+		http.Error(w, "url param is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := u.ImageMetadataService.Delete(imageURL); err != nil {
+		http.Error(w, "failed to delete: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+}
+
 // SaveImageMetadata handles PUT /api/admin/image-metadata — upsert metadata for one image.
 func (u Users) SaveImageMetadata(w http.ResponseWriter, r *http.Request) {
 	if u.ImageMetadataService == nil {

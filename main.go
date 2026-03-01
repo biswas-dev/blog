@@ -17,6 +17,7 @@ import (
 	"anshumanbiswas.com/blog/templates"
 	"anshumanbiswas.com/blog/views"
 	godraw "github.com/anchoo2kewl/go-draw"
+	godrawstore "github.com/anchoo2kewl/go-draw/store"
 	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -141,14 +142,28 @@ func main() {
 		DB: DB,
 	}
 
+	// Resolve Cloudinary cloud name at startup (empty string if not configured)
+	var cloudinaryCloudName string
+	if cloudinaryService.IsConfigured() {
+		if cs, err := cloudinaryService.Get(); err == nil && cs != nil {
+			cloudinaryCloudName = cs.CloudName
+		}
+	}
+
 	// Blog wiki instance configured for the post editor
-	blogWiki := gowiki.New(
+	blogWikiOpts := []gowiki.Option{
 		gowiki.WithPreviewEndpoint("/admin/preview"),
 		gowiki.WithUploadEndpoint("/admin/uploads"),
-		gowiki.WithImageListEndpoint("/admin/uploads/list"),
+		gowiki.WithImageListEndpoint("/api/admin/images"),
+		gowiki.WithImageMetadataEndpoint("/api/admin/image-metadata"),
+		gowiki.WithCloudinarySignatureEndpoint("/api/admin/cloudinary/signature"),
 		gowiki.WithDrawBasePath("/draw"),
 		gowiki.WithEnableMore(true),
-	)
+	}
+	if cloudinaryCloudName != "" {
+		blogWikiOpts = append(blogWikiOpts, gowiki.WithCloudinaryCloudName(cloudinaryCloudName))
+	}
+	blogWiki := gowiki.New(blogWikiOpts...)
 
 	// Setup our controllers
 	usersC := controllers.Users{
@@ -293,8 +308,10 @@ func main() {
 	r.Post("/admin/preview", usersC.PreviewRender)
 
 	// Image Metadata Routes
+	r.Get("/api/admin/images", usersC.ListTrackedImages)
 	r.Put("/api/admin/image-metadata", usersC.SaveImageMetadata)
 	r.Get("/api/admin/image-metadata", usersC.GetImageMetadata)
+	r.Delete("/api/admin/image-metadata", usersC.DeleteImageMetadata)
 	r.Post("/api/admin/image-metadata/bulk", usersC.GetImageMetadataBulk)
 
 	r.Get("/my-posts", usersC.UserPosts)
@@ -408,8 +425,12 @@ func main() {
 		r.Delete("/{id}", categoriesC.DeleteCategory)
 	})
 
-	// go-draw canvas editor
-	drawHandler, err := godraw.New(godraw.WithBasePath("/draw"))
+	// go-draw canvas editor — use /data/draw-data for persistent storage
+	drawStore, err := godrawstore.NewFileStore("/data/draw-data")
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not initialize go-draw store")
+	}
+	drawHandler, err := godraw.New(godraw.WithBasePath("/draw"), godraw.WithStore(drawStore))
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not initialize go-draw")
 	}

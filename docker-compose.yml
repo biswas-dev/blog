@@ -32,6 +32,8 @@ services:
     volumes:
       # Mount uploads directory to persist user-uploaded files across rebuilds
       - blog-uploads:/static/uploads
+      # Persist go-draw canvas data across rebuilds
+      - blog-draw-data:/data/draw-data
     environment:
       - PG_USER=blog
       - PG_PASSWORD=${PG_PASSWORD:-secureprodpassword123}
@@ -54,6 +56,7 @@ services:
 volumes:
   blog-postgres-data:
     external: true
+  blog-draw-data:
   blog-uploads:
     driver: local
     driver_opts:
