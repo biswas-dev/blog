@@ -485,9 +485,19 @@ func (ps PostService) Delete(postID int) error {
 // defaultWiki is a singleton to avoid re-allocating on every render call.
 var defaultWiki = gowiki.New(gowiki.WithDrawBasePath("/draw"))
 
+// drawEditSrcRe matches data-src attributes ending in /edit inside godraw-embed divs.
+var drawEditSrcRe = regexp.MustCompile(`(data-src="[^"]+)/edit"`)
+
+// stripDrawEditMode removes /edit from go-draw embed URLs so that
+// published content always renders a read-only canvas viewer.
+func stripDrawEditMode(html string) string {
+	return drawEditSrcRe.ReplaceAllString(html, `$1"`)
+}
+
 // RenderContent converts markdown content to HTML using the default renderer.
+// Draw embeds are forced to view-only mode for published content.
 func RenderContent(content string) string {
-	return defaultWiki.RenderContent(content)
+	return stripDrawEditMode(defaultWiki.RenderContent(content))
 }
 
 // loadCategoriesForPosts batch-loads categories for all posts in a single query,

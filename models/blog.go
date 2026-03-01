@@ -69,8 +69,8 @@ func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 			}
 		}
 
-		// --- Render ---
-		html := bs.wiki.RenderContent(post.Content)
+		// --- Render (view-only draw embeds for published content) ---
+		html := stripDrawEditMode(bs.wiki.RenderContent(post.Content))
 		post.ContentHTML = template.HTML(html)
 	}
 	if err := rows.Err(); err != nil {

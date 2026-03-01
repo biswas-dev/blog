@@ -1,5 +1,5 @@
 # Dockerfile.distroless
-FROM golang:1.25-alpine as base
+FROM golang:1.26-alpine as base
 
 ENV APP_HOME /go/src/blog
 RUN mkdir -p "$APP_HOME"
