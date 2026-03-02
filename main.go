@@ -15,6 +15,7 @@ import (
 	authmw "anshumanbiswas.com/blog/middleware"
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/templates"
+	"anshumanbiswas.com/blog/utils"
 	"anshumanbiswas.com/blog/views"
 	godraw "github.com/anchoo2kewl/go-draw"
 	godrawstore "github.com/anchoo2kewl/go-draw/store"
@@ -42,7 +43,7 @@ func main() {
 	if apiToken == "" {
 		logger.Fatal().Msg("API token not set in environment variable: API_TOKEN")
 	} else {
-		logger.Info().Str("token", apiToken).Msg("API token loaded")
+		logger.Info().Msg("API token loaded")
 	}
 
 	listenAddr := flag.String("listen-addr", ":"+getAppPort(), "server listen address")
@@ -96,12 +97,6 @@ func main() {
 
 	r.Get("/admin/formatting-guide", controllers.StaticHandler(
 		views.Must(views.ParseFS(templates.FS, "admin-formatting-guide.gohtml", "tailwind.gohtml")), &sessionService))
-
-	r.Get("/docs/formatting-guide", controllers.StaticHandler(
-		views.Must(views.ParseFS(templates.FS, "admin-formatting-guide.gohtml", "tailwind.gohtml")), &sessionService))
-
-	r.Get("/docs/complete-formatting-guide", controllers.StaticHandler(
-		views.Must(views.ParseFS(templates.FS, "complete-formatting-guide.gohtml", "tailwind.gohtml")), &sessionService))
 
 	postService := models.PostService{
 		DB: DB,
@@ -489,27 +484,6 @@ func main() {
 	server.ListenAndServe()
 }
 
-// AuthMiddleware is a middleware function to check API token
-func AuthMiddleware(token string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			tokenReceived := strings.TrimPrefix(authHeader, "Bearer ")
-			if tokenReceived != token {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
 func getAllPosts(w http.ResponseWriter, r *http.Request) {
 
 	postService := models.PostService{
@@ -606,13 +580,20 @@ func getFormattedPosts(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPostByID(w http.ResponseWriter, r *http.Request) {
-	postID := chi.URLParam(r, "postID")
-	post := postID
-	// Fetch post from the database using postID
-	// Implement this logic based on your database schema
-	// Example: post, err := postService.GetPostByID(postID)
-	// Handle errors and send appropriate response
-	// Send the post as JSON response
+	postIDStr := chi.URLParam(r, "postID")
+	postID, err := strconv.Atoi(postIDStr)
+	if err != nil {
+		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+		return
+	}
+
+	postService := models.PostService{DB: DB}
+	post, err := postService.GetByID(postID)
+	if err != nil {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
 	jsonResponse(w, post, http.StatusOK)
 }
 
@@ -632,10 +613,13 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a new post using the postService
-	post, _ := postService.Create(newPost.UserID, newPost.CategoryID, newPost.Title, newPost.Content, newPost.IsPublished, newPost.Featured, newPost.FeaturedImageURL, newPost.Slug)
+	post, err := postService.Create(newPost.UserID, newPost.CategoryID, newPost.Title, newPost.Content, newPost.IsPublished, newPost.Featured, newPost.FeaturedImageURL, newPost.Slug)
+	if err != nil {
+		logger.Error().Err(err).Msg("error creating post")
+		http.Error(w, "Failed to create post", http.StatusInternalServerError)
+		return
+	}
 
-	// Handle errors and send appropriate response
-	// Send the created post as JSON response
 	jsonResponse(w, post, http.StatusCreated)
 }
 
@@ -683,7 +667,7 @@ func rssHandler(ps *models.PostService) http.HandlerFunc {
 			// Escape XML special characters in title and content
 			title := xmlEscape(post.Title)
 			link := fmt.Sprintf("%s/blog/%s", baseURL, post.Slug)
-			desc := xmlEscape(stripHTMLTags(string(post.ContentHTML)))
+			desc := xmlEscape(utils.StripHTML(string(post.ContentHTML)))
 			if len(desc) > 500 {
 				desc = desc[:500] + "..."
 			}
@@ -710,21 +694,3 @@ func xmlEscape(s string) string {
 	return s
 }
 
-func stripHTMLTags(s string) string {
-	var result strings.Builder
-	inTag := false
-	for _, r := range s {
-		if r == '<' {
-			inTag = true
-			continue
-		}
-		if r == '>' {
-			inTag = false
-			continue
-		}
-		if !inTag {
-			result.WriteRune(r)
-		}
-	}
-	return result.String()
-}

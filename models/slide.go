@@ -383,11 +383,17 @@ func (ss *SlideService) loadCategoriesForSlides(slides []Slide) error {
 	return rows.Err()
 }
 
+// Slug sanitisation regexes, compiled once.
+var (
+	slugNonAlnumRe = regexp.MustCompile(`[^a-z0-9]+`)
+	slugNonAlnumDashRe = regexp.MustCompile(`[^a-z0-9-]`)
+)
+
 // Helper functions
 func generateSlug(title string) string {
 	// Convert to lowercase and replace spaces with hyphens
 	slug := strings.ToLower(title)
-	slug = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(slug, "-")
+	slug = slugNonAlnumRe.ReplaceAllString(slug, "-")
 	slug = strings.Trim(slug, "-")
 	
 	// Ensure slug is not empty
@@ -401,7 +407,7 @@ func generateSlug(title string) string {
 func sanitizeSlug(slug string) string {
 	// Convert to lowercase and sanitize
 	slug = strings.ToLower(slug)
-	slug = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(slug, "-")
+	slug = slugNonAlnumDashRe.ReplaceAllString(slug, "-")
 	slug = strings.Trim(slug, "-")
 	
 	// Ensure slug is not empty
