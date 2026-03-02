@@ -837,8 +837,17 @@
     // Load initial data
     loadData(currentPeriod);
 
-    // Auto-refresh every 60s
-    setInterval(() => { loadData(currentPeriod); }, 60000);
+    // Auto-refresh every 60s, paused when tab is hidden
+    let refreshTimer = setInterval(() => { loadData(currentPeriod); }, 60000);
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        } else {
+            loadData(currentPeriod);
+            refreshTimer = setInterval(() => { loadData(currentPeriod); }, 60000);
+        }
+    });
 })();
 </script>
 

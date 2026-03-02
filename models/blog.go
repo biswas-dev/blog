@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"html/template"
 	"time"
@@ -22,64 +23,50 @@ func NewBlogService(db *sql.DB) *BlogService {
 }
 
 func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
-	post := Post{}
+	var post Post
 
 	const query = `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE slug = $1 LIMIT 1`
-	rows, err := bs.DB.Query(query, slug)
+	err := bs.DB.QueryRow(query, slug).Scan(
+		&post.ID,
+		&post.UserID,
+		&post.CategoryID,
+		&post.Title,
+		&post.Content,
+		&post.Slug,
+		&post.PublicationDate,
+		&post.LastEditDate,
+		&post.IsPublished,
+		&post.FeaturedImageURL,
+		&post.CreatedAt,
+		&post.Featured,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("post not found")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("db query failed: %w", err)
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		err := rows.Scan(
-			&post.ID,
-			&post.UserID,
-			&post.CategoryID,
-			&post.Title,
-			&post.Content,
-			&post.Slug,
-			&post.PublicationDate,
-			&post.LastEditDate,
-			&post.IsPublished,
-			&post.FeaturedImageURL,
-			&post.CreatedAt,
-			&post.Featured,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("scan failed: %w", err)
-		}
-
-		// Display-friendly dates (assumes RFC3339 strings)
-		if post.CreatedAt != "" {
-			if t, err := time.Parse(time.RFC3339, post.CreatedAt); err == nil {
-				post.CreatedAt = t.Format("January 2, 2006")
-			}
-		}
-		if post.PublicationDate != "" {
-			if pt, err := time.Parse(time.RFC3339, post.PublicationDate); err == nil {
-				post.PublicationDate = pt.Format("January 2, 2006")
-			}
-		} else {
-			post.PublicationDate = post.CreatedAt
-		}
-		if post.LastEditDate != "" {
-			if lt, err := time.Parse(time.RFC3339, post.LastEditDate); err == nil {
-				post.LastEditDate = lt.Format("January 2, 2006")
-			}
-		}
-
-		// --- Render (view-only draw embeds for published content) ---
-		html := stripDrawEditMode(bs.wiki.RenderContent(post.Content))
-		post.ContentHTML = template.HTML(html)
+	// Display-friendly dates
+	if t, err := time.Parse(time.RFC3339, post.CreatedAt); err == nil {
+		post.CreatedAt = t.Format("January 2, 2006")
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row iteration failed: %w", err)
+	if post.PublicationDate != "" {
+		if t, err := time.Parse(time.RFC3339, post.PublicationDate); err == nil {
+			post.PublicationDate = t.Format("January 2, 2006")
+		}
+	} else {
+		post.PublicationDate = post.CreatedAt
+	}
+	if post.LastEditDate != "" {
+		if t, err := time.Parse(time.RFC3339, post.LastEditDate); err == nil {
+			post.LastEditDate = t.Format("January 2, 2006")
+		}
 	}
 
-	if post.ID == 0 {
-		return nil, fmt.Errorf("post not found")
-	}
+	// Render (view-only draw embeds for published content)
+	html := stripDrawEditMode(bs.wiki.RenderContent(post.Content))
+	post.ContentHTML = template.HTML(html)
 
 	return &post, nil
 }
