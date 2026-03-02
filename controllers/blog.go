@@ -150,6 +150,28 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 	b.Templates.Post.Execute(w, r, data)
 }
 
+// stripMarkdownLinks replaces markdown link syntax [text](url) with just the
+// link text, iterating until no more links remain.
+func stripMarkdownLinks(s string) string {
+	for {
+		start := strings.Index(s, "[")
+		if start == -1 {
+			break
+		}
+		mid := strings.Index(s[start:], "](")
+		if mid == -1 {
+			break
+		}
+		end := strings.Index(s[start+mid:], ")")
+		if end == -1 {
+			break
+		}
+		linkText := s[start+1 : start+mid]
+		s = s[:start] + linkText + s[start+mid+end+1:]
+	}
+	return s
+}
+
 // ogExcerpt extracts a plain-text excerpt from markdown content for OG description.
 func ogExcerpt(content string, maxLen int) string {
 	lines := strings.Split(content, "\n")
@@ -165,22 +187,7 @@ func ogExcerpt(content string, maxLen int) string {
 		// Strip inline markdown
 		trimmed = strings.NewReplacer("**", "", "__", "", "`", "").Replace(trimmed)
 		// Strip markdown links [text](url) -> text
-		for {
-			start := strings.Index(trimmed, "[")
-			if start == -1 {
-				break
-			}
-			mid := strings.Index(trimmed[start:], "](")
-			if mid == -1 {
-				break
-			}
-			end := strings.Index(trimmed[start+mid:], ")")
-			if end == -1 {
-				break
-			}
-			linkText := trimmed[start+1 : start+mid]
-			trimmed = trimmed[:start] + linkText + trimmed[start+mid+end+1:]
-		}
+		trimmed = stripMarkdownLinks(trimmed)
 		parts = append(parts, trimmed)
 		if len(strings.Join(parts, " ")) > maxLen {
 			break

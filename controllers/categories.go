@@ -55,7 +55,7 @@ func (c *Categories) Manage(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user is admin
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 
@@ -224,27 +224,31 @@ func (c *Categories) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// requireAdminOrRedirect checks that the request is authenticated and from an admin
+// user. On failure it writes the appropriate HTTP response and returns (nil, false).
+func requireAdminOrRedirect(w http.ResponseWriter, r *http.Request, ss *models.SessionService, ajax bool) (*models.User, bool) {
+	user, err := utils.IsUserLoggedIn(r, ss)
+	if err != nil || user == nil {
+		if ajax {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		} else {
+			http.Redirect(w, r, "/signin", http.StatusFound)
+		}
+		return nil, false
+	}
+	if !models.IsAdmin(user.Role) {
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
+		return nil, false
+	}
+	return user, true
+}
+
 // Form-based endpoints for web interface
 
 // CreateCategoryForm - POST /admin/categories
 func (c *Categories) CreateCategoryForm(w http.ResponseWriter, r *http.Request) {
-	// Check authentication
-	user, err := utils.IsUserLoggedIn(r, c.SessionService)
-	if err != nil || user == nil {
-		if isAjaxRequest(r) {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		http.Redirect(w, r, "/signin", http.StatusFound)
-		return
-	}
-	// Check if user is admin
-	if !models.IsAdmin(user.Role) {
-		if isAjaxRequest(r) {
-			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
-			return
-		}
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+	ajax := isAjaxRequest(r)
+	if _, ok := requireAdminOrRedirect(w, r, c.SessionService, ajax); !ok {
 		return
 	}
 
@@ -315,10 +319,10 @@ func (c *Categories) UpdateCategoryForm(w http.ResponseWriter, r *http.Request) 
 	// Check if user is admin
 	if !models.IsAdmin(user.Role) {
 		if isAjaxRequest(r) {
-			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+			http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 			return
 		}
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 
@@ -396,10 +400,10 @@ func (c *Categories) DeleteCategoryForm(w http.ResponseWriter, r *http.Request) 
 	// Check if user is admin
 	if !models.IsAdmin(user.Role) {
 		if isAjaxRequest(r) {
-			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+			http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 			return
 		}
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 

@@ -23,6 +23,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const (
+	staticPrefix       = "/static/"
+	errImageMetaNotAvail = "image metadata not available"
+)
+
 // Pre-compiled regexes for slug sanitisation.
 var (
 	slugSanitizeRe    = regexp.MustCompile(`[^a-z0-9-]`)
@@ -100,6 +105,30 @@ type Users struct {
 	BlogWiki             *gowiki.Wiki
 }
 
+// extensionForContent resolves the file extension from the detected content-type
+// or falls back to the filename extension. Returns (ext, ok).
+func extensionForContent(filetype, filename string) (string, bool) {
+	allowed := map[string]string{
+		"image/jpeg":    ".jpg",
+		"image/png":     ".png",
+		"image/gif":     ".gif",
+		"image/webp":    ".webp",
+		"image/svg+xml": ".svg",
+	}
+	if ext, ok := allowed[filetype]; ok {
+		return ext, true
+	}
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg":
+		if ext == ".jpeg" {
+			ext = ".jpg"
+		}
+		return ext, true
+	}
+	return "", false
+}
+
 // saveUploadedFile validates, generates a random name, and persists a single
 // uploaded image to disk. It returns the public URL of the saved file.
 func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (string, error) {
@@ -107,17 +136,9 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 	buff := make([]byte, 512)
 	n, _ := file.Read(buff)
 	filetype := http.DetectContentType(buff[:n])
-	allowed := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}
-	ext, ok := allowed[filetype]
+	ext, ok := extensionForContent(filetype, filename)
 	if !ok {
-		ext = strings.ToLower(filepath.Ext(filename))
-		ok = ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp" || ext == ".svg"
-		if !ok {
-			return "", fmt.Errorf("unsupported file type")
-		}
-		if ext == ".jpeg" {
-			ext = ".jpg"
-		}
+		return "", fmt.Errorf("unsupported file type")
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return "", fmt.Errorf("unable to read file: %w", err)
@@ -398,7 +419,7 @@ func (u Users) ListUploadedImages(w http.ResponseWriter, r *http.Request) {
 			if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp" {
 				// Convert local path to URL served under /static
 				relPath := strings.TrimPrefix(path, "static/")
-				url := "/static/" + strings.ReplaceAll(relPath, "\\", "/")
+				url := staticPrefix + strings.ReplaceAll(relPath, "\\", "/")
 
 				images = append(images, map[string]interface{}{
 					"url":      url,
@@ -453,11 +474,11 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 	if posts != nil {
 		for i := range posts.Posts {
 			p := &posts.Posts[i]
-			if p.FeaturedImageURL != "" && !strings.HasPrefix(p.FeaturedImageURL, "http") && !strings.HasPrefix(p.FeaturedImageURL, "/static/") {
+			if p.FeaturedImageURL != "" && !strings.HasPrefix(p.FeaturedImageURL, "http") && !strings.HasPrefix(p.FeaturedImageURL, staticPrefix) {
 				if p.FeaturedImageURL == "image.jpg" {
 					p.FeaturedImageURL = ""
 				} else {
-					p.FeaturedImageURL = "/static/" + p.FeaturedImageURL
+					p.FeaturedImageURL = staticPrefix + p.FeaturedImageURL
 				}
 			}
 		}
@@ -514,11 +535,11 @@ func (u Users) LoadMorePosts(w http.ResponseWriter, r *http.Request) {
 	if posts != nil {
 		for i := range posts.Posts {
 			p := &posts.Posts[i]
-			if p.FeaturedImageURL != "" && !strings.HasPrefix(p.FeaturedImageURL, "http") && !strings.HasPrefix(p.FeaturedImageURL, "/static/") {
+			if p.FeaturedImageURL != "" && !strings.HasPrefix(p.FeaturedImageURL, "http") && !strings.HasPrefix(p.FeaturedImageURL, staticPrefix) {
 				if p.FeaturedImageURL == "image.jpg" {
 					p.FeaturedImageURL = ""
 				} else {
-					p.FeaturedImageURL = "/static/" + p.FeaturedImageURL
+					p.FeaturedImageURL = staticPrefix + p.FeaturedImageURL
 				}
 			}
 		}
@@ -626,7 +647,7 @@ func (u Users) DeleteImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert URL path to file system path
-	filePath := filepath.Join("static", strings.TrimPrefix(imagePath, "/static/"))
+	filePath := filepath.Join("static", strings.TrimPrefix(imagePath, staticPrefix))
 
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -1457,7 +1478,7 @@ func (u Users) ListTrackedImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if u.ImageMetadataService == nil {
-		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		http.Error(w, errImageMetaNotAvail, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -1514,7 +1535,7 @@ func (u Users) DeleteImageMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if u.ImageMetadataService == nil {
-		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		http.Error(w, errImageMetaNotAvail, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -1536,7 +1557,7 @@ func (u Users) DeleteImageMetadata(w http.ResponseWriter, r *http.Request) {
 // SaveImageMetadata handles PUT /api/admin/image-metadata — upsert metadata for one image.
 func (u Users) SaveImageMetadata(w http.ResponseWriter, r *http.Request) {
 	if u.ImageMetadataService == nil {
-		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		http.Error(w, errImageMetaNotAvail, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -1568,7 +1589,7 @@ func (u Users) SaveImageMetadata(w http.ResponseWriter, r *http.Request) {
 // GetImageMetadata handles GET /api/admin/image-metadata?url=... — get metadata for one image.
 func (u Users) GetImageMetadata(w http.ResponseWriter, r *http.Request) {
 	if u.ImageMetadataService == nil {
-		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		http.Error(w, errImageMetaNotAvail, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -1596,7 +1617,7 @@ func (u Users) GetImageMetadata(w http.ResponseWriter, r *http.Request) {
 // GetImageMetadataBulk handles POST /api/admin/image-metadata/bulk — get metadata for multiple image URLs.
 func (u Users) GetImageMetadataBulk(w http.ResponseWriter, r *http.Request) {
 	if u.ImageMetadataService == nil {
-		http.Error(w, "image metadata not available", http.StatusServiceUnavailable)
+		http.Error(w, errImageMetaNotAvail, http.StatusServiceUnavailable)
 		return
 	}
 

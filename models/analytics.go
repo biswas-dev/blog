@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const dateFormat = "2006-01-02"
+
 // PageView represents a single page view event
 type PageView struct {
 	ViewedAt    time.Time
@@ -227,7 +229,7 @@ func (s *AnalyticsService) aggregatorLoop() {
 
 		select {
 		case <-timer.C:
-			yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+			yesterday := time.Now().AddDate(0, 0, -1).Format(dateFormat)
 			_, err := s.db.Exec("SELECT aggregate_page_views_daily($1::date)", yesterday)
 			if err != nil {
 				log.Printf("[analytics] daily aggregation failed for %s: %v", yesterday, err)
@@ -265,21 +267,16 @@ func (s *AnalyticsService) ensurePartitions() {
 	nextMonth := now.AddDate(0, 1, 0)
 
 	for _, d := range []time.Time{now, nextMonth} {
-		_, err := s.db.Exec("SELECT ensure_page_views_partition($1::date)", d.Format("2006-01-02"))
+		_, err := s.db.Exec("SELECT ensure_page_views_partition($1::date)", d.Format(dateFormat))
 		if err != nil {
 			log.Printf("[analytics] partition creation failed for %s: %v", d.Format("2006-01"), err)
 		}
 	}
 }
 
-// GetSummary returns analytics data for the dashboard
-func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) {
-	days := parsePeriodDays(period)
-	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
-
-	summary := &AnalyticsSummary{}
-
-	// Time series from summary table + today's live data
+// getTimeSeries fetches the time-series data for the given since date.
+// Returns (timeSeries, totalViews, totalUniques, error).
+func (s *AnalyticsService) getTimeSeries(since string) ([]TimeSeriesPoint, int64, int64, error) {
 	rows, err := s.db.Query(`
 		WITH daily AS (
 			SELECT view_date::text AS date, SUM(total_views) AS views, SUM(unique_visitors) AS uniques
@@ -296,28 +293,27 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 		SELECT date, views, uniques FROM today WHERE views > 0
 		ORDER BY date`, since)
 	if err != nil {
-		return nil, fmt.Errorf("time series query: %w", err)
+		return nil, 0, 0, fmt.Errorf("time series query: %w", err)
 	}
 	defer rows.Close()
 
+	var series []TimeSeriesPoint
 	var totalViews, totalUniques int64
 	for rows.Next() {
 		var pt TimeSeriesPoint
 		if err := rows.Scan(&pt.Date, &pt.Views, &pt.Uniques); err != nil {
-			return nil, fmt.Errorf("time series scan: %w", err)
+			return nil, 0, 0, fmt.Errorf("time series scan: %w", err)
 		}
 		totalViews += pt.Views
 		totalUniques += pt.Uniques
-		summary.TimeSeries = append(summary.TimeSeries, pt)
+		series = append(series, pt)
 	}
-	summary.TotalViews = totalViews
-	summary.UniqueIPs = totalUniques
-	if days > 0 {
-		summary.AvgDaily = float64(totalViews) / float64(days)
-	}
+	return series, totalViews, totalUniques, nil
+}
 
-	// Top pages (past aggregated + today's live)
-	topPages, err := s.db.Query(`
+// getTopPages fetches the top-10 pages for the given since date.
+func (s *AnalyticsService) getTopPages(since string) ([]TopItem, error) {
+	rows, err := s.db.Query(`
 		WITH past AS (
 			SELECT path, SUM(total_views) AS views FROM page_views_daily
 			WHERE view_date >= $1::date AND view_date < CURRENT_DATE GROUP BY path
@@ -332,18 +328,22 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 	if err != nil {
 		return nil, fmt.Errorf("top pages query: %w", err)
 	}
-	defer topPages.Close()
+	defer rows.Close()
 
-	for topPages.Next() {
+	var items []TopItem
+	for rows.Next() {
 		var item TopItem
-		if err := topPages.Scan(&item.Name, &item.Count); err != nil {
+		if err := rows.Scan(&item.Name, &item.Count); err != nil {
 			return nil, fmt.Errorf("top pages scan: %w", err)
 		}
-		summary.TopPages = append(summary.TopPages, item)
+		items = append(items, item)
 	}
+	return items, nil
+}
 
-	// Top referrers from raw table (not in summary)
-	topRefs, err := s.db.Query(`
+// getTopReferrers fetches the top-10 referrers for the given since date.
+func (s *AnalyticsService) getTopReferrers(since string) ([]TopItem, error) {
+	rows, err := s.db.Query(`
 		SELECT COALESCE(NULLIF(referrer, ''), '(direct)') AS ref, COUNT(*) AS cnt
 		FROM page_views
 		WHERE viewed_at >= $1::date
@@ -353,18 +353,22 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 	if err != nil {
 		return nil, fmt.Errorf("top referrers query: %w", err)
 	}
-	defer topRefs.Close()
+	defer rows.Close()
 
-	for topRefs.Next() {
+	var items []TopItem
+	for rows.Next() {
 		var item TopItem
-		if err := topRefs.Scan(&item.Name, &item.Count); err != nil {
+		if err := rows.Scan(&item.Name, &item.Count); err != nil {
 			return nil, fmt.Errorf("top referrers scan: %w", err)
 		}
-		summary.TopReferrers = append(summary.TopReferrers, item)
+		items = append(items, item)
 	}
+	return items, nil
+}
 
-	// Content type breakdown (past aggregated + today's live)
-	ctRows, err := s.db.Query(`
+// getContentTypes fetches content-type breakdown for the given since date.
+func (s *AnalyticsService) getContentTypes(since string) ([]ContentTypeSummary, error) {
+	rows, err := s.db.Query(`
 		WITH past AS (
 			SELECT content_type, SUM(total_views) AS views, SUM(unique_visitors) AS uniques
 			FROM page_views_daily
@@ -383,14 +387,47 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 	if err != nil {
 		return nil, fmt.Errorf("content type query: %w", err)
 	}
-	defer ctRows.Close()
+	defer rows.Close()
 
-	for ctRows.Next() {
+	var items []ContentTypeSummary
+	for rows.Next() {
 		var ct ContentTypeSummary
-		if err := ctRows.Scan(&ct.ContentType, &ct.Views, &ct.Uniques); err != nil {
+		if err := rows.Scan(&ct.ContentType, &ct.Views, &ct.Uniques); err != nil {
 			return nil, fmt.Errorf("content type scan: %w", err)
 		}
-		summary.ContentTypes = append(summary.ContentTypes, ct)
+		items = append(items, ct)
+	}
+	return items, nil
+}
+
+// GetSummary returns analytics data for the dashboard
+func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) {
+	days := parsePeriodDays(period)
+	since := time.Now().AddDate(0, 0, -days).Format(dateFormat)
+
+	summary := &AnalyticsSummary{}
+
+	timeSeries, totalViews, totalUniques, err := s.getTimeSeries(since)
+	if err != nil {
+		return nil, err
+	}
+	summary.TimeSeries = timeSeries
+	summary.TotalViews = totalViews
+	summary.UniqueIPs = totalUniques
+	if days > 0 {
+		summary.AvgDaily = float64(totalViews) / float64(days)
+	}
+
+	if summary.TopPages, err = s.getTopPages(since); err != nil {
+		return nil, err
+	}
+
+	if summary.TopReferrers, err = s.getTopReferrers(since); err != nil {
+		return nil, err
+	}
+
+	if summary.ContentTypes, err = s.getContentTypes(since); err != nil {
+		return nil, err
 	}
 
 	// Top visitors (non-fatal on error)
@@ -419,7 +456,7 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 
 // GetTodayLiveCount returns today's views and unique visitors from the raw table
 func (s *AnalyticsService) GetTodayLiveCount() (*LiveStats, error) {
-	today := time.Now().Format("2006-01-02")
+	today := time.Now().Format(dateFormat)
 	stats := &LiveStats{}
 
 	err := s.db.QueryRow(`
@@ -464,7 +501,7 @@ func (s *AnalyticsService) BackfillDailyAggregates() {
 // GetTopVisitors returns the top 20 IPs by view count for the given period
 func (s *AnalyticsService) GetTopVisitors(period string) ([]TopVisitor, error) {
 	days := parsePeriodDays(period)
-	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+	since := time.Now().AddDate(0, 0, -days).Format(dateFormat)
 
 	rows, err := s.db.Query(`
 		SELECT ip_address::text, COUNT(*) AS views,
@@ -492,7 +529,7 @@ func (s *AnalyticsService) GetTopVisitors(period string) ([]TopVisitor, error) {
 // GetVisitorActivity returns detailed page views for a specific IP
 func (s *AnalyticsService) GetVisitorActivity(ip string, period string) ([]VisitorDetail, error) {
 	days := parsePeriodDays(period)
-	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+	since := time.Now().AddDate(0, 0, -days).Format(dateFormat)
 
 	rows, err := s.db.Query(`
 		SELECT path, viewed_at::text, user_agent, COALESCE(NULLIF(referrer,''),'(direct)')
@@ -517,7 +554,7 @@ func (s *AnalyticsService) GetVisitorActivity(ip string, period string) ([]Visit
 // GetHourlyActivity returns view counts grouped by hour of day
 func (s *AnalyticsService) GetHourlyActivity(period string) ([]HourlyActivity, error) {
 	days := parsePeriodDays(period)
-	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+	since := time.Now().AddDate(0, 0, -days).Format(dateFormat)
 
 	rows, err := s.db.Query(`
 		SELECT EXTRACT(HOUR FROM viewed_at)::int AS hour, COUNT(*) AS views
@@ -542,7 +579,7 @@ func (s *AnalyticsService) GetHourlyActivity(period string) ([]HourlyActivity, e
 // GetBrowserStats returns browser usage breakdown for the given period
 func (s *AnalyticsService) GetBrowserStats(period string) ([]BrowserStat, error) {
 	days := parsePeriodDays(period)
-	since := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+	since := time.Now().AddDate(0, 0, -days).Format(dateFormat)
 
 	rows, err := s.db.Query(`
 		SELECT user_agent, COUNT(*) AS cnt

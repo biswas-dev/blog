@@ -27,11 +27,20 @@ func main() {
 	defer db.Close()
 
 	metaSvc := &models.ImageMetadataService{DB: db}
+	created, postCount, err := processPosts(db, metaSvc)
+	if err != nil {
+		log.Fatalf("process posts: %v", err)
+	}
 
-	// Fetch all posts
+	fmt.Printf("Seeded %d images from %d posts\n", created, postCount)
+}
+
+// processPosts scans all posts for Cloudinary image URLs and upserts their metadata.
+// Returns (imagesCreated, postCount, error).
+func processPosts(db *sql.DB, metaSvc *models.ImageMetadataService) (int, int, error) {
 	rows, err := db.Query(`SELECT id, content, featured_image_url FROM posts`)
 	if err != nil {
-		log.Fatalf("query posts: %v", err)
+		return 0, 0, fmt.Errorf("query posts: %w", err)
 	}
 	defer rows.Close()
 
@@ -52,14 +61,10 @@ func main() {
 		}
 		postCount++
 
-		// Extract Cloudinary URLs from content
 		extracted := extractCloudinaryImages(content)
-
-		// Featured image
 		if featuredURL != "" && isCloudinaryURL(featuredURL) {
 			extracted = append(extracted, imageMatch{url: featuredURL, alt: "Featured image", caption: ""})
 		}
-
 		for _, img := range extracted {
 			if seen[img.url] {
 				continue
@@ -69,21 +74,18 @@ func main() {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Fatalf("rows: %v", err)
+		return 0, 0, fmt.Errorf("rows: %w", err)
 	}
 
-	// Upsert each image
 	var created int
 	for _, img := range all {
-		_, err := metaSvc.Upsert(img.url, img.alt, "", img.caption)
-		if err != nil {
+		if _, err := metaSvc.Upsert(img.url, img.alt, "", img.caption); err != nil {
 			log.Printf("upsert %s: %v", img.url, err)
 			continue
 		}
 		created++
 	}
-
-	fmt.Printf("Seeded %d images from %d posts\n", created, postCount)
+	return created, postCount, nil
 }
 
 var (

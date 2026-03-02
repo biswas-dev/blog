@@ -9,6 +9,8 @@ import (
 	"anshumanbiswas.com/blog/utils"
 )
 
+const errForbiddenAdmin = "Forbidden: Admin access required"
+
 // Analytics handles the analytics admin dashboard
 type Analytics struct {
 	AnalyticsService *models.AnalyticsService
@@ -27,7 +29,7 @@ func (a *Analytics) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 
@@ -74,7 +76,7 @@ func (a *Analytics) GetAnalyticsJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 
@@ -103,7 +105,7 @@ func (a *Analytics) GetVisitorDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 

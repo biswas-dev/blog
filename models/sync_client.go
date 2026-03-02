@@ -17,6 +17,11 @@ import (
 	"time"
 )
 
+const (
+	apiPostsPath     = "/api/posts/"
+	errGetLocalPosts = "get local posts: %w"
+)
+
 // SyncClient handles syncing posts between blog instances
 type SyncClient struct {
 	PostService           *PostService
@@ -73,7 +78,7 @@ func httpClient(timeout time.Duration) *http.Client {
 
 // TestConnection verifies connectivity to a remote blog instance
 func (sc *SyncClient) TestConnection(system *ExternalSystem) error {
-	url := strings.TrimRight(system.BaseURL, "/") + "/api/posts/"
+	url := strings.TrimRight(system.BaseURL, "/") + apiPostsPath
 
 	req, err := buildRequest("GET", url, nil, system)
 	if err != nil {
@@ -97,7 +102,7 @@ func (sc *SyncClient) TestConnection(system *ExternalSystem) error {
 
 // fetchRemotePosts fetches posts from the remote system
 func (sc *SyncClient) fetchRemotePosts(system *ExternalSystem) ([]remotePost, error) {
-	url := strings.TrimRight(system.BaseURL, "/") + "/api/posts/"
+	url := strings.TrimRight(system.BaseURL, "/") + apiPostsPath
 
 	req, err := buildRequest("GET", url, nil, system)
 	if err != nil {
@@ -131,7 +136,7 @@ func (sc *SyncClient) fetchRemotePosts(system *ExternalSystem) ([]remotePost, er
 func (sc *SyncClient) getLocalSlugs() (map[string]bool, error) {
 	posts, err := sc.PostService.GetAllPosts()
 	if err != nil {
-		return nil, fmt.Errorf("get local posts: %w", err)
+		return nil, fmt.Errorf(errGetLocalPosts, err)
 	}
 
 	slugs := make(map[string]bool, len(posts.Posts))
@@ -183,7 +188,7 @@ func (sc *SyncClient) PreviewPush(system *ExternalSystem) (*SyncPreview, error) 
 
 	localPosts, err := sc.PostService.GetAllPosts()
 	if err != nil {
-		return nil, fmt.Errorf("get local posts: %w", err)
+		return nil, fmt.Errorf(errGetLocalPosts, err)
 	}
 
 	preview := &SyncPreview{Direction: "push"}
@@ -302,6 +307,33 @@ func (sc *SyncClient) downloadAndRewriteContentImages(content, remoteBaseURL, sl
 	return content
 }
 
+// resolveLocalImages downloads remote images for a post and returns the
+// resolved featured image URL and rewritten content.
+func (sc *SyncClient) resolveLocalImages(rp remotePost, remoteBaseURL string, system *ExternalSystem) (string, string) {
+	featuredImageURL := rp.FeaturedImageURL
+	if featuredImageURL != "" && strings.HasPrefix(featuredImageURL, "/static/uploads/") {
+		localURL, err := sc.downloadImage(remoteBaseURL, featuredImageURL, rp.Slug, "featured", system)
+		if err != nil {
+			log.Printf("Warning: failed to download featured image for '%s': %v", rp.Slug, err)
+		} else {
+			featuredImageURL = localURL
+		}
+	}
+
+	content := rp.Content
+	if strings.Contains(content, "/static/uploads/") {
+		content = sc.downloadAndRewriteContentImages(content, remoteBaseURL, rp.Slug, system)
+	}
+	return featuredImageURL, content
+}
+
+// setFirstError records msg into result.ErrorMessage only if it is still empty.
+func setFirstError(result *SyncResult, msg string) {
+	if result.ErrorMessage == "" {
+		result.ErrorMessage = msg
+	}
+}
+
 // ExecutePull pulls new posts from the remote system and creates them locally
 func (sc *SyncClient) ExecutePull(system *ExternalSystem, userID int) (*SyncResult, error) {
 	remotePosts, err := sc.fetchRemotePosts(system)
@@ -323,40 +355,15 @@ func (sc *SyncClient) ExecutePull(system *ExternalSystem, userID int) (*SyncResu
 			continue
 		}
 
-		// Download featured image if it's a local path (Cloudinary URLs pass through as-is)
-		featuredImageURL := rp.FeaturedImageURL
-		if featuredImageURL != "" && strings.HasPrefix(featuredImageURL, "/static/uploads/") {
-			localURL, err := sc.downloadImage(remoteBaseURL, featuredImageURL, rp.Slug, "featured", system)
-			if err != nil {
-				log.Printf("Warning: failed to download featured image for '%s': %v", rp.Slug, err)
-				// Keep the remote URL as fallback
-			} else {
-				featuredImageURL = localURL
-			}
-		}
+		featuredImageURL, content := sc.resolveLocalImages(rp, remoteBaseURL, system)
 
-		// Download and rewrite inline images only for local paths (Cloudinary URLs pass through as-is)
-		content := rp.Content
-		if strings.Contains(content, "/static/uploads/") {
-			content = sc.downloadAndRewriteContentImages(content, remoteBaseURL, rp.Slug, system)
-		}
-
-		// Create the post locally with the pulling user as author
 		_, err := sc.PostService.Create(
-			userID,
-			rp.CategoryID,
-			rp.Title,
-			content,
-			rp.IsPublished,
-			rp.Featured,
-			featuredImageURL,
-			rp.Slug,
+			userID, rp.CategoryID, rp.Title, content,
+			rp.IsPublished, rp.Featured, featuredImageURL, rp.Slug,
 		)
 		if err != nil {
 			result.ItemsFailed++
-			if result.ErrorMessage == "" {
-				result.ErrorMessage = fmt.Sprintf("failed to create '%s': %v", rp.Slug, err)
-			}
+			setFirstError(result, fmt.Sprintf("failed to create '%s': %v", rp.Slug, err))
 			continue
 		}
 
@@ -364,6 +371,38 @@ func (sc *SyncClient) ExecutePull(system *ExternalSystem, userID int) (*SyncResu
 	}
 
 	return result, nil
+}
+
+// pushOnePost marshals and sends a single post to the remote system.
+// Returns true on success.
+func pushOnePost(lp Post, pushURL string, client *http.Client, system *ExternalSystem) (ok bool, errMsg string) {
+	payload := map[string]interface{}{
+		"UserID": lp.UserID, "CategoryID": lp.CategoryID,
+		"Title": lp.Title, "Content": lp.Content,
+		"Slug": lp.Slug, "IsPublished": lp.IsPublished,
+		"Featured": lp.Featured, "FeaturedImageURL": lp.FeaturedImageURL,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return false, ""
+	}
+
+	req, err := buildRequest("POST", pushURL, bytes.NewReader(body), system)
+	if err != nil {
+		return false, ""
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Sprintf("failed to push '%s': %v", lp.Slug, err)
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK {
+		return true, ""
+	}
+	return false, fmt.Sprintf("push '%s' returned status %d", lp.Slug, resp.StatusCode)
 }
 
 // ExecutePush pushes local posts to the remote system
@@ -380,12 +419,12 @@ func (sc *SyncClient) ExecutePush(system *ExternalSystem) (*SyncResult, error) {
 
 	localPosts, err := sc.PostService.GetAllPosts()
 	if err != nil {
-		return nil, fmt.Errorf("get local posts: %w", err)
+		return nil, fmt.Errorf(errGetLocalPosts, err)
 	}
 
 	result := &SyncResult{Direction: "push"}
 	client := httpClient(30 * time.Second)
-	pushURL := strings.TrimRight(system.BaseURL, "/") + "/api/posts/"
+	pushURL := strings.TrimRight(system.BaseURL, "/") + apiPostsPath
 
 	for _, lp := range localPosts.Posts {
 		if remoteSlugs[lp.Slug] {
@@ -393,46 +432,12 @@ func (sc *SyncClient) ExecutePush(system *ExternalSystem) (*SyncResult, error) {
 			continue
 		}
 
-		payload := map[string]interface{}{
-			"UserID":           lp.UserID,
-			"CategoryID":       lp.CategoryID,
-			"Title":            lp.Title,
-			"Content":          lp.Content,
-			"Slug":             lp.Slug,
-			"IsPublished":      lp.IsPublished,
-			"Featured":         lp.Featured,
-			"FeaturedImageURL": lp.FeaturedImageURL,
-		}
-
-		body, err := json.Marshal(payload)
-		if err != nil {
-			result.ItemsFailed++
-			continue
-		}
-
-		req, err := buildRequest("POST", pushURL, bytes.NewReader(body), system)
-		if err != nil {
-			result.ItemsFailed++
-			continue
-		}
-
-		resp, err := client.Do(req)
-		if err != nil {
-			result.ItemsFailed++
-			if result.ErrorMessage == "" {
-				result.ErrorMessage = fmt.Sprintf("failed to push '%s': %v", lp.Slug, err)
-			}
-			continue
-		}
-		resp.Body.Close()
-
-		if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK {
+		ok, errMsg := pushOnePost(lp, pushURL, client, system)
+		if ok {
 			result.ItemsSynced++
 		} else {
 			result.ItemsFailed++
-			if result.ErrorMessage == "" {
-				result.ErrorMessage = fmt.Sprintf("push '%s' returned status %d", lp.Slug, resp.StatusCode)
-			}
+			setFirstError(result, errMsg)
 		}
 	}
 
