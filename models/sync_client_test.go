@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -495,6 +497,97 @@ func TestDownloadAndRewriteContentImages(t *testing.T) {
 		got := sc.downloadAndRewriteContentImages(content, "http://example.com", "slug", system)
 		if got != content {
 			t.Errorf("expected unchanged content, got %q", got)
+		}
+	})
+}
+
+func TestDownloadImage(t *testing.T) {
+	t.Run("downloads and saves image", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.Write([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10})
+		}))
+		defer srv.Close()
+
+		// Use a temp dir
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		os.Chdir(tmpDir)
+		defer os.Chdir(origDir)
+
+		sc := &SyncClient{}
+		system := &ExternalSystem{BaseURL: srv.URL}
+		localURL, err := sc.downloadImage(srv.URL, "/static/uploads/post/test/img.jpg", "test-slug", "featured", system)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.HasPrefix(localURL, "/static/uploads/featured/test-slug/") {
+			t.Errorf("localURL = %q, want prefix '/static/uploads/featured/test-slug/'", localURL)
+		}
+	})
+
+	t.Run("builds full URL for relative path", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "image/png")
+			w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
+		}))
+		defer srv.Close()
+
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		os.Chdir(tmpDir)
+		defer os.Chdir(origDir)
+
+		sc := &SyncClient{}
+		system := &ExternalSystem{}
+		localURL, err := sc.downloadImage(srv.URL, "/static/uploads/post/slug/img.png", "slug", "post", system)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.HasSuffix(localURL, ".png") {
+			t.Errorf("expected .png extension, got %q", localURL)
+		}
+	})
+
+	t.Run("server error returns error", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer srv.Close()
+
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		os.Chdir(tmpDir)
+		defer os.Chdir(origDir)
+
+		sc := &SyncClient{}
+		system := &ExternalSystem{}
+		_, err := sc.downloadImage(srv.URL, "/img.jpg", "slug", "post", system)
+		if err == nil {
+			t.Error("expected error for 404")
+		}
+	})
+
+	t.Run("default extension for URL without ext", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte{0xFF, 0xD8})
+		}))
+		defer srv.Close()
+
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		os.Chdir(tmpDir)
+		defer os.Chdir(origDir)
+
+		sc := &SyncClient{}
+		system := &ExternalSystem{}
+		localURL, err := sc.downloadImage(srv.URL, "/static/uploads/post/slug/image", "slug", "post", system)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Should default to .jpg
+		if !strings.HasSuffix(localURL, ".jpg") {
+			t.Errorf("expected .jpg default extension, got %q", localURL)
 		}
 	})
 }
