@@ -25,8 +25,9 @@ import (
 )
 
 const (
-	mimeSVG         = "image/svg+xml"
-	headerCacheCtrl = "Cache-Control"
+	mimeSVG            = "image/svg+xml"
+	headerCacheCtrl    = "Cache-Control"
+	headerContentType  = "Content-Type"
 
 	routeAdminUploads       = "/admin/uploads"
 	routeImageMetadata      = "/api/admin/image-metadata"
@@ -457,7 +458,7 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		w.Header().Set("Content-Type", mimeSVG)
+		w.Header().Set(headerContentType, mimeSVG)
 		http.ServeFile(w, r, "./static/favicon.svg")
 	})
 
@@ -488,7 +489,7 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"):
 			w.Header().Set(headerCacheCtrl, "public, max-age=31536000, immutable")
 		case strings.HasSuffix(path, ".svg"):
-			w.Header().Set("Content-Type", mimeSVG)
+			w.Header().Set(headerContentType, mimeSVG)
 			w.Header().Set(headerCacheCtrl, "public, max-age=86400")
 		case strings.HasSuffix(path, ".png"), strings.HasSuffix(path, ".jpg"),
 			strings.HasSuffix(path, ".jpeg"), strings.HasSuffix(path, ".webp"),
@@ -640,7 +641,7 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 
 // jsonResponse sends a JSON response with the given data and status code.
 func jsonResponse(w http.ResponseWriter, data interface{}, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -662,7 +663,7 @@ func rssHandler(ps *models.PostService) http.HandlerFunc {
 			baseURL = "http://localhost:22222"
 		}
 
-		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+		w.Header().Set(headerContentType, "application/rss+xml; charset=utf-8")
 		w.Header().Set(headerCacheCtrl, "public, max-age=300")
 
 		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>

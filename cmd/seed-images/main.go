@@ -35,6 +35,28 @@ func main() {
 	fmt.Printf("Seeded %d images from %d posts\n", created, postCount)
 }
 
+// collectPostImages extracts Cloudinary image URLs from a single post row.
+func collectPostImages(content string, featuredPtr *string) []imageMatch {
+	imgs := extractCloudinaryImages(content)
+	if featuredPtr != nil && *featuredPtr != "" && isCloudinaryURL(*featuredPtr) {
+		imgs = append(imgs, imageMatch{url: *featuredPtr, alt: "Featured image", caption: ""})
+	}
+	return imgs
+}
+
+// deduplicateImages returns unique images, filtering via the seen map.
+func deduplicateImages(imgs []imageMatch, seen map[string]bool) []imageMatch {
+	var out []imageMatch
+	for _, img := range imgs {
+		if seen[img.url] {
+			continue
+		}
+		seen[img.url] = true
+		out = append(out, img)
+	}
+	return out
+}
+
 // processPosts scans all posts for Cloudinary image URLs and upserts their metadata.
 // Returns (imagesCreated, postCount, error).
 func processPosts(db *sql.DB, metaSvc *models.ImageMetadataService) (int, int, error) {
@@ -50,28 +72,16 @@ func processPosts(db *sql.DB, metaSvc *models.ImageMetadataService) (int, int, e
 
 	for rows.Next() {
 		var id int
-		var content, featuredURL string
+		var content string
 		var featuredPtr *string
 		if err := rows.Scan(&id, &content, &featuredPtr); err != nil {
 			log.Printf("scan post %d: %v", id, err)
 			continue
 		}
-		if featuredPtr != nil {
-			featuredURL = *featuredPtr
-		}
 		postCount++
 
-		extracted := extractCloudinaryImages(content)
-		if featuredURL != "" && isCloudinaryURL(featuredURL) {
-			extracted = append(extracted, imageMatch{url: featuredURL, alt: "Featured image", caption: ""})
-		}
-		for _, img := range extracted {
-			if seen[img.url] {
-				continue
-			}
-			seen[img.url] = true
-			all = append(all, img)
-		}
+		imgs := collectPostImages(content, featuredPtr)
+		all = append(all, deduplicateImages(imgs, seen)...)
 	}
 	if err := rows.Err(); err != nil {
 		return 0, 0, fmt.Errorf("rows: %w", err)
