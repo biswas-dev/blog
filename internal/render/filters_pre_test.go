@@ -234,4 +234,181 @@ func TestEnsureListSeparation(t *testing.T) {
 			t.Errorf("expected no change, got %q", got)
 		}
 	})
+
+	t.Run("handles ordered list", func(t *testing.T) {
+		input := "Some text\n1. first item"
+		got := ensureListSeparation(input)
+		if !strings.Contains(got, "\n\n") {
+			t.Errorf("expected blank line before ordered list, got %q", got)
+		}
+	})
+}
+
+func TestUnwrapListLikeContainers(t *testing.T) {
+	t.Run("unwraps div with list item", func(t *testing.T) {
+		input := `<div style="font-size:14px">- Item one</div>`
+		got := unwrapListLikeContainers(input)
+		if !strings.Contains(got, "- Item one") {
+			t.Errorf("expected unwrapped list item, got %q", got)
+		}
+		if strings.Contains(got, "<div") {
+			t.Errorf("div should be removed, got %q", got)
+		}
+	})
+
+	t.Run("unwraps p with ordered list item", func(t *testing.T) {
+		input := `<p>1. First item</p>`
+		got := unwrapListLikeContainers(input)
+		if !strings.Contains(got, "1.") && !strings.Contains(got, "First item") {
+			t.Errorf("expected unwrapped ordered item, got %q", got)
+		}
+	})
+
+	t.Run("no change for normal div", func(t *testing.T) {
+		input := `<div>Normal text here</div>`
+		got := unwrapListLikeContainers(input)
+		if got != input {
+			t.Errorf("expected no change for non-list div, got %q", got)
+		}
+	})
+}
+
+func TestPreprocessLooseMarkdownHTML(t *testing.T) {
+	t.Run("converts heading in paragraph", func(t *testing.T) {
+		input := "<p>## My Heading</p>"
+		got := preprocessLooseMarkdownHTML(input)
+		if !strings.Contains(got, "<h2>My Heading</h2>") {
+			t.Errorf("expected h2 tag, got %q", got)
+		}
+	})
+
+	t.Run("converts h1 in paragraph", func(t *testing.T) {
+		input := "<p># Title</p>"
+		got := preprocessLooseMarkdownHTML(input)
+		if !strings.Contains(got, "<h1>Title</h1>") {
+			t.Errorf("expected h1 tag, got %q", got)
+		}
+	})
+
+	t.Run("converts h3 in paragraph", func(t *testing.T) {
+		input := "<p>### Subtitle</p>"
+		got := preprocessLooseMarkdownHTML(input)
+		if !strings.Contains(got, "<h3>Subtitle</h3>") {
+			t.Errorf("expected h3 tag, got %q", got)
+		}
+	})
+
+	t.Run("converts horizontal rule", func(t *testing.T) {
+		input := "<p>---</p>"
+		got := preprocessLooseMarkdownHTML(input)
+		if !strings.Contains(got, "<hr/>") {
+			t.Errorf("expected hr tag, got %q", got)
+		}
+	})
+
+	t.Run("adds blank line after block containers", func(t *testing.T) {
+		input := "</div>Next text"
+		got := preprocessLooseMarkdownHTML(input)
+		if !strings.Contains(got, "</div>\n\n") {
+			t.Errorf("expected blank line after </div>, got %q", got)
+		}
+	})
+}
+
+func TestNormalizeInlinePipeTables(t *testing.T) {
+	t.Run("no change for non-table content", func(t *testing.T) {
+		input := "<p>Normal text</p>"
+		got := normalizeInlinePipeTables(input)
+		if got != input {
+			t.Errorf("expected no change, got %q", got)
+		}
+	})
+
+	t.Run("preserves pre blocks", func(t *testing.T) {
+		input := "<pre>| col1 | col2 |</pre>"
+		got := normalizeInlinePipeTables(input)
+		if !strings.Contains(got, "<pre>") {
+			t.Errorf("pre block should be preserved, got %q", got)
+		}
+	})
+}
+
+func TestStripStyleSnippets(t *testing.T) {
+	t.Run("removes token CSS", func(t *testing.T) {
+		input := ".token.keyword { color: red; }\nActual content"
+		got := stripStyleSnippets(input)
+		if strings.Contains(got, ".token.keyword") {
+			t.Errorf("CSS should be stripped, got %q", got)
+		}
+		if !strings.Contains(got, "Actual content") {
+			t.Errorf("content should be preserved, got %q", got)
+		}
+	})
+
+	t.Run("preserves CSS in pre blocks", func(t *testing.T) {
+		input := "<pre>.token.keyword { color: red; }</pre>"
+		got := stripStyleSnippets(input)
+		if !strings.Contains(got, ".token.keyword") {
+			t.Errorf("CSS inside pre should be preserved, got %q", got)
+		}
+	})
+}
+
+// --- renderer.go helpers ---
+
+func TestStrconvItoa(t *testing.T) {
+	tests := []struct {
+		input int
+		want  string
+	}{
+		{0, "0"},
+		{1, "1"},
+		{42, "42"},
+		{100, "100"},
+		{999, "999"},
+	}
+
+	for _, tt := range tests {
+		got := strconvItoa(tt.input)
+		if got != tt.want {
+			t.Errorf("strconvItoa(%d) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestPlaceholder(t *testing.T) {
+	got := placeholder("PRE", 0)
+	if got != "[[[PRE_BLOCK_0]]]" {
+		t.Errorf("placeholder(PRE, 0) = %q, want [[[PRE_BLOCK_0]]]", got)
+	}
+
+	got2 := placeholder("EMPH", 5)
+	if got2 != "[[[EMPH_BLOCK_5]]]" {
+		t.Errorf("placeholder(EMPH, 5) = %q, want [[[EMPH_BLOCK_5]]]", got2)
+	}
+}
+
+func TestProtectPreBlocks(t *testing.T) {
+	t.Run("protects pre blocks during transformation", func(t *testing.T) {
+		input := "before <pre>keep this</pre> after"
+		got := protectPreBlocks(input, func(s string) string {
+			return strings.ReplaceAll(s, "before", "BEFORE")
+		})
+		if !strings.Contains(got, "BEFORE") {
+			t.Errorf("transform should run on non-pre content, got %q", got)
+		}
+		if !strings.Contains(got, "<pre>keep this</pre>") {
+			t.Errorf("pre block should be preserved, got %q", got)
+		}
+	})
+
+	t.Run("handles no pre blocks", func(t *testing.T) {
+		input := "just text"
+		got := protectPreBlocks(input, func(s string) string {
+			return strings.ToUpper(s)
+		})
+		if got != "JUST TEXT" {
+			t.Errorf("expected uppercase, got %q", got)
+		}
+	})
 }

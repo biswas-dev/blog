@@ -241,4 +241,131 @@ func TestTaskListToHTML(t *testing.T) {
 			t.Errorf("expected checked checkbox, got: %s", got)
 		}
 	})
+
+	t.Run("preserves existing li class", func(t *testing.T) {
+		input := `<li class="custom">[ ] Task</li>`
+		got := taskListToHTML(input)
+		if !strings.Contains(got, `class="custom"`) {
+			t.Errorf("expected existing class preserved, got: %s", got)
+		}
+	})
+}
+
+func TestTernary(t *testing.T) {
+	if ternary(true, "a", "b") != "a" {
+		t.Error("ternary(true) should return first value")
+	}
+	if ternary(false, "a", "b") != "b" {
+		t.Error("ternary(false) should return second value")
+	}
+	if ternary(true, 1, 2) != 1 {
+		t.Error("ternary(true) int should return first value")
+	}
+}
+
+func TestHtmlEscapeAttr(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"quotes", `say "hello"`, `say &amp;quot;hello&amp;quot;`},
+		{"ampersand", "a & b", "a &amp; b"},
+		{"less than", "a < b", "a &lt; b"},
+		{"greater than", "a > b", "a &gt; b"},
+		{"no escaping", "plain text", "plain text"},
+		{"empty", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := htmlEscapeAttr(tt.input)
+			if got != tt.want {
+				t.Errorf("htmlEscapeAttr(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTransformMermaidBlocks(t *testing.T) {
+	t.Run("converts mermaid code block", func(t *testing.T) {
+		input := `<pre><code class="language-mermaid">graph TD; A-->B;</code></pre>`
+		got := transformMermaidBlocks(input)
+		if !strings.Contains(got, `class="mermaid"`) {
+			t.Errorf("expected mermaid div, got: %s", got)
+		}
+		if strings.Contains(got, "<pre>") {
+			t.Errorf("pre should be removed, got: %s", got)
+		}
+	})
+
+	t.Run("no change for non-mermaid", func(t *testing.T) {
+		input := `<pre><code class="language-go">fmt.Println()</code></pre>`
+		got := transformMermaidBlocks(input)
+		if got != input {
+			t.Errorf("expected no change, got: %s", got)
+		}
+	})
+}
+
+func TestConvertInlineEmphasisInHTML(t *testing.T) {
+	t.Run("converts bold stars", func(t *testing.T) {
+		input := `<p>This is **bold** text</p>`
+		got := convertInlineEmphasisInHTML(input)
+		if !strings.Contains(got, "<strong>bold</strong>") {
+			t.Errorf("expected strong tag, got: %s", got)
+		}
+	})
+
+	t.Run("converts italic stars", func(t *testing.T) {
+		input := `<p>This is *italic* text</p>`
+		got := convertInlineEmphasisInHTML(input)
+		if !strings.Contains(got, "<em>italic</em>") {
+			t.Errorf("expected em tag, got: %s", got)
+		}
+	})
+
+	t.Run("preserves code blocks", func(t *testing.T) {
+		input := `<code>**not bold**</code>`
+		got := convertInlineEmphasisInHTML(input)
+		if strings.Contains(got, "<strong>") {
+			t.Errorf("code content should not be emphasized, got: %s", got)
+		}
+	})
+}
+
+func TestWrapStandaloneImages(t *testing.T) {
+	t.Run("wraps standalone img in paragraph", func(t *testing.T) {
+		input := `<p><img src="https://example.com/photo.jpg" alt="Photo"></p>`
+		got := wrapStandaloneImages(input)
+		if !strings.Contains(got, `data-lightbox="article-images"`) {
+			t.Errorf("expected lightbox link, got: %s", got)
+		}
+	})
+
+	t.Run("skips already wrapped", func(t *testing.T) {
+		input := `<p><a data-lightbox="gallery"><img src="test.jpg"></a></p>`
+		got := wrapStandaloneImages(input)
+		if got != input {
+			t.Errorf("expected no change for already-wrapped, got: %s", got)
+		}
+	})
+
+	t.Run("no change for non-img paragraph", func(t *testing.T) {
+		input := `<p>Just text</p>`
+		got := wrapStandaloneImages(input)
+		if got != input {
+			t.Errorf("expected no change, got: %s", got)
+		}
+	})
+}
+
+func TestWrapImageGalleries(t *testing.T) {
+	t.Run("wraps figures and standalone images", func(t *testing.T) {
+		input := `<figure><img src="https://example.com/img.jpg"></figure><p><img src="https://example.com/img2.jpg"></p>`
+		got := wrapImageGalleries(input)
+		if !strings.Contains(got, "data-lightbox") {
+			t.Errorf("expected lightbox links, got: %s", got)
+		}
+	})
 }
