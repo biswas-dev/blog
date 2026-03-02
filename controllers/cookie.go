@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -17,6 +18,8 @@ func newCookie(name, value string, expire time.Time) *http.Cookie {
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   os.Getenv("APP_ENV") != "development",
+		SameSite: http.SameSiteLaxMode,
 		Expires:  expire,
 	}
 	return &cookie

@@ -23,6 +23,13 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// Pre-compiled regexes for slug sanitisation.
+var (
+	slugSanitizeRe    = regexp.MustCompile(`[^a-z0-9-]`)
+	slugNonAlnumRe    = regexp.MustCompile(`[^a-z0-9\s-]`)
+	slugWhitespaceRe  = regexp.MustCompile(`\s+`)
+)
+
 func (u Users) New(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Email            string
@@ -93,6 +100,71 @@ type Users struct {
 	BlogWiki             *gowiki.Wiki
 }
 
+// saveUploadedFile validates, generates a random name, and persists a single
+// uploaded image to disk. It returns the public URL of the saved file.
+func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (string, error) {
+	// Validate content type
+	buff := make([]byte, 512)
+	n, _ := file.Read(buff)
+	filetype := http.DetectContentType(buff[:n])
+	allowed := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}
+	ext, ok := allowed[filetype]
+	if !ok {
+		ext = strings.ToLower(filepath.Ext(filename))
+		ok = ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp" || ext == ".svg"
+		if !ok {
+			return "", fmt.Errorf("unsupported file type")
+		}
+		if ext == ".jpeg" {
+			ext = ".jpg"
+		}
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("unable to read file: %w", err)
+	}
+
+	// Random filename to avoid collisions
+	rb := make([]byte, 16)
+	if _, err := rand.Read(rb); err != nil {
+		return "", fmt.Errorf("internal error: %w", err)
+	}
+	name := hex.EncodeToString(rb) + ext
+
+	// Build directory path
+	base := filepath.Join("static", "uploads")
+	if uploadType == "featured" {
+		base = filepath.Join(base, "featured")
+		if slug != "" {
+			base = filepath.Join(base, slug)
+		}
+	} else if slug != "" {
+		base = filepath.Join(base, "post", slug)
+	}
+	_ = os.MkdirAll(base, 0o755)
+
+	fpath := filepath.Join(base, name)
+	out, err := os.Create(fpath)
+	if err != nil {
+		return "", fmt.Errorf("failed to save file: %w", err)
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, file); err != nil {
+		return "", fmt.Errorf("failed to save file: %w", err)
+	}
+
+	// Build public URL
+	urlBase := "/static/uploads"
+	if uploadType == "featured" {
+		urlBase += "/featured"
+		if slug != "" {
+			urlBase += "/" + slug
+		}
+	} else if slug != "" {
+		urlBase += "/post/" + slug
+	}
+	return urlBase + "/" + name, nil
+}
+
 // UploadImage handles image uploads (cover or inline). Returns JSON {url}
 func (u Users) UploadImage(w http.ResponseWriter, r *http.Request) {
 	user, err := u.isUserLoggedIn(r)
@@ -116,79 +188,17 @@ func (u Users) UploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Validate type
-	buff := make([]byte, 512)
-	n, _ := file.Read(buff)
-	filetype := http.DetectContentType(buff[:n])
-	allowed := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}
-	ext, ok := allowed[filetype]
-	if !ok {
-		// fallback to extension from filename if content-type sniff fails
-		ext = strings.ToLower(filepath.Ext(header.Filename))
-		ok = ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp" || ext == ".svg"
-		if !ok {
-			http.Error(w, "Unsupported file type", http.StatusBadRequest)
-			return
-		}
-		if ext == ".jpeg" {
-			ext = ".jpg"
-		}
-	}
-	// rewind
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		http.Error(w, "Unable to read file", http.StatusInternalServerError)
-		return
-	}
-
-	// Optional type and per-slug folder
-	uploadType := strings.ToLower(r.URL.Query().Get("type")) // e.g., "featured"
+	uploadType := strings.ToLower(r.URL.Query().Get("type"))
 	slug := r.URL.Query().Get("slug")
 	slug = strings.ToLower(slug)
-	slug = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(slug, "-")
+	slug = slugSanitizeRe.ReplaceAllString(slug, "-")
 
-	// Random filename to avoid collisions
-	rb := make([]byte, 16)
-	if _, err := rand.Read(rb); err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
-		return
-	}
-	name := hex.EncodeToString(rb) + ext
-
-	// Ensure upload directory exists
-	base := filepath.Join("static", "uploads")
-	if uploadType == "featured" {
-		// Store featured images under featured/{slug}/ when slug is available
-		base = filepath.Join(base, "featured")
-		if slug != "" {
-			base = filepath.Join(base, slug)
-		}
-	} else if slug != "" {
-		// For post-specific uploads, use /uploads/post/{slug}/
-		base = filepath.Join(base, "post", slug)
-	}
-	_ = os.MkdirAll(base, 0o755)
-	fpath := filepath.Join(base, name)
-	out, err := os.Create(fpath)
+	url, err := saveUploadedFile(file, header.Filename, uploadType, slug)
 	if err != nil {
-		http.Error(w, "Failed to save file", http.StatusInternalServerError)
-		return
-	}
-	defer out.Close()
-	if _, err := io.Copy(out, file); err != nil {
-		http.Error(w, "Failed to save file", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	urlBase := "/static/uploads"
-	if uploadType == "featured" {
-		urlBase += "/featured"
-		if slug != "" {
-			urlBase += "/" + slug
-		}
-	} else if slug != "" {
-		urlBase += "/post/" + slug
-	}
-	url := urlBase + "/" + name
 	resp := map[string]string{"url": url}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
@@ -217,11 +227,10 @@ func (u Users) UploadMultipleImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Optional type and per-slug folder
-	uploadType := strings.ToLower(r.URL.Query().Get("type")) // e.g., "featured"
+	uploadType := strings.ToLower(r.URL.Query().Get("type"))
 	slug := r.URL.Query().Get("slug")
 	slug = strings.ToLower(slug)
-	slug = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(slug, "-")
+	slug = slugSanitizeRe.ReplaceAllString(slug, "-")
 
 	var uploads []map[string]interface{}
 	var errors []string
@@ -232,69 +241,13 @@ func (u Users) UploadMultipleImages(w http.ResponseWriter, r *http.Request) {
 			errors = append(errors, fmt.Sprintf("Failed to open %s: %v", fileHeader.Filename, err))
 			continue
 		}
-		defer file.Close()
 
-		// Validate type
-		buff := make([]byte, 512)
-		n, _ := file.Read(buff)
-		filetype := http.DetectContentType(buff[:n])
-		allowed := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}
-		ext, ok := allowed[filetype]
-		if !ok {
-			// fallback to extension from filename if content-type sniff fails
-			ext = strings.ToLower(filepath.Ext(fileHeader.Filename))
-			ok = ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp" || ext == ".svg"
-			if !ok {
-				errors = append(errors, fmt.Sprintf("Unsupported file type for %s", fileHeader.Filename))
-				continue
-			}
-			if ext == ".jpeg" {
-				ext = ".jpg"
-			}
-		}
-
-		// rewind
-		if _, err := file.Seek(0, io.SeekStart); err != nil {
-			errors = append(errors, fmt.Sprintf("Unable to read file %s", fileHeader.Filename))
-			continue
-		}
-
-		// Random filename to avoid collisions
-		rb := make([]byte, 16)
-		if _, err := rand.Read(rb); err != nil {
-			errors = append(errors, fmt.Sprintf("Internal error for %s", fileHeader.Filename))
-			continue
-		}
-		name := hex.EncodeToString(rb) + ext
-
-		// Ensure upload directory exists
-		base := filepath.Join("static", "uploads")
-		if uploadType == "featured" {
-			base = filepath.Join(base, "featured")
-		} else if slug != "" {
-			// For post-specific uploads, use /uploads/post/{slug}/
-			base = filepath.Join(base, "post", slug)
-		}
-		_ = os.MkdirAll(base, 0o755)
-		fpath := filepath.Join(base, name)
-		out, err := os.Create(fpath)
+		url, err := saveUploadedFile(file, fileHeader.Filename, uploadType, slug)
+		file.Close()
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("Failed to save %s", fileHeader.Filename))
+			errors = append(errors, fmt.Sprintf("%s: %v", fileHeader.Filename, err))
 			continue
 		}
-		defer out.Close()
-		if _, err := io.Copy(out, file); err != nil {
-			errors = append(errors, fmt.Sprintf("Failed to save %s", fileHeader.Filename))
-			continue
-		}
-
-		urlBase := "/static/uploads"
-		if uploadType == "featured" {
-			urlBase += "/featured"
-		} else if slug != "" {
-			urlBase += "/post/" + slug
-		}
-		url := urlBase + "/" + name
 
 		uploads = append(uploads, map[string]interface{}{
 			"url":      url,
@@ -381,8 +334,8 @@ func (u Users) CreatePostFromFile(w http.ResponseWriter, r *http.Request) {
 
 	// Generate slug from title
 	slug := strings.ToLower(title)
-	slug = regexp.MustCompile(`[^a-z0-9\s-]`).ReplaceAllString(slug, "")
-	slug = regexp.MustCompile(`\s+`).ReplaceAllString(slug, "-")
+	slug = slugNonAlnumRe.ReplaceAllString(slug, "")
+	slug = slugWhitespaceRe.ReplaceAllString(slug, "-")
 	slug = strings.Trim(slug, "-")
 
 	// Create post

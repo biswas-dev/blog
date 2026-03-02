@@ -53,36 +53,22 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 	query := `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE is_published = true ORDER BY created_at DESC LIMIT 5`
 	rows, err := pp.DB.Query(query)
 	if err != nil {
-		return &list, nil
+		return nil, fmt.Errorf("query top posts: %w", err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
-
 		var post Post
 		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
 			return nil, fmt.Errorf("scan top posts: %w", err)
 		}
 
-		// Parse and format CreatedAt
-		t, err := time.Parse(time.RFC3339, post.CreatedAt)
-		if err == nil {
-			post.CreatedAt = t.Format(time.RFC3339)            // Keep original for JavaScript
-			post.PublicationDate = t.Format("January 2, 2006") // Readable fallback
-		}
-
-		// Parse and format PublicationDate if it's different from CreatedAt
-		if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
-			pubDate, pubErr := time.Parse(time.RFC3339, post.PublicationDate)
-			if pubErr == nil {
-				post.PublicationDate = pubDate.Format("January 2, 2006")
-			}
-		}
-
+		formatPostDates(&post)
 		list.Posts = append(list.Posts, post)
 	}
 
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("get top posts: %w", err)
 	}
 
@@ -106,8 +92,9 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 	query := `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE is_published = true ORDER BY created_at DESC LIMIT $1 OFFSET $2`
 	rows, err := pp.DB.Query(query, limit, offset)
 	if err != nil {
-		return &list, nil
+		return nil, fmt.Errorf("query paginated posts: %w", err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var post Post
@@ -116,25 +103,11 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 			return nil, fmt.Errorf("scan paginated posts: %w", err)
 		}
 
-		// Parse and format CreatedAt
-		t, err := time.Parse(time.RFC3339, post.CreatedAt)
-		if err == nil {
-			post.CreatedAt = t.Format(time.RFC3339)            // Keep original for JavaScript
-			post.PublicationDate = t.Format("January 2, 2006") // Readable fallback
-		}
-
-		// Parse and format PublicationDate if it's different from CreatedAt
-		if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
-			pubDate, pubErr := time.Parse(time.RFC3339, post.PublicationDate)
-			if pubErr == nil {
-				post.PublicationDate = pubDate.Format("January 2, 2006")
-			}
-		}
-
+		formatPostDates(&post)
 		list.Posts = append(list.Posts, post)
 	}
 
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("get paginated posts: %w", err)
 	}
 
@@ -172,21 +145,7 @@ func (pp *PostService) GetAllPosts() (*PostsList, error) {
 			return nil, err
 		}
 
-		// Parse and format CreatedAt
-		t, err := time.Parse(time.RFC3339, post.CreatedAt)
-		if err == nil {
-			post.CreatedAt = t.Format(time.RFC3339)
-			post.PublicationDate = t.Format("January 2, 2006")
-		}
-
-		// Parse and format PublicationDate if it's different from CreatedAt
-		if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
-			pubDate, pubErr := time.Parse(time.RFC3339, post.PublicationDate)
-			if pubErr == nil {
-				post.PublicationDate = pubDate.Format("January 2, 2006")
-			}
-		}
-
+		formatPostDates(&post)
 		post.Content = trimContent(post.Content)
 		list.Posts = append(list.Posts, post)
 	}
@@ -215,21 +174,7 @@ func (pp *PostService) GetPostsByUser(userID int) (*PostsList, error) {
 			return nil, err
 		}
 
-		// Parse and format CreatedAt
-		t, err := time.Parse(time.RFC3339, post.CreatedAt)
-		if err == nil {
-			post.CreatedAt = t.Format(time.RFC3339)
-			post.PublicationDate = t.Format("January 2, 2006")
-		}
-
-		// Parse and format PublicationDate if it's different from CreatedAt
-		if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
-			pubDate, pubErr := time.Parse(time.RFC3339, post.PublicationDate)
-			if pubErr == nil {
-				post.PublicationDate = pubDate.Format("January 2, 2006")
-			}
-		}
-
+		formatPostDates(&post)
 		post.Content = trimContent(post.Content)
 		list.Posts = append(list.Posts, post)
 	}
@@ -241,6 +186,9 @@ func (pp *PostService) GetPostsByUser(userID int) (*PostsList, error) {
 	return &list, nil
 }
 
+// fenceRe matches fenced code blocks for stripping during content trimming.
+var fenceRe = regexp.MustCompile("(?s)```.*?```")
+
 // Function to trim content up to the <more--> tag
 func trimContent(content string) string {
 	// Prefer everything before read-more marker; support escaped version too
@@ -250,8 +198,7 @@ func trimContent(content string) string {
 		content = content[:idx]
 	}
 	// Remove fenced code blocks ```...```
-	fence := regexp.MustCompile("(?s)```.*?```")
-	content = fence.ReplaceAllString(content, " ")
+	content = fenceRe.ReplaceAllString(content, " ")
 	// Remove stray backticks
 	content = strings.ReplaceAll(content, "```", " ")
 	content = strings.ReplaceAll(content, "`", "")
@@ -272,20 +219,40 @@ func trimContent(content string) string {
 
 func stripHTML(s string) string {
 	var b strings.Builder
-	in := false
+	inTag := false
 	for _, r := range s {
 		switch r {
 		case '<':
-			in = true
+			inTag = true
 		case '>':
-			in = false
+			inTag = false
 		default:
-			if !in {
+			if !inTag {
 				b.WriteRune(r)
 			}
 		}
 	}
 	return b.String()
+}
+
+// formatPostDates normalises date fields for list pages:
+//   - CreatedAt stays RFC3339 (consumed by JavaScript)
+//   - PublicationDate and LastEditDate become human-friendly strings
+func formatPostDates(post *Post) {
+	if t, err := time.Parse(time.RFC3339, post.CreatedAt); err == nil {
+		post.CreatedAt = t.Format(time.RFC3339)
+		post.PublicationDate = t.Format("January 2, 2006")
+	}
+	if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
+		if t, err := time.Parse(time.RFC3339, post.PublicationDate); err == nil {
+			post.PublicationDate = t.Format("January 2, 2006")
+		}
+	}
+	if post.LastEditDate != "" {
+		if t, err := time.Parse(time.RFC3339, post.LastEditDate); err == nil {
+			post.LastEditDate = t.Format("January 2, 2006")
+		}
+	}
 }
 
 // previewContentRaw returns a trimmed slice of the raw content that preserves
