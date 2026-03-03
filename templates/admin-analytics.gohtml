@@ -478,13 +478,46 @@
                     <p style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 0;">IPs whose primary activity is exploit scanning</p>
                 </div>
             </div>
+            <!-- Toolbar -->
+            <div style="display:flex;gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border-light);flex-wrap:wrap;">
+                <input id="susp-search" type="text" placeholder="Search IP or path…" oninput="filterSuspVisitors(this.value)"
+                    style="flex:1;min-width:160px;padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.8125rem;"/>
+                <select id="susp-per-page" onchange="suspSetPerPage(+this.value)"
+                    style="padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.8125rem;cursor:pointer;">
+                    <option value="20">20 / page</option>
+                    <option value="50">50 / page</option>
+                    <option value="100">100 / page</option>
+                </select>
+                <div id="susp-bulk-bar" style="display:none;gap:6px;align-items:center;">
+                    <span id="susp-sel-count" style="font-size:0.8rem;color:var(--text-secondary);"></span>
+                    <button onclick="bulkAction('ban')" style="padding:4px 10px;border-radius:6px;border:none;background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;font-weight:600;cursor:pointer;">Ban Selected</button>
+                    <button onclick="bulkAction('unban')" style="padding:4px 10px;border-radius:6px;border:none;background:rgba(245,158,11,0.12);color:#d97706;font-size:0.75rem;font-weight:600;cursor:pointer;">Unban Selected</button>
+                    <button onclick="bulkAction('whitelist')" style="padding:4px 10px;border-radius:6px;border:none;background:rgba(22,163,74,0.12);color:#16a34a;font-size:0.75rem;font-weight:600;cursor:pointer;">Whitelist Selected</button>
+                </div>
+            </div>
             <div class="sys-card-body" style="padding: 0;">
                 <table class="analytics-table">
-                    <thead><tr><th>IP Address</th><th>Views</th><th>Last Seen</th><th>Top Path</th><th>Browser</th><th style="text-align:right;">Actions</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th style="width:32px;"><input type="checkbox" id="susp-select-all" onchange="toggleSelectAll(this.checked)"></th>
+                            <th>IP Address</th><th>Views</th><th>Last Seen</th>
+                            <th>Top Path</th><th>Browser</th><th style="text-align:right">Actions</th>
+                        </tr>
+                    </thead>
                     <tbody id="suspicious-visitors-body">
-                        <tr><td colspan="6" class="analytics-loading">Loading...</td></tr>
+                        <tr><td colspan="7" class="analytics-loading">Loading...</td></tr>
                     </tbody>
                 </table>
+            </div>
+            <!-- Pagination footer -->
+            <div id="susp-pagination" style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-top:1px solid var(--border-light);">
+                <span id="susp-page-info" style="font-size:0.8rem;color:var(--text-secondary);"></span>
+                <div style="display:flex;gap:6px;">
+                    <button id="susp-prev" onclick="suspGoPrev()"
+                        style="padding:4px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:0.8rem;cursor:pointer;">← Prev</button>
+                    <button id="susp-next" onclick="suspGoNext()"
+                        style="padding:4px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:0.8rem;cursor:pointer;">Next →</button>
+                </div>
             </div>
         </div>
 
@@ -574,6 +607,12 @@
     let hourlyChart = null;
     let browserChart = null;
     let currentPeriod = '30d';
+
+    // Suspicious visitors state
+    let allSuspVisitors = [];
+    let filteredVisitors = [];
+    let suspPage = 1;
+    let suspPerPage = 20;
 
     function initViewsChart(data) {
         const ctx = document.getElementById('views-chart').getContext('2d');
@@ -880,25 +919,7 @@
             }
 
             // Suspicious visitors
-            const svBody = document.getElementById('suspicious-visitors-body');
-            const suspVisitors = data.suspicious_visitors || [];
-            if (suspVisitors.length === 0) {
-                svBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:20px;">No suspicious visitors detected</td></tr>';
-            } else {
-                svBody.innerHTML = suspVisitors.map(v =>
-                    `<tr class="visitor-row" onclick="openIPModal('${escapeHtml(v.ip_address)}')">
-                        <td style="font-family:'SF Mono','Fira Code',monospace;font-size:0.75rem;">${escapeHtml(v.ip_address)}</td>
-                        <td class="num">${fmtNum(v.views)}</td>
-                        <td style="font-size:0.75rem;color:var(--text-secondary);">${formatTimestamp(v.last_seen)}</td>
-                        <td class="path" title="${escapeHtml(v.top_path)}">${escapeHtml(v.top_path)}</td>
-                        <td><span class="ua-badge">${escapeHtml(classifyBrowserJS(v.user_agent))}</span></td>
-                        <td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation()">
-                            <button onclick="banIPFromAnalytics('${escapeHtml(v.ip_address)}')" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:4px;">Ban</button>
-                            <button onclick="allowIPFromAnalytics('${escapeHtml(v.ip_address)}')" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(22,163,74,0.12);color:#16a34a;font-size:0.75rem;font-weight:600;cursor:pointer;">Allow</button>
-                        </td>
-                    </tr>`
-                ).join('');
-            }
+            window.setSuspVisitors(data.suspicious_visitors || []);
 
             // Suspicious requests
             const srBody = document.getElementById('suspicious-requests-body');
@@ -975,7 +996,90 @@
         });
     });
 
-    // Ban / Allow IP from the analytics suspicious visitors table
+    // Suspicious visitors — state management and rendering
+    window.setSuspVisitors = function(list) {
+        allSuspVisitors = list;
+        filteredVisitors = list.slice();
+        suspPage = 1;
+        window.renderSuspVisitors();
+    };
+
+    window.filterSuspVisitors = function(query) {
+        const q = query.toLowerCase();
+        filteredVisitors = q
+            ? allSuspVisitors.filter(v => v.ip_address.includes(q) || v.top_path.toLowerCase().includes(q))
+            : allSuspVisitors.slice();
+        suspPage = 1;
+        window.renderSuspVisitors();
+    };
+
+    window.renderSuspVisitors = function() {
+        const total = filteredVisitors.length;
+        const totalPages = Math.max(1, Math.ceil(total / suspPerPage));
+        if (suspPage > totalPages) suspPage = totalPages;
+        const start = (suspPage - 1) * suspPerPage;
+        const page = filteredVisitors.slice(start, start + suspPerPage);
+        const end = Math.min(start + suspPerPage, total);
+
+        const body = document.getElementById('suspicious-visitors-body');
+        if (!body) return;
+
+        if (page.length === 0) {
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:20px;">No suspicious visitors detected</td></tr>';
+        } else {
+            body.innerHTML = page.map(v => {
+                const ip = escapeHtml(v.ip_address);
+                const isBanned = v.rule_action === 'ban';
+                const badge = isBanned
+                    ? `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.65rem;font-weight:700;text-transform:uppercase;background:rgba(239,68,68,0.15);color:#ef4444;margin-left:6px;">Banned</span>`
+                    : '';
+                const actions = isBanned
+                    ? `<button onclick="unbanIP('${ip}')" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(245,158,11,0.12);color:#d97706;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:4px;">Unban</button><button onclick="whitelistIP('${ip}')" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(22,163,74,0.12);color:#16a34a;font-size:0.75rem;font-weight:600;cursor:pointer;">Whitelist</button>`
+                    : `<button onclick="banIPFromAnalytics('${ip}')" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:4px;">Ban</button><button onclick="whitelistIP('${ip}')" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(22,163,74,0.12);color:#16a34a;font-size:0.75rem;font-weight:600;cursor:pointer;">Whitelist</button>`;
+                return `<tr class="visitor-row" data-ip="${ip}" onclick="openIPModal('${ip}')">
+                    <td onclick="event.stopPropagation()"><input type="checkbox" class="susp-cb" value="${ip}" onchange="updateBulkBar()"></td>
+                    <td style="font-family:'SF Mono','Fira Code',monospace;font-size:0.75rem;">${ip}${badge}</td>
+                    <td class="num">${fmtNum(v.views)}</td>
+                    <td style="font-size:0.75rem;color:var(--text-secondary);">${formatTimestamp(v.last_seen)}</td>
+                    <td class="path" title="${escapeHtml(v.top_path)}">${escapeHtml(v.top_path)}</td>
+                    <td><span class="ua-badge">${escapeHtml(classifyBrowserJS(v.user_agent))}</span></td>
+                    <td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap;">${actions}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        const info = document.getElementById('susp-page-info');
+        if (info) info.textContent = total === 0 ? '' : `Showing ${start + 1}–${end} of ${total}`;
+
+        const prev = document.getElementById('susp-prev');
+        const next = document.getElementById('susp-next');
+        if (prev) prev.disabled = suspPage <= 1;
+        if (next) next.disabled = suspPage >= totalPages;
+
+        const selectAll = document.getElementById('susp-select-all');
+        if (selectAll) selectAll.checked = false;
+        window.updateBulkBar();
+    };
+
+    window.suspSetPerPage = function(n) { suspPerPage = n; suspPage = 1; window.renderSuspVisitors(); };
+    window.suspGoNext = function() { suspPage++; window.renderSuspVisitors(); };
+    window.suspGoPrev = function() { if (suspPage > 1) { suspPage--; window.renderSuspVisitors(); } };
+
+    window.toggleSelectAll = function(checked) {
+        document.querySelectorAll('.susp-cb').forEach(cb => { cb.checked = checked; });
+        window.updateBulkBar();
+    };
+
+    window.updateBulkBar = function() {
+        const selected = document.querySelectorAll('.susp-cb:checked');
+        const bar = document.getElementById('susp-bulk-bar');
+        if (!bar) return;
+        bar.style.display = selected.length ? 'flex' : 'none';
+        const countEl = document.getElementById('susp-sel-count');
+        if (countEl) countEl.textContent = selected.length + ' selected';
+    };
+
+    // Ban / Unban / Whitelist IP from the analytics suspicious visitors table
     window.banIPFromAnalytics = async function(ip) {
         if (!confirm('Ban ' + ip + '? They will receive 403 Forbidden on all requests.')) return;
         try {
@@ -985,7 +1089,10 @@
                 body: JSON.stringify({ ip: ip, reason: 'banned from analytics dashboard' }),
             });
             if (resp.ok) {
-                loadData(currentPeriod);
+                const v = allSuspVisitors.find(v => v.ip_address === ip);
+                if (v) v.rule_action = 'ban';
+                const search = document.getElementById('susp-search');
+                window.filterSuspVisitors(search ? search.value : '');
             } else {
                 alert('Failed to ban ' + ip);
             }
@@ -994,22 +1101,88 @@
         }
     };
 
-    window.allowIPFromAnalytics = async function(ip) {
-        if (!confirm('Allow ' + ip + '? They will be excluded from suspicious sections.')) return;
+    window.unbanIP = async function(ip) {
+        if (!confirm('Unban ' + ip + '? They will no longer receive 403.')) return;
         try {
-            const resp = await fetch('/api/admin/security/allow', {
-                method: 'POST',
+            const resp = await fetch('/api/admin/security/rules', {
+                method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ip: ip, reason: 'allowed from analytics dashboard' }),
+                body: JSON.stringify({ ip: ip }),
             });
-            if (resp.ok) {
-                loadData(currentPeriod);
+            if (resp.ok || resp.status === 204) {
+                const v = allSuspVisitors.find(v => v.ip_address === ip);
+                if (v) v.rule_action = '';
+                const search = document.getElementById('susp-search');
+                window.filterSuspVisitors(search ? search.value : '');
             } else {
-                alert('Failed to allow ' + ip);
+                alert('Failed to unban ' + ip);
             }
         } catch (err) {
             alert('Network error');
         }
+    };
+
+    window.whitelistIP = async function(ip) {
+        if (!confirm('Whitelist ' + ip + '? They will be excluded from suspicious sections.')) return;
+        try {
+            const resp = await fetch('/api/admin/security/allow', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ip, reason: 'whitelisted from analytics' }),
+            });
+            if (resp.ok) {
+                allSuspVisitors = allSuspVisitors.filter(v => v.ip_address !== ip);
+                const search = document.getElementById('susp-search');
+                window.filterSuspVisitors(search ? search.value : '');
+            } else {
+                alert('Failed to whitelist ' + ip);
+            }
+        } catch (err) {
+            alert('Network error');
+        }
+    };
+
+    window.bulkAction = async function(action) {
+        const cbs = [...document.querySelectorAll('.susp-cb:checked')];
+        const ips = cbs.map(cb => cb.value);
+        if (ips.length === 0) return;
+        const label = action === 'ban' ? 'Ban' : action === 'unban' ? 'Unban' : 'Whitelist';
+        if (!confirm(label + ' ' + ips.length + ' IP(s)?')) return;
+
+        const promises = ips.map(ip => {
+            if (action === 'ban') {
+                return fetch('/api/admin/security/ban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip, reason: 'bulk ban from analytics' }),
+                });
+            } else if (action === 'unban') {
+                return fetch('/api/admin/security/rules', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip }),
+                });
+            } else {
+                return fetch('/api/admin/security/allow', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip, reason: 'bulk whitelist from analytics' }),
+                });
+            }
+        });
+
+        await Promise.allSettled(promises);
+
+        if (action === 'ban') {
+            ips.forEach(ip => { const v = allSuspVisitors.find(v => v.ip_address === ip); if (v) v.rule_action = 'ban'; });
+        } else if (action === 'unban') {
+            ips.forEach(ip => { const v = allSuspVisitors.find(v => v.ip_address === ip); if (v) v.rule_action = ''; });
+        } else {
+            allSuspVisitors = allSuspVisitors.filter(v => !ips.includes(v.ip_address));
+        }
+
+        const search = document.getElementById('susp-search');
+        window.filterSuspVisitors(search ? search.value : '');
     };
 
     // Load initial data
