@@ -597,11 +597,11 @@ svg { flex-shrink: 0; }
 /* ----------------------------------------------------------
    4. Dark-mode Utility Overrides
    ---------------------------------------------------------- */
-.dark .dark\:block { display: block; }
-.dark .dark\:hidden { display: none; }
-.dark .dark\:flex { display: flex; }
-:not(.dark) .dark\:block { display: none; }
-:not(.dark) .dark\:hidden { display: block; }
+html.dark .dark\:block { display: block; }
+html.dark .dark\:hidden { display: none; }
+html.dark .dark\:flex { display: flex; }
+html:not(.dark) .dark\:block { display: none; }
+html:not(.dark) .dark\:hidden { display: block; }
 
 /* Dark text */
 .dark .dark\:text-white { color: #ffffff; }

@@ -33,7 +33,7 @@ func TrackingMiddleware(analyticsService *models.AnalyticsService, sessionServic
 			}
 
 			// Extract IP address
-			ip := extractIP(r)
+			ip := ExtractIP(r)
 
 			// Best-effort user identification via session cookie
 			var userID *int
@@ -57,8 +57,9 @@ func TrackingMiddleware(analyticsService *models.AnalyticsService, sessionServic
 	}
 }
 
-// extractIP tries several headers before falling back to RemoteAddr
-func extractIP(r *http.Request) string {
+// ExtractIP tries several headers before falling back to RemoteAddr.
+// Exported so firewall.go (same package) and tests can call it directly.
+func ExtractIP(r *http.Request) string {
 	// Cloudflare
 	if ip := r.Header.Get("CF-Connecting-IP"); ip != "" {
 		return ip

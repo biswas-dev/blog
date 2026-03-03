@@ -70,9 +70,9 @@ func TestExtractIP(t *testing.T) {
 			for k, v := range tt.headers {
 				req.Header.Set(k, v)
 			}
-			got := extractIP(req)
+			got := ExtractIP(req)
 			if got != tt.want {
-				t.Errorf("extractIP() = %q, want %q", got, tt.want)
+				t.Errorf("ExtractIP() = %q, want %q", got, tt.want)
 			}
 		})
 	}

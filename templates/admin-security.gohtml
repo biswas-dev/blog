@@ -1,0 +1,462 @@
+{{template "modern-header" .}}
+
+<style>
+    .sys-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .dark .sys-card {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    .sys-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .sys-card-header {
+        border-color: var(--border);
+    }
+    .sys-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .sys-icon svg { width: 18px; height: 18px; }
+    .sys-icon-red  { background: rgba(239,68,68,0.1); color: #ef4444; }
+    .dark .sys-icon-red  { background: rgba(239,68,68,0.15); color: #f87171; }
+    .sys-icon-green { background: rgba(22,163,74,0.1); color: #16a34a; }
+    .dark .sys-icon-green { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .sys-icon-amber { background: rgba(217,119,6,0.1); color: #d97706; }
+    .dark .sys-icon-amber { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .sys-card-header h3 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .sys-card-body { padding: 16px 20px; }
+    .sys-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+    }
+    .sys-page-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .sys-page-header p {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin: 4px 0 0 0;
+    }
+    .sys-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .sys-back-btn:hover {
+        color: var(--text-primary);
+        border-color: var(--text-secondary);
+    }
+
+    /* Summary cards grid */
+    .security-summary {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    @media (min-width: 768px) {
+        .security-summary { grid-template-columns: repeat(4, 1fr); }
+    }
+    .stat-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        padding: 20px;
+    }
+    .dark .stat-card {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 4px;
+    }
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+    .stat-sub {
+        font-size: 0.75rem;
+        color: var(--text-tertiary);
+        margin-top: 4px;
+    }
+
+    .analytics-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .analytics-table th {
+        text-align: left;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .analytics-table th { border-bottom-color: var(--border); }
+    .analytics-table td {
+        font-size: 0.8125rem;
+        color: var(--text-primary);
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .analytics-table td { border-bottom-color: var(--border); }
+    .analytics-table td.mono {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.75rem;
+    }
+    .analytics-table td.muted {
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+    }
+
+    /* Action badge */
+    .action-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .action-badge-ban  { background: rgba(239,68,68,0.12); color: #ef4444; }
+    .action-badge-allow { background: rgba(22,163,74,0.12); color: #16a34a; }
+    .dark .action-badge-ban  { background: rgba(239,68,68,0.2); color: #f87171; }
+    .dark .action-badge-allow { background: rgba(74,222,128,0.2); color: #4ade80; }
+
+    /* Add rule form */
+    .add-rule-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: flex-end;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .add-rule-form { border-bottom-color: var(--border); }
+    .add-rule-form label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        display: block;
+        margin-bottom: 4px;
+    }
+    .add-rule-form input,
+    .add-rule-form select {
+        height: 36px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-size: 0.8125rem;
+        outline: none;
+    }
+    .dark .add-rule-form input,
+    .dark .add-rule-form select {
+        background: var(--bg-secondary);
+    }
+    .add-rule-form input:focus,
+    .add-rule-form select:focus {
+        border-color: var(--accent);
+    }
+    .add-rule-form input[name="ip"]     { width: 180px; font-family: 'SF Mono','Fira Code',monospace; }
+    .add-rule-form input[name="reason"] { width: 260px; }
+    .btn-ban {
+        height: 36px;
+        padding: 0 16px;
+        border-radius: 8px;
+        border: none;
+        background: rgba(239,68,68,0.12);
+        color: #ef4444;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .btn-ban:hover { background: rgba(239,68,68,0.22); }
+    .btn-allow {
+        height: 36px;
+        padding: 0 16px;
+        border-radius: 8px;
+        border: none;
+        background: rgba(22,163,74,0.12);
+        color: #16a34a;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .btn-allow:hover { background: rgba(22,163,74,0.22); }
+    .btn-remove {
+        padding: 3px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .btn-remove:hover { color: #ef4444; border-color: rgba(239,68,68,0.4); }
+
+    .empty-state {
+        text-align: center;
+        padding: 32px 0;
+        color: var(--text-tertiary);
+        font-size: 0.875rem;
+    }
+
+    /* Toast notification */
+    .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        z-index: 9999;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.2s, transform 0.2s;
+        pointer-events: none;
+    }
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .toast-success { background: rgba(22,163,74,0.9); color: #fff; }
+    .toast-error   { background: rgba(239,68,68,0.9); color: #fff; }
+</style>
+
+<div class="min-h-screen" style="background: var(--bg-secondary);">
+    <div class="max-w-7xl mx-auto px-4 py-8" style="max-width: 1100px;">
+        <!-- Header -->
+        <div class="sys-page-header">
+            <div>
+                <h1>Security</h1>
+                <p>IP ban and allow list management</p>
+            </div>
+            <a href="/admin/analytics" class="sys-back-btn">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                Analytics
+            </a>
+        </div>
+
+        <!-- Stats -->
+        <div class="security-summary">
+            <div class="stat-card" style="border-color: rgba(239,68,68,0.3);">
+                <div class="stat-label" style="color: #ef4444;">Banned IPs</div>
+                <div class="stat-value" style="color: #ef4444;">{{len .BannedRules}}</div>
+                <div class="stat-sub">receiving 403</div>
+            </div>
+            <div class="stat-card" style="border-color: rgba(22,163,74,0.3);">
+                <div class="stat-label" style="color: #16a34a;">Allowed IPs</div>
+                <div class="stat-value" style="color: #16a34a;">{{len .AllowedRules}}</div>
+                <div class="stat-sub">excluded from suspicious</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Rules</div>
+                <div class="stat-value">{{add (len .BannedRules) (len .AllowedRules)}}</div>
+                <div class="stat-sub">active rules</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Auto-Ban</div>
+                <div class="stat-value" style="font-size:1.1rem;padding-top:4px;">Every 15m</div>
+                <div class="stat-sub">threshold: IP_BAN_THRESHOLD</div>
+            </div>
+        </div>
+
+        <!-- Add Rule -->
+        <div class="sys-card" style="margin-bottom: 24px;">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-amber">
+                    <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/></svg>
+                </div>
+                <h3>Add Rule</h3>
+            </div>
+            <div class="add-rule-form">
+                <div>
+                    <label>IP Address</label>
+                    <input type="text" name="ip" id="new-ip" placeholder="1.2.3.4" autocomplete="off" spellcheck="false">
+                </div>
+                <div>
+                    <label>Reason (optional)</label>
+                    <input type="text" name="reason" id="new-reason" placeholder="e.g. known scanner">
+                </div>
+                <div>
+                    <label>&nbsp;</label>
+                    <button class="btn-ban" onclick="submitNewRule('ban')">Ban IP</button>
+                </div>
+                <div>
+                    <label>&nbsp;</label>
+                    <button class="btn-allow" onclick="submitNewRule('allow')">Allow IP</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Rules Table -->
+        <div class="sys-card">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-red">
+                    <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                </div>
+                <h3>IP Rules</h3>
+            </div>
+            <div class="sys-card-body" style="padding: 0;">
+                {{if and (eq (len .BannedRules) 0) (eq (len .AllowedRules) 0)}}
+                <div class="empty-state">No rules configured. Add a ban or allow rule above.</div>
+                {{else}}
+                <table class="analytics-table" id="rules-table">
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Action</th>
+                            <th>Reason</th>
+                            <th>Created</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .BannedRules}}
+                        <tr id="rule-row-{{.ID}}">
+                            <td class="mono">{{.IPAddress}}</td>
+                            <td><span class="action-badge action-badge-ban">ban</span></td>
+                            <td class="muted">{{if .Reason}}{{.Reason}}{{else}}—{{end}}</td>
+                            <td class="muted" style="white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;">{{.CreatedAt}}</td>
+                            <td style="text-align:right;">
+                                <button class="btn-remove" onclick="removeRule('{{.IPAddress}}', {{.ID}})">Remove</button>
+                            </td>
+                        </tr>
+                        {{end}}
+                        {{range .AllowedRules}}
+                        <tr id="rule-row-{{.ID}}">
+                            <td class="mono">{{.IPAddress}}</td>
+                            <td><span class="action-badge action-badge-allow">allow</span></td>
+                            <td class="muted">{{if .Reason}}{{.Reason}}{{else}}—{{end}}</td>
+                            <td class="muted" style="white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;">{{.CreatedAt}}</td>
+                            <td style="text-align:right;">
+                                <button class="btn-remove" onclick="removeRule('{{.IPAddress}}', {{.ID}})">Remove</button>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+    function showToast(msg, type) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast toast-' + type + ' show';
+        setTimeout(() => { t.className = 'toast'; }, 3000);
+    }
+
+    window.removeRule = async function(ip, rowId) {
+        if (!confirm('Remove rule for ' + ip + '?')) return;
+        try {
+            const resp = await fetch('/api/admin/security/rules', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ip }),
+            });
+            if (resp.status === 204) {
+                const row = document.getElementById('rule-row-' + rowId);
+                if (row) row.remove();
+                showToast('Rule removed for ' + ip, 'success');
+            } else {
+                showToast('Failed to remove rule', 'error');
+            }
+        } catch (err) {
+            showToast('Network error', 'error');
+        }
+    };
+
+    window.submitNewRule = async function(action) {
+        const ip = document.getElementById('new-ip').value.trim();
+        const reason = document.getElementById('new-reason').value.trim();
+        if (!ip) {
+            showToast('Please enter an IP address', 'error');
+            return;
+        }
+        const endpoint = action === 'ban'
+            ? '/api/admin/security/ban'
+            : '/api/admin/security/allow';
+        try {
+            const resp = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ip, reason: reason }),
+            });
+            if (resp.ok) {
+                showToast(ip + ' ' + action + 'ned successfully', 'success');
+                document.getElementById('new-ip').value = '';
+                document.getElementById('new-reason').value = '';
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                const text = await resp.text();
+                showToast('Error: ' + text, 'error');
+            }
+        } catch (err) {
+            showToast('Network error', 'error');
+        }
+    };
+
+    // Submit form on Enter key in IP field
+    document.getElementById('new-ip').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') submitNewRule('ban');
+    });
+})();
+</script>
+
+{{template "modern-footer" .}}

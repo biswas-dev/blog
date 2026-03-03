@@ -94,6 +94,20 @@ func main() {
 		DB: DB,
 	}
 
+	// Initialize IP ban cache and rules service
+	ipBanCache := models.NewIPBanCache()
+	ipRulesService := models.NewIPRulesService(DB, ipBanCache)
+	defer ipRulesService.Shutdown()
+
+	// Pre-populate cache from DB before middleware is registered
+	if err := ipRulesService.LoadForCache(); err != nil {
+		logger.Error().Err(err).Msg("failed to load IP rules into cache")
+	}
+
+	// BanMiddleware MUST be registered before TrackingMiddleware so banned IPs
+	// are blocked before any page view is recorded.
+	r.Use(authmw.BanMiddleware(ipBanCache))
+
 	// Page view tracking middleware (records after response, zero latency)
 	r.Use(authmw.TrackingMiddleware(analyticsService, &sessionService))
 
@@ -299,6 +313,14 @@ func main() {
 	analyticsC.Templates.Dashboard = views.Must(views.ParseFS(
 		templates.FS, "admin-analytics.gohtml", "tailwind.gohtml"))
 
+	// Initialize Security controller
+	securityC := controllers.Security{
+		IPRulesService: ipRulesService,
+		SessionService: &sessionService,
+	}
+	securityC.Templates.Dashboard = views.Must(views.ParseFS(
+		templates.FS, "admin-security.gohtml", "tailwind.gohtml"))
+
 	r.Get("/", usersC.Home)
 	r.Get("/admin/posts", usersC.AdminPosts)
 	r.Get("/admin/posts/new", usersC.NewPost)
@@ -363,6 +385,13 @@ func main() {
 	r.Get("/admin/analytics", analyticsC.Dashboard)
 	r.Get("/api/admin/analytics", analyticsC.GetAnalyticsJSON)
 	r.Get("/api/admin/analytics/visitor", analyticsC.GetVisitorDetail)
+
+	// Security Routes
+	r.Get("/admin/security", securityC.Dashboard)
+	r.Get("/api/admin/security/rules", securityC.ListRulesJSON)
+	r.Post("/api/admin/security/ban", securityC.BanIP)
+	r.Post("/api/admin/security/allow", securityC.AllowIP)
+	r.Delete("/api/admin/security/rules", securityC.RemoveRule)
 
 	// Cloudinary Settings Routes
 	r.Get(routeCloudinary, systemC.GetCloudinarySettings)

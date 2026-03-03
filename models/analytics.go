@@ -301,6 +301,7 @@ func (s *AnalyticsService) getTimeSeries(since string) ([]TimeSeriesPoint, int64
 		today AS (
 			SELECT CURRENT_DATE::text AS date, COUNT(*) AS views, COUNT(DISTINCT ip_address) AS uniques
 			FROM page_views WHERE viewed_at >= CURRENT_DATE
+			AND ip_address NOT IN (SELECT ip_address FROM ip_rules WHERE action = 'ban')
 		)
 		SELECT date, views, uniques FROM daily
 		UNION ALL
@@ -483,7 +484,9 @@ func (s *AnalyticsService) getSuspiciousRequests(since string) ([]TopItem, error
 			WHERE view_date >= $1::date AND view_date < CURRENT_DATE AND %s GROUP BY path
 		),
 		today AS (
-			SELECT path, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE AND %s GROUP BY path
+			SELECT path, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE AND %s
+			AND ip_address NOT IN (SELECT ip_address FROM ip_rules WHERE action = 'allow')
+			GROUP BY path
 		),
 		combined AS (
 			SELECT path, SUM(views) AS views FROM (SELECT * FROM past UNION ALL SELECT * FROM today) t GROUP BY path
@@ -510,13 +513,14 @@ func (s *AnalyticsService) getSuspiciousRequests(since string) ([]TopItem, error
 func (s *AnalyticsService) getSuspiciousVisitors(since string) ([]TopVisitor, error) {
 	rows, err := s.db.Query(`
 		WITH visitor_summary AS (
-			SELECT ip_address::text, COUNT(*) AS views, MAX(viewed_at)::text AS last_seen,
+			SELECT ip_address, ip_address::text AS ip_text, COUNT(*) AS views, MAX(viewed_at)::text AS last_seen,
 				MODE() WITHIN GROUP (ORDER BY path) AS top_path,
 				(ARRAY_AGG(user_agent ORDER BY viewed_at DESC))[1] AS user_agent
 			FROM page_views WHERE viewed_at >= $1::date
+			AND ip_address NOT IN (SELECT ip_address FROM ip_rules WHERE action = 'allow')
 			GROUP BY ip_address
 		)
-		SELECT ip_address, views, last_seen, top_path, user_agent
+		SELECT ip_text, views, last_seen, top_path, user_agent
 		FROM visitor_summary
 		WHERE (
 			top_path LIKE '%.php' OR top_path LIKE '%.asp' OR top_path LIKE '%.aspx' OR top_path LIKE '%.jsp'
@@ -547,7 +551,10 @@ func (s *AnalyticsService) getSuspiciousCount(since string) (int64, error) {
 	var count int64
 	err := s.db.QueryRow(fmt.Sprintf(`
 		SELECT COUNT(*) FROM page_views
-		WHERE viewed_at >= $1::date AND %s`, suspiciousPathSQL), since).Scan(&count)
+		WHERE viewed_at >= $1::date AND %s
+		AND ip_address NOT IN (SELECT ip_address FROM ip_rules WHERE action = 'ban')
+		AND ip_address NOT IN (SELECT ip_address FROM ip_rules WHERE action = 'allow')`,
+		suspiciousPathSQL), since).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("suspicious count query: %w", err)
 	}
@@ -698,6 +705,7 @@ func (s *AnalyticsService) GetTopVisitors(period string) ([]TopVisitor, error) {
 			MODE() WITHIN GROUP (ORDER BY path) AS top_path,
 			(ARRAY_AGG(user_agent ORDER BY viewed_at DESC))[1] AS user_agent
 		FROM page_views WHERE viewed_at >= $1::date
+		AND ip_address NOT IN (SELECT ip_address FROM ip_rules WHERE action = 'ban')
 		GROUP BY ip_address ORDER BY views DESC LIMIT 20`, since)
 	if err != nil {
 		return nil, fmt.Errorf("top visitors query: %w", err)
