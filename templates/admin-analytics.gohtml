@@ -297,6 +297,36 @@
         background: rgba(45,212,191,0.15);
         color: #2dd4bf;
     }
+
+    /* Native confirm dialog */
+    #susp-confirm-dialog {
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        padding: 24px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        max-width: 380px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    #susp-confirm-dialog::backdrop {
+        background: rgba(0,0,0,0.5);
+    }
+    .dark #susp-confirm-dialog {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
+    #susp-confirm-dialog p {
+        margin: 0 0 20px 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: var(--text-primary);
+    }
+    #susp-confirm-dialog .dialog-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+    }
 </style>
 
 <div class="min-h-screen" style="background: var(--bg-secondary);">
@@ -557,6 +587,15 @@
                 </table>
             </div>
         </div>
+
+        <!-- Native confirm dialog -->
+        <dialog id="susp-confirm-dialog">
+            <p id="susp-confirm-msg"></p>
+            <div class="dialog-actions">
+                <button id="susp-confirm-cancel" style="padding:6px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:0.8125rem;cursor:pointer;">Cancel</button>
+                <button id="susp-confirm-ok" style="padding:6px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:0.8125rem;font-weight:600;cursor:pointer;">Confirm</button>
+            </div>
+        </dialog>
 
         <!-- IP Detail Modal -->
         <div class="ip-modal-overlay" id="ip-modal-overlay" onclick="if(event.target===this)closeIPModal()">
@@ -996,6 +1035,30 @@
         });
     });
 
+    // Native confirm via <dialog> — returns Promise<boolean>
+    function suspConfirm(message) {
+        return new Promise(function(resolve) {
+            const dialog = document.getElementById('susp-confirm-dialog');
+            document.getElementById('susp-confirm-msg').textContent = message;
+            dialog.showModal();
+            const ok = document.getElementById('susp-confirm-ok');
+            const cancel = document.getElementById('susp-confirm-cancel');
+            function cleanup(result) {
+                ok.removeEventListener('click', onOk);
+                cancel.removeEventListener('click', onCancel);
+                dialog.removeEventListener('cancel', onNativeCancel);
+                dialog.close();
+                resolve(result);
+            }
+            function onOk() { cleanup(true); }
+            function onCancel() { cleanup(false); }
+            function onNativeCancel(e) { e.preventDefault(); cleanup(false); }
+            ok.addEventListener('click', onOk);
+            cancel.addEventListener('click', onCancel);
+            dialog.addEventListener('cancel', onNativeCancel);
+        });
+    }
+
     // Suspicious visitors — state management and rendering
     window.setSuspVisitors = function(list) {
         allSuspVisitors = list;
@@ -1081,7 +1144,7 @@
 
     // Ban / Unban / Whitelist IP from the analytics suspicious visitors table
     window.banIPFromAnalytics = async function(ip) {
-        if (!confirm('Ban ' + ip + '? They will receive 403 Forbidden on all requests.')) return;
+        if (!await suspConfirm('Ban ' + ip + '? They will receive 403 on all requests.')) return;
         try {
             const resp = await fetch('/api/admin/security/ban', {
                 method: 'POST',
@@ -1102,7 +1165,7 @@
     };
 
     window.unbanIP = async function(ip) {
-        if (!confirm('Unban ' + ip + '? They will no longer receive 403.')) return;
+        if (!await suspConfirm('Unban ' + ip + '?')) return;
         try {
             const resp = await fetch('/api/admin/security/rules', {
                 method: 'DELETE',
@@ -1123,7 +1186,7 @@
     };
 
     window.whitelistIP = async function(ip) {
-        if (!confirm('Whitelist ' + ip + '? They will be excluded from suspicious sections.')) return;
+        if (!await suspConfirm('Whitelist ' + ip + '? They will be excluded from suspicious visitors.')) return;
         try {
             const resp = await fetch('/api/admin/security/allow', {
                 method: 'POST',
@@ -1147,7 +1210,7 @@
         const ips = cbs.map(cb => cb.value);
         if (ips.length === 0) return;
         const label = action === 'ban' ? 'Ban' : action === 'unban' ? 'Unban' : 'Whitelist';
-        if (!confirm(label + ' ' + ips.length + ' IP(s)?')) return;
+        if (!await suspConfirm(label + ' ' + ips.length + ' IP(s)?')) return;
 
         const promises = ips.map(ip => {
             if (action === 'ban') {
