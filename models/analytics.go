@@ -11,6 +11,15 @@ import (
 
 const dateFormat = "2006-01-02"
 
+// suspiciousPathSQL is a reusable SQL fragment that matches exploit probe paths
+const suspiciousPathSQL = `(
+	path LIKE '%.php' OR path LIKE '%.asp' OR path LIKE '%.aspx' OR path LIKE '%.jsp'
+	OR path LIKE '%/.git%' OR path LIKE '%.env%' OR path LIKE '%/wp-%'
+	OR path LIKE '%/xmlrpc%' OR path LIKE '%/phpmyadmin%'
+	OR path LIKE '%passwd%' OR path LIKE '%/etc/%'
+	OR path LIKE '%.bak' OR path LIKE '%.sql' OR path LIKE '%.conf'
+)`
+
 // PageView represents a single page view event
 type PageView struct {
 	ViewedAt    time.Time
@@ -32,8 +41,13 @@ type AnalyticsSummary struct {
 	TopReferrers   []TopItem            `json:"top_referrers"`
 	ContentTypes   []ContentTypeSummary `json:"content_types"`
 	TopVisitors    []TopVisitor         `json:"top_visitors"`
-	HourlyActivity []HourlyActivity     `json:"hourly_activity"`
-	Browsers       []BrowserStat        `json:"browsers"`
+	HourlyActivity     []HourlyActivity     `json:"hourly_activity"`
+	Browsers           []BrowserStat        `json:"browsers"`
+	TopBlogPosts       []TopItem            `json:"top_blog_posts"`
+	TopSlides          []TopItem            `json:"top_slides"`
+	SuspiciousRequests []TopItem            `json:"suspicious_requests"`
+	SuspiciousVisitors []TopVisitor         `json:"suspicious_visitors"`
+	SuspiciousCount    int64                `json:"suspicious_count"`
 }
 
 // TimeSeriesPoint is a single data point in the chart
@@ -311,20 +325,21 @@ func (s *AnalyticsService) getTimeSeries(since string) ([]TimeSeriesPoint, int64
 	return series, totalViews, totalUniques, nil
 }
 
-// getTopPages fetches the top-10 pages for the given since date.
+// getTopPages fetches the top-10 pages for the given since date, excluding exploit probe paths.
 func (s *AnalyticsService) getTopPages(since string) ([]TopItem, error) {
-	rows, err := s.db.Query(`
+	rows, err := s.db.Query(fmt.Sprintf(`
 		WITH past AS (
 			SELECT path, SUM(total_views) AS views FROM page_views_daily
-			WHERE view_date >= $1::date AND view_date < CURRENT_DATE GROUP BY path
+			WHERE view_date >= $1::date AND view_date < CURRENT_DATE AND NOT %s GROUP BY path
 		),
 		today AS (
-			SELECT path, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE GROUP BY path
+			SELECT path, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE AND NOT %s GROUP BY path
 		),
 		combined AS (
 			SELECT path, SUM(views) AS views FROM (SELECT * FROM past UNION ALL SELECT * FROM today) t GROUP BY path
 		)
-		SELECT path, views FROM combined ORDER BY views DESC LIMIT 10`, since)
+		SELECT path, views FROM combined ORDER BY views DESC LIMIT 10`,
+		suspiciousPathSQL, suspiciousPathSQL), since)
 	if err != nil {
 		return nil, fmt.Errorf("top pages query: %w", err)
 	}
@@ -400,6 +415,145 @@ func (s *AnalyticsService) getContentTypes(since string) ([]ContentTypeSummary, 
 	return items, nil
 }
 
+// getTopBlogPosts fetches the top-15 blog post paths for the given since date.
+func (s *AnalyticsService) getTopBlogPosts(since string) ([]TopItem, error) {
+	rows, err := s.db.Query(`
+		WITH past AS (
+			SELECT path, SUM(total_views) AS views FROM page_views_daily
+			WHERE view_date >= $1::date AND view_date < CURRENT_DATE AND path LIKE '/blog/%' GROUP BY path
+		),
+		today AS (
+			SELECT path, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE AND path LIKE '/blog/%' GROUP BY path
+		),
+		combined AS (
+			SELECT path, SUM(views) AS views FROM (SELECT * FROM past UNION ALL SELECT * FROM today) t GROUP BY path
+		)
+		SELECT path, views FROM combined ORDER BY views DESC LIMIT 15`, since)
+	if err != nil {
+		return nil, fmt.Errorf("top blog posts query: %w", err)
+	}
+	defer rows.Close()
+
+	var items []TopItem
+	for rows.Next() {
+		var item TopItem
+		if err := rows.Scan(&item.Name, &item.Count); err != nil {
+			return nil, fmt.Errorf("top blog posts scan: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+// getTopSlides fetches the top-10 slide paths for the given since date.
+func (s *AnalyticsService) getTopSlides(since string) ([]TopItem, error) {
+	rows, err := s.db.Query(`
+		WITH past AS (
+			SELECT path, SUM(total_views) AS views FROM page_views_daily
+			WHERE view_date >= $1::date AND view_date < CURRENT_DATE AND path LIKE '/slides/%' GROUP BY path
+		),
+		today AS (
+			SELECT path, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE AND path LIKE '/slides/%' GROUP BY path
+		),
+		combined AS (
+			SELECT path, SUM(views) AS views FROM (SELECT * FROM past UNION ALL SELECT * FROM today) t GROUP BY path
+		)
+		SELECT path, views FROM combined ORDER BY views DESC LIMIT 10`, since)
+	if err != nil {
+		return nil, fmt.Errorf("top slides query: %w", err)
+	}
+	defer rows.Close()
+
+	var items []TopItem
+	for rows.Next() {
+		var item TopItem
+		if err := rows.Scan(&item.Name, &item.Count); err != nil {
+			return nil, fmt.Errorf("top slides scan: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+// getSuspiciousRequests fetches the top-20 exploit probe paths for the given since date.
+func (s *AnalyticsService) getSuspiciousRequests(since string) ([]TopItem, error) {
+	rows, err := s.db.Query(fmt.Sprintf(`
+		WITH past AS (
+			SELECT path, SUM(total_views) AS views FROM page_views_daily
+			WHERE view_date >= $1::date AND view_date < CURRENT_DATE AND %s GROUP BY path
+		),
+		today AS (
+			SELECT path, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE AND %s GROUP BY path
+		),
+		combined AS (
+			SELECT path, SUM(views) AS views FROM (SELECT * FROM past UNION ALL SELECT * FROM today) t GROUP BY path
+		)
+		SELECT path, views FROM combined ORDER BY views DESC LIMIT 20`,
+		suspiciousPathSQL, suspiciousPathSQL), since)
+	if err != nil {
+		return nil, fmt.Errorf("suspicious requests query: %w", err)
+	}
+	defer rows.Close()
+
+	var items []TopItem
+	for rows.Next() {
+		var item TopItem
+		if err := rows.Scan(&item.Name, &item.Count); err != nil {
+			return nil, fmt.Errorf("suspicious requests scan: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+// getSuspiciousVisitors fetches IPs whose most-visited path is an exploit probe path.
+func (s *AnalyticsService) getSuspiciousVisitors(since string) ([]TopVisitor, error) {
+	rows, err := s.db.Query(`
+		WITH visitor_summary AS (
+			SELECT ip_address::text, COUNT(*) AS views, MAX(viewed_at)::text AS last_seen,
+				MODE() WITHIN GROUP (ORDER BY path) AS top_path,
+				(ARRAY_AGG(user_agent ORDER BY viewed_at DESC))[1] AS user_agent
+			FROM page_views WHERE viewed_at >= $1::date
+			GROUP BY ip_address
+		)
+		SELECT ip_address, views, last_seen, top_path, user_agent
+		FROM visitor_summary
+		WHERE (
+			top_path LIKE '%.php' OR top_path LIKE '%.asp' OR top_path LIKE '%.aspx' OR top_path LIKE '%.jsp'
+			OR top_path LIKE '%/.git%' OR top_path LIKE '%.env%' OR top_path LIKE '%/wp-%'
+			OR top_path LIKE '%/xmlrpc%' OR top_path LIKE '%/phpmyadmin%'
+			OR top_path LIKE '%passwd%' OR top_path LIKE '%/etc/%'
+			OR top_path LIKE '%.bak' OR top_path LIKE '%.sql' OR top_path LIKE '%.conf'
+		)
+		ORDER BY views DESC LIMIT 20`, since)
+	if err != nil {
+		return nil, fmt.Errorf("suspicious visitors query: %w", err)
+	}
+	defer rows.Close()
+
+	var visitors []TopVisitor
+	for rows.Next() {
+		var v TopVisitor
+		if err := rows.Scan(&v.IPAddress, &v.Views, &v.LastSeen, &v.TopPath, &v.UserAgent); err != nil {
+			return nil, fmt.Errorf("suspicious visitors scan: %w", err)
+		}
+		visitors = append(visitors, v)
+	}
+	return visitors, nil
+}
+
+// getSuspiciousCount returns the total number of exploit probe requests in the period.
+func (s *AnalyticsService) getSuspiciousCount(since string) (int64, error) {
+	var count int64
+	err := s.db.QueryRow(fmt.Sprintf(`
+		SELECT COUNT(*) FROM page_views
+		WHERE viewed_at >= $1::date AND %s`, suspiciousPathSQL), since).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("suspicious count query: %w", err)
+	}
+	return count, nil
+}
+
 // GetSummary returns analytics data for the dashboard
 func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) {
 	days := parsePeriodDays(period)
@@ -449,6 +603,41 @@ func (s *AnalyticsService) GetSummary(period string) (*AnalyticsSummary, error) 
 		log.Printf("[analytics] browser stats query failed: %v", err)
 	} else {
 		summary.Browsers = browsers
+	}
+
+	// Top blog posts (non-fatal on error)
+	if blogPosts, err := s.getTopBlogPosts(since); err != nil {
+		log.Printf("[analytics] top blog posts query failed: %v", err)
+	} else {
+		summary.TopBlogPosts = blogPosts
+	}
+
+	// Top slides (non-fatal on error)
+	if slides, err := s.getTopSlides(since); err != nil {
+		log.Printf("[analytics] top slides query failed: %v", err)
+	} else {
+		summary.TopSlides = slides
+	}
+
+	// Suspicious requests (non-fatal on error)
+	if suspReqs, err := s.getSuspiciousRequests(since); err != nil {
+		log.Printf("[analytics] suspicious requests query failed: %v", err)
+	} else {
+		summary.SuspiciousRequests = suspReqs
+	}
+
+	// Suspicious visitors (non-fatal on error)
+	if suspVisitors, err := s.getSuspiciousVisitors(since); err != nil {
+		log.Printf("[analytics] suspicious visitors query failed: %v", err)
+	} else {
+		summary.SuspiciousVisitors = suspVisitors
+	}
+
+	// Suspicious count (non-fatal on error)
+	if count, err := s.getSuspiciousCount(since); err != nil {
+		log.Printf("[analytics] suspicious count query failed: %v", err)
+	} else {
+		summary.SuspiciousCount = count
 	}
 
 	return summary, nil
