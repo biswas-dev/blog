@@ -9,6 +9,11 @@ import (
 	"anshumanbiswas.com/blog/internal/crypto"
 )
 
+const (
+	errGetEncryptionKey    = "get encryption key: %w"
+	errExternalSysNotFound = "external system not found"
+)
+
 // ExternalSystem represents a registered external blog instance
 type ExternalSystem struct {
 	ID              int            `json:"id"`
@@ -80,7 +85,7 @@ type ExternalSystemService struct {
 func (es *ExternalSystemService) Create(name, baseURL, apiKey string, headers []CustomHeader, createdBy int) (*ExternalSystem, error) {
 	key, err := crypto.GetEncryptionKey()
 	if err != nil {
-		return nil, fmt.Errorf("get encryption key: %w", err)
+		return nil, fmt.Errorf(errGetEncryptionKey, err)
 	}
 
 	// Encrypt API key
@@ -161,7 +166,7 @@ func (es *ExternalSystemService) GetAll() ([]ExternalSystem, error) {
 func (es *ExternalSystemService) GetByID(id int) (*ExternalSystem, error) {
 	key, err := crypto.GetEncryptionKey()
 	if err != nil {
-		return nil, fmt.Errorf("get encryption key: %w", err)
+		return nil, fmt.Errorf(errGetEncryptionKey, err)
 	}
 
 	var s ExternalSystem
@@ -179,7 +184,7 @@ func (es *ExternalSystemService) GetByID(id int) (*ExternalSystem, error) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("external system not found")
+			return nil, fmt.Errorf(errExternalSysNotFound)
 		}
 		return nil, fmt.Errorf("get external system: %w", err)
 	}
@@ -209,95 +214,91 @@ func (es *ExternalSystemService) GetByID(id int) (*ExternalSystem, error) {
 	return &s, nil
 }
 
+// encryptAPIKey encrypts the API key if non-empty, returning (enc, nonce, error).
+func encryptAPIKey(apiKey string, key []byte) ([]byte, []byte, error) {
+	if apiKey == "" {
+		return nil, nil, nil
+	}
+	enc, nonce, err := crypto.Encrypt([]byte(apiKey), key)
+	if err != nil {
+		return nil, nil, fmt.Errorf("encrypt api key: %w", err)
+	}
+	return enc, nonce, nil
+}
+
+// encryptHeaders encrypts the custom headers if non-nil, returning (enc, nonce, error).
+func encryptHeaders(headers []CustomHeader, key []byte) ([]byte, []byte, error) {
+	if headers == nil {
+		return nil, nil, nil
+	}
+	headersJSON, err := json.Marshal(headers)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal headers: %w", err)
+	}
+	enc, nonce, err := crypto.Encrypt(headersJSON, key)
+	if err != nil {
+		return nil, nil, fmt.Errorf("encrypt headers: %w", err)
+	}
+	return enc, nonce, nil
+}
+
+// updateExternalSystemRow executes the appropriate UPDATE query based on which
+// credential fields are present, and scans the result into an ExternalSystem.
+func (es *ExternalSystemService) updateExternalSystemRow(
+	id int, name, baseURL string,
+	apiKeyEnc, apiKeyNonce, headersEnc, headersNonce []byte,
+) (*ExternalSystem, error) {
+	const returning = ` RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
+
+	var query string
+	var args []interface{}
+
+	switch {
+	case apiKeyEnc != nil && headersEnc != nil:
+		query = `UPDATE external_systems SET name=$1, base_url=$2, api_key_encrypted=$3, api_key_nonce=$4, custom_headers_encrypted=$5, custom_headers_nonce=$6, updated_at=CURRENT_TIMESTAMP WHERE id=$7` + returning
+		args = []interface{}{name, baseURL, apiKeyEnc, apiKeyNonce, headersEnc, headersNonce, id}
+	case apiKeyEnc != nil:
+		query = `UPDATE external_systems SET name=$1, base_url=$2, api_key_encrypted=$3, api_key_nonce=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5` + returning
+		args = []interface{}{name, baseURL, apiKeyEnc, apiKeyNonce, id}
+	case headersEnc != nil:
+		query = `UPDATE external_systems SET name=$1, base_url=$2, custom_headers_encrypted=$3, custom_headers_nonce=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5` + returning
+		args = []interface{}{name, baseURL, headersEnc, headersNonce, id}
+	default:
+		query = `UPDATE external_systems SET name=$1, base_url=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3` + returning
+		args = []interface{}{name, baseURL, id}
+	}
+
+	s := &ExternalSystem{}
+	err := es.DB.QueryRow(query, args...).Scan(
+		&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf(errExternalSysNotFound)
+		}
+		return nil, fmt.Errorf("update external system: %w", err)
+	}
+	return s, nil
+}
+
 // Update updates an external system, re-encrypting credentials if provided
 func (es *ExternalSystemService) Update(id int, name, baseURL, apiKey string, headers []CustomHeader) (*ExternalSystem, error) {
 	key, err := crypto.GetEncryptionKey()
 	if err != nil {
-		return nil, fmt.Errorf("get encryption key: %w", err)
+		return nil, fmt.Errorf(errGetEncryptionKey, err)
 	}
 
-	// If apiKey is empty, keep existing encrypted values
-	if apiKey == "" && headers == nil {
-		// Only update name and base_url
-		query := `
-			UPDATE external_systems SET name = $1, base_url = $2, updated_at = CURRENT_TIMESTAMP
-			WHERE id = $3
-			RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
-		s := &ExternalSystem{}
-		err = es.DB.QueryRow(query, name, baseURL, id).Scan(
-			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
-		)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, fmt.Errorf("external system not found")
-			}
-			return nil, fmt.Errorf("update external system: %w", err)
-		}
-		return s, nil
-	}
-
-	// Re-encrypt API key if provided
-	var apiKeyEnc, apiKeyNonce []byte
-	if apiKey != "" {
-		apiKeyEnc, apiKeyNonce, err = crypto.Encrypt([]byte(apiKey), key)
-		if err != nil {
-			return nil, fmt.Errorf("encrypt api key: %w", err)
-		}
-	}
-
-	// Re-encrypt headers if provided
-	var headersEnc, headersNonce []byte
-	if headers != nil {
-		headersJSON, err := json.Marshal(headers)
-		if err != nil {
-			return nil, fmt.Errorf("marshal headers: %w", err)
-		}
-		headersEnc, headersNonce, err = crypto.Encrypt(headersJSON, key)
-		if err != nil {
-			return nil, fmt.Errorf("encrypt headers: %w", err)
-		}
-	}
-
-	// Build dynamic update
-	s := &ExternalSystem{}
-	if apiKey != "" && headers != nil {
-		query := `
-			UPDATE external_systems
-			SET name = $1, base_url = $2, api_key_encrypted = $3, api_key_nonce = $4,
-			    custom_headers_encrypted = $5, custom_headers_nonce = $6, updated_at = CURRENT_TIMESTAMP
-			WHERE id = $7
-			RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
-		err = es.DB.QueryRow(query, name, baseURL, apiKeyEnc, apiKeyNonce, headersEnc, headersNonce, id).Scan(
-			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
-		)
-	} else if apiKey != "" {
-		query := `
-			UPDATE external_systems
-			SET name = $1, base_url = $2, api_key_encrypted = $3, api_key_nonce = $4, updated_at = CURRENT_TIMESTAMP
-			WHERE id = $5
-			RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
-		err = es.DB.QueryRow(query, name, baseURL, apiKeyEnc, apiKeyNonce, id).Scan(
-			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
-		)
-	} else {
-		query := `
-			UPDATE external_systems
-			SET name = $1, base_url = $2, custom_headers_encrypted = $3, custom_headers_nonce = $4, updated_at = CURRENT_TIMESTAMP
-			WHERE id = $5
-			RETURNING id, name, base_url, is_active, COALESCE(created_by, 0), created_at, updated_at`
-		err = es.DB.QueryRow(query, name, baseURL, headersEnc, headersNonce, id).Scan(
-			&s.ID, &s.Name, &s.BaseURL, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt,
-		)
-	}
-
+	apiKeyEnc, apiKeyNonce, err := encryptAPIKey(apiKey, key)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("external system not found")
-		}
-		return nil, fmt.Errorf("update external system: %w", err)
+		return nil, err
 	}
 
-	return s, nil
+	headersEnc, headersNonce, err := encryptHeaders(headers, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return es.updateExternalSystemRow(id, name, baseURL, apiKeyEnc, apiKeyNonce, headersEnc, headersNonce)
 }
 
 // Delete removes an external system and its sync logs (CASCADE)
@@ -313,7 +314,7 @@ func (es *ExternalSystemService) Delete(id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("external system not found")
+		return fmt.Errorf(errExternalSysNotFound)
 	}
 
 	return nil

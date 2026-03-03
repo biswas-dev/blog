@@ -148,24 +148,68 @@ func convertInlineEmphasisInHTML(html string) string {
 	return html
 }
 
-// 7) Image gallery + bare <img> -> lightbox links (keeps original <img> intact)
-func wrapImageGalleries(html string) string {
-	transform := func(content string) string {
-		// First, find and protect any existing lightbox-wrapped images
+// extractFigcaption returns the plain-text caption from a <figcaption> inside
+// the given HTML fragment, or "" if none is present.
+func extractFigcaption(inner string) string {
+	cm := galleryCaptionRe.FindStringSubmatch(inner)
+	if len(cm) != 2 {
+		return ""
+	}
+	return strings.TrimSpace(galleryHTMLStripRe.ReplaceAllString(cm[1], ""))
+}
+
+// buildLightboxImgTag wraps a single <img> tag in a lightbox <a> link.
+func buildLightboxImgTag(imgTag, caption string) string {
+	m := galleryImgRe.FindStringSubmatch(imgTag)
+	if len(m) != 4 {
+		return imgTag
+	}
+	preAttrs, src, postAttrs := m[1], m[2], m[3]
+	title := caption
+	if title == "" {
+		if am := galleryAltRe.FindStringSubmatch(preAttrs + " " + postAttrs); len(am) == 2 {
+			title = am[1]
+		}
+	}
+	return fmt.Sprintf(
+		`<a href="%s" data-lightbox="article-images" rel="lightbox[article-images]" data-title="%s"><img%s src="%s"%s></a>`,
+		src, htmlEscapeAttr(title), preAttrs, src, postAttrs,
+	)
+}
+
+// wrapFigureLightboxes wraps bare <img> tags inside <figure> blocks with lightbox
+// links, using the <figcaption> text as the data-title where available.
+func wrapFigureLightboxes(html string) string {
+	return galleryFigureRe.ReplaceAllStringFunc(html, func(block string) string {
+		if galleryExistingLightboxRe.MatchString(block) {
+			return block
+		}
+		parts := galleryFigureRe.FindStringSubmatch(block)
+		if len(parts) != 4 {
+			return block
+		}
+		openTag, inner, closeTag := parts[1], parts[2], parts[3]
+		caption := extractFigcaption(inner)
+		inner = galleryImgRe.ReplaceAllStringFunc(inner, func(imgTag string) string {
+			return buildLightboxImgTag(imgTag, caption)
+		})
+		return openTag + inner + closeTag
+	})
+}
+
+// wrapGalleryContainers wraps bare <img> tags inside image-gallery container divs
+// with lightbox links. Already-wrapped images are left untouched.
+func wrapGalleryContainers(html string) string {
+	wrapBareImgs := func(content string) string {
 		if galleryExistingLightboxRe.MatchString(content) {
-			// Content already has lightbox links, don't add more
 			return content
 		}
-
-		// Only add lightbox wrapping if images are bare (not already wrapped)
 		return galleryImgRe.ReplaceAllStringFunc(content, func(imgTag string) string {
 			m := galleryImgRe.FindStringSubmatch(imgTag)
 			if len(m) != 4 {
 				return imgTag
 			}
-			preAttrs := m[1]
-			src := m[2]
-			postAttrs := m[3]
+			preAttrs, src, postAttrs := m[1], m[2], m[3]
 			attrs := preAttrs + " " + postAttrs
 			alt := ""
 			if am := galleryAltRe.FindStringSubmatch(attrs); len(am) == 2 {
@@ -178,75 +222,27 @@ func wrapImageGalleries(html string) string {
 		})
 	}
 
-	// 7a) <figure> blocks: wrap <img> with lightbox using <figcaption> as data-title
-	html = galleryFigureRe.ReplaceAllStringFunc(html, func(block string) string {
-		// Skip if already has lightbox links
-		if galleryExistingLightboxRe.MatchString(block) {
-			return block
-		}
-		parts := galleryFigureRe.FindStringSubmatch(block)
-		if len(parts) != 4 {
-			return block
-		}
-		openTag, inner, closeTag := parts[1], parts[2], parts[3]
-
-		// Extract figcaption text for lightbox title
-		caption := ""
-		if cm := galleryCaptionRe.FindStringSubmatch(inner); len(cm) == 2 {
-			// Strip HTML tags from caption for data-title
-			caption = galleryHTMLStripRe.ReplaceAllString(cm[1], "")
-			caption = strings.TrimSpace(caption)
-		}
-
-		// Wrap bare <img> tags inside the figure with lightbox links
-		inner = galleryImgRe.ReplaceAllStringFunc(inner, func(imgTag string) string {
-			m := galleryImgRe.FindStringSubmatch(imgTag)
-			if len(m) != 4 {
-				return imgTag
-			}
-			preAttrs := m[1]
-			src := m[2]
-			postAttrs := m[3]
-			// Use figcaption if available, fall back to alt text
-			title := caption
-			if title == "" {
-				attrs := preAttrs + " " + postAttrs
-				if am := galleryAltRe.FindStringSubmatch(attrs); len(am) == 2 {
-					title = am[1]
-				}
-			}
-			return fmt.Sprintf(
-				`<a href="%s" data-lightbox="article-images" rel="lightbox[article-images]" data-title="%s"><img%s src="%s"%s></a>`,
-				src, htmlEscapeAttr(title), preAttrs, src, postAttrs,
-			)
-		})
-
-		return openTag + inner + closeTag
-	})
-
-	// 7b) Inside image-gallery containers
-	html = galleryContainerRe.ReplaceAllStringFunc(html, func(block string) string {
+	return galleryContainerRe.ReplaceAllStringFunc(html, func(block string) string {
 		parts := galleryContainerRe.FindStringSubmatch(block)
 		if len(parts) != 4 {
 			return block
 		}
-		return parts[1] + transform(parts[2]) + parts[3]
+		return parts[1] + wrapBareImgs(parts[2]) + parts[3]
 	})
+}
 
-	// 7c) Standalone <p><img ...></p> -> lightbox (skip if already has lightbox links)
-	html = galleryImgParaRe.ReplaceAllStringFunc(html, func(m string) string {
-		// Skip if this paragraph already has a lightbox link
+// wrapStandaloneImages wraps paragraph-wrapped standalone <img> tags with lightbox
+// links. Already-wrapped images are left untouched.
+func wrapStandaloneImages(html string) string {
+	return galleryImgParaRe.ReplaceAllStringFunc(html, func(m string) string {
 		if galleryParaLightboxRe.MatchString(m) {
 			return m
 		}
-
 		im := galleryImgRe.FindStringSubmatch(m)
 		if len(im) != 4 {
 			return m
 		}
-		src := im[2]
-		preAttrs := im[1]
-		postAttrs := im[3]
+		preAttrs, src, postAttrs := im[1], im[2], im[3]
 		attrs := preAttrs + " " + postAttrs
 		alt := ""
 		if am := galleryAltRe.FindStringSubmatch(attrs); len(am) == 2 {
@@ -257,7 +253,13 @@ func wrapImageGalleries(html string) string {
 			src, htmlEscapeAttr(alt), preAttrs, src, postAttrs,
 		)
 	})
+}
 
+// 7) Image gallery + bare <img> -> lightbox links (keeps original <img> intact)
+func wrapImageGalleries(html string) string {
+	html = wrapFigureLightboxes(html)
+	html = wrapGalleryContainers(html)
+	html = wrapStandaloneImages(html)
 	return html
 }
 

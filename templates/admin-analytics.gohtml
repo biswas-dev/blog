@@ -91,7 +91,7 @@
         margin-bottom: 24px;
     }
     @media (min-width: 768px) {
-        .analytics-summary { grid-template-columns: repeat(4, 1fr); }
+        .analytics-summary { grid-template-columns: repeat(5, 1fr); }
     }
     .stat-card {
         background: var(--bg-primary);
@@ -335,6 +335,11 @@
                 <div class="stat-value" id="stat-avg">—</div>
                 <div class="stat-sub" id="stat-avg-sub"></div>
             </div>
+            <div class="stat-card" style="border-color: rgba(217,119,6,0.3);">
+                <div class="stat-label" style="color: #d97706;">Attack Probes</div>
+                <div class="stat-value" id="stat-suspicious" style="color: #d97706;">—</div>
+                <div class="stat-sub">PHP scan attempts</div>
+            </div>
         </div>
 
         <!-- Period selector -->
@@ -408,6 +413,42 @@
             </div>
         </div>
 
+        <!-- Top Blog Posts + Top Slides -->
+        <div class="tables-grid">
+            <div class="sys-card">
+                <div class="sys-card-header">
+                    <div class="sys-icon sys-icon-green">
+                        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+                    </div>
+                    <h3>Top Blog Posts</h3>
+                </div>
+                <div class="sys-card-body" style="padding: 0;">
+                    <table class="analytics-table">
+                        <thead><tr><th>Post</th><th style="text-align:right">Views</th></tr></thead>
+                        <tbody id="top-blogs-body">
+                            <tr><td colspan="2" class="analytics-loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="sys-card">
+                <div class="sys-card-header">
+                    <div class="sys-icon sys-icon-purple">
+                        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clip-rule="evenodd"/></svg>
+                    </div>
+                    <h3>Top Slides</h3>
+                </div>
+                <div class="sys-card-body" style="padding: 0;">
+                    <table class="analytics-table">
+                        <thead><tr><th>Slide</th><th style="text-align:right">Views</th></tr></thead>
+                        <tbody id="top-slides-body">
+                            <tr><td colspan="2" class="analytics-loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Top Visitors -->
         <div class="sys-card" style="margin-bottom: 24px;">
             <div class="sys-card-header">
@@ -420,6 +461,27 @@
                 <table class="analytics-table">
                     <thead><tr><th>IP Address</th><th>Views</th><th>Last Seen</th><th>Top Page</th><th>Browser</th></tr></thead>
                     <tbody id="top-visitors-body">
+                        <tr><td colspan="5" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Suspicious Visitors -->
+        <div class="sys-card" style="margin-bottom: 24px; border-color: rgba(217,119,6,0.3);">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-amber">
+                    <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                </div>
+                <div>
+                    <h3>Suspicious Visitors</h3>
+                    <p style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 0;">IPs whose primary activity is exploit scanning</p>
+                </div>
+            </div>
+            <div class="sys-card-body" style="padding: 0;">
+                <table class="analytics-table">
+                    <thead><tr><th>IP Address</th><th>Views</th><th>Last Seen</th><th>Top Path</th><th>Browser</th></tr></thead>
+                    <tbody id="suspicious-visitors-body">
                         <tr><td colspan="5" class="analytics-loading">Loading...</td></tr>
                     </tbody>
                 </table>
@@ -439,6 +501,27 @@
                 <div style="position: relative; height: 220px;">
                     <canvas id="browser-chart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <!-- Suspicious / Attack Requests -->
+        <div class="sys-card" style="margin-top: 24px; border-color: rgba(217,119,6,0.3);">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-amber">
+                    <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                </div>
+                <div>
+                    <h3>Suspicious / Attack Requests</h3>
+                    <p style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 0;">PHP probes, CMS exploits, and vulnerability scans</p>
+                </div>
+            </div>
+            <div class="sys-card-body" style="padding: 0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Path</th><th style="text-align:right">Views</th></tr></thead>
+                    <tbody id="suspicious-requests-body">
+                        <tr><td colspan="2" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -767,6 +850,60 @@
                         <td class="path" title="${escapeHtml(v.top_path)}">${escapeHtml(v.top_path)}</td>
                         <td><span class="ua-badge">${escapeHtml(classifyBrowserJS(v.user_agent))}</span></td>
                     </tr>`
+                ).join('');
+            }
+
+            // Attack probes stat card
+            const suspEl = document.getElementById('stat-suspicious');
+            if (suspEl) suspEl.textContent = fmtNum(data.suspicious_count || 0);
+
+            // Top blog posts
+            const tbpBody = document.getElementById('top-blogs-body');
+            const blogPosts = data.top_blog_posts || [];
+            if (blogPosts.length === 0) {
+                tbpBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-tertiary);padding:20px;">No data yet</td></tr>';
+            } else {
+                tbpBody.innerHTML = blogPosts.map(p =>
+                    `<tr><td class="path" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</td><td class="num">${fmtNum(p.count)}</td></tr>`
+                ).join('');
+            }
+
+            // Top slides
+            const tsBody = document.getElementById('top-slides-body');
+            const slides = data.top_slides || [];
+            if (slides.length === 0) {
+                tsBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-tertiary);padding:20px;">No data yet</td></tr>';
+            } else {
+                tsBody.innerHTML = slides.map(p =>
+                    `<tr><td class="path" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</td><td class="num">${fmtNum(p.count)}</td></tr>`
+                ).join('');
+            }
+
+            // Suspicious visitors
+            const svBody = document.getElementById('suspicious-visitors-body');
+            const suspVisitors = data.suspicious_visitors || [];
+            if (suspVisitors.length === 0) {
+                svBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:20px;">No suspicious visitors detected</td></tr>';
+            } else {
+                svBody.innerHTML = suspVisitors.map(v =>
+                    `<tr class="visitor-row" onclick="openIPModal('${escapeHtml(v.ip_address)}')">
+                        <td style="font-family:'SF Mono','Fira Code',monospace;font-size:0.75rem;">${escapeHtml(v.ip_address)}</td>
+                        <td class="num">${fmtNum(v.views)}</td>
+                        <td style="font-size:0.75rem;color:var(--text-secondary);">${formatTimestamp(v.last_seen)}</td>
+                        <td class="path" title="${escapeHtml(v.top_path)}">${escapeHtml(v.top_path)}</td>
+                        <td><span class="ua-badge">${escapeHtml(classifyBrowserJS(v.user_agent))}</span></td>
+                    </tr>`
+                ).join('');
+            }
+
+            // Suspicious requests
+            const srBody = document.getElementById('suspicious-requests-body');
+            const suspReqs = data.suspicious_requests || [];
+            if (suspReqs.length === 0) {
+                srBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-tertiary);padding:20px;">No suspicious requests detected</td></tr>';
+            } else {
+                srBody.innerHTML = suspReqs.map(p =>
+                    `<tr><td class="path" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</td><td class="num">${fmtNum(p.count)}</td></tr>`
                 ).join('');
             }
 

@@ -1,7 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -301,4 +305,137 @@ func TestEmptyValueHandling(t *testing.T) {
 			t.Errorf("Expected whitespace to be preserved, got '%s'", port)
 		}
 	})
+}
+
+func TestXmlEscape(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"empty", "", ""},
+		{"no special chars", "hello world", "hello world"},
+		{"ampersand", "A & B", "A &amp; B"},
+		{"less than", "a < b", "a &lt; b"},
+		{"greater than", "a > b", "a &gt; b"},
+		{"double quote", `say "hello"`, "say &quot;hello&quot;"},
+		{"single quote", "it's", "it&apos;s"},
+		{"all special chars", `<a href="x">&'`, "&lt;a href=&quot;x&quot;&gt;&amp;&apos;"},
+		{"multiple ampersands", "A & B & C", "A &amp; B &amp; C"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := xmlEscape(tt.input)
+			if got != tt.want {
+				t.Errorf("xmlEscape(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestJsonResponse(t *testing.T) {
+	t.Run("sends JSON with status code", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		data := map[string]string{"key": "value"}
+		jsonResponse(w, data, http.StatusOK)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status 200, got %d", w.Code)
+		}
+		if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+			t.Errorf("expected Content-Type application/json, got %q", ct)
+		}
+
+		var result map[string]string
+		if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+			t.Fatalf("decode error: %v", err)
+		}
+		if result["key"] != "value" {
+			t.Errorf("expected key=value, got %q", result["key"])
+		}
+	})
+
+	t.Run("sends 201 for created", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		data := map[string]int{"id": 42}
+		jsonResponse(w, data, http.StatusCreated)
+
+		if w.Code != http.StatusCreated {
+			t.Errorf("expected status 201, got %d", w.Code)
+		}
+	})
+
+	t.Run("sends array", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		data := []string{"a", "b", "c"}
+		jsonResponse(w, data, http.StatusOK)
+
+		var result []string
+		if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+			t.Fatalf("decode error: %v", err)
+		}
+		if len(result) != 3 {
+			t.Errorf("expected 3 items, got %d", len(result))
+		}
+	})
+}
+
+func TestStaticCacheMiddleware(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	handler := staticCacheMiddleware(inner)
+
+	tests := []struct {
+		name       string
+		path       string
+		wantCache  string
+		wantCT     string
+	}{
+		{"css file", "/styles.css", "public, max-age=31536000, immutable", ""},
+		{"js file", "/app.js", "public, max-age=31536000, immutable", ""},
+		{"svg file", "/icon.svg", "public, max-age=86400", mimeSVG},
+		{"png file", "/photo.png", "public, max-age=604800", ""},
+		{"jpg file", "/photo.jpg", "public, max-age=604800", ""},
+		{"webp file", "/photo.webp", "public, max-age=604800", ""},
+		{"gif file", "/anim.gif", "public, max-age=604800", ""},
+		{"ico file", "/favicon.ico", "public, max-age=604800", ""},
+		{"other file", "/data.json", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			handler.ServeHTTP(w, r)
+
+			gotCache := w.Header().Get("Cache-Control")
+			if gotCache != tt.wantCache {
+				t.Errorf("Cache-Control = %q, want %q", gotCache, tt.wantCache)
+			}
+			if tt.wantCT != "" {
+				gotCT := w.Header().Get("Content-Type")
+				if gotCT != tt.wantCT {
+					t.Errorf("Content-Type = %q, want %q", gotCT, tt.wantCT)
+				}
+			}
+		})
+	}
+}
+
+func TestConstants(t *testing.T) {
+	// Verify constants are defined correctly
+	if headerContentType != "Content-Type" {
+		t.Errorf("headerContentType = %q", headerContentType)
+	}
+	if headerCacheCtrl != "Cache-Control" {
+		t.Errorf("headerCacheCtrl = %q", headerCacheCtrl)
+	}
+	if mimeSVG != "image/svg+xml" {
+		t.Errorf("mimeSVG = %q", mimeSVG)
+	}
+	if !strings.Contains(routeAdminUploads, "/admin/uploads") {
+		t.Errorf("routeAdminUploads = %q", routeAdminUploads)
+	}
 }

@@ -18,6 +18,14 @@ import (
 )
 
 
+const (
+	headerContentType  = "Content-Type"
+	mimeJSON           = "application/json"
+	errInvalidSystemID = "Invalid system ID"
+	errSystemNotFound  = "System not found: %v"
+	errInvalidBody     = "Invalid request body"
+)
+
 type System struct {
 	SystemService         *models.SystemService
 	DatabaseBackupService *models.DatabaseBackupService
@@ -40,7 +48,7 @@ func (s *System) requireAdmin(w http.ResponseWriter, r *http.Request) (*models.U
 		return nil, false
 	}
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return nil, false
 	}
 	return user, true
@@ -56,7 +64,7 @@ func (s *System) Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user is admin
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 
@@ -105,7 +113,7 @@ func (s *System) GetSystemInfoJSON(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user is admin
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 
@@ -117,7 +125,7 @@ func (s *System) GetSystemInfoJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(systemInfo)
 }
 
@@ -131,7 +139,7 @@ func (s *System) ExportDatabase(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user is admin
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 
@@ -176,7 +184,7 @@ func (s *System) ImportDatabase(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user is admin
 	if !models.IsAdmin(user.Role) {
-		http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
 
@@ -228,7 +236,7 @@ func (s *System) ImportDatabase(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Database import completed successfully for user %s", user.Username)
 
 	// Return success response
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Database imported successfully",
@@ -250,7 +258,7 @@ func (s *System) ListExternalSystems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(systems)
 }
 
@@ -262,13 +270,13 @@ func (s *System) GetExternalSystem(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		http.Error(w, errInvalidSystemID, http.StatusBadRequest)
 		return
 	}
 
 	system, err := s.ExternalSystemService.GetByID(id)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("System not found: %v", err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf(errSystemNotFound, err), http.StatusNotFound)
 		return
 	}
 
@@ -277,7 +285,7 @@ func (s *System) GetExternalSystem(w http.ResponseWriter, r *http.Request) {
 		system.APIKey = ""
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(system)
 }
 
@@ -295,7 +303,7 @@ func (s *System) CreateExternalSystem(w http.ResponseWriter, r *http.Request) {
 		CustomHeaders []models.CustomHeader `json:"custom_headers"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
 		return
 	}
 
@@ -317,7 +325,7 @@ func (s *System) CreateExternalSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(system)
 }
@@ -330,7 +338,7 @@ func (s *System) UpdateExternalSystem(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		http.Error(w, errInvalidSystemID, http.StatusBadRequest)
 		return
 	}
 
@@ -341,7 +349,7 @@ func (s *System) UpdateExternalSystem(w http.ResponseWriter, r *http.Request) {
 		CustomHeaders []models.CustomHeader `json:"custom_headers"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
 		return
 	}
 
@@ -363,7 +371,7 @@ func (s *System) UpdateExternalSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(system)
 }
 
@@ -375,7 +383,7 @@ func (s *System) DeleteExternalSystem(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		http.Error(w, errInvalidSystemID, http.StatusBadRequest)
 		return
 	}
 
@@ -396,18 +404,18 @@ func (s *System) TestExternalConnection(w http.ResponseWriter, r *http.Request) 
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		http.Error(w, errInvalidSystemID, http.StatusBadRequest)
 		return
 	}
 
 	system, err := s.ExternalSystemService.GetByID(id)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("System not found: %v", err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf(errSystemNotFound, err), http.StatusNotFound)
 		return
 	}
 
 	if err := s.SyncClient.TestConnection(system); err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"message": err.Error(),
@@ -415,7 +423,7 @@ func (s *System) TestExternalConnection(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Connection successful",
@@ -430,7 +438,7 @@ func (s *System) PreviewSync(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		http.Error(w, errInvalidSystemID, http.StatusBadRequest)
 		return
 	}
 
@@ -438,13 +446,13 @@ func (s *System) PreviewSync(w http.ResponseWriter, r *http.Request) {
 		Direction string `json:"direction"` // "pull" or "push"
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
 		return
 	}
 
 	system, err := s.ExternalSystemService.GetByID(id)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("System not found: %v", err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf(errSystemNotFound, err), http.StatusNotFound)
 		return
 	}
 
@@ -465,7 +473,7 @@ func (s *System) PreviewSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(preview)
 }
 
@@ -478,7 +486,7 @@ func (s *System) ExecuteSync(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		http.Error(w, errInvalidSystemID, http.StatusBadRequest)
 		return
 	}
 
@@ -486,13 +494,13 @@ func (s *System) ExecuteSync(w http.ResponseWriter, r *http.Request) {
 		Direction string `json:"direction"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
 		return
 	}
 
 	system, err := s.ExternalSystemService.GetByID(id)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("System not found: %v", err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf(errSystemNotFound, err), http.StatusNotFound)
 		return
 	}
 
@@ -535,7 +543,7 @@ func (s *System) ExecuteSync(w http.ResponseWriter, r *http.Request) {
 	}
 	s.ExternalSystemService.UpdateSyncStatus(id, status, statusMsg)
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -547,7 +555,7 @@ func (s *System) GetSyncLogs(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "Invalid system ID", http.StatusBadRequest)
+		http.Error(w, errInvalidSystemID, http.StatusBadRequest)
 		return
 	}
 
@@ -565,7 +573,7 @@ func (s *System) GetSyncLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(logs)
 }
 
@@ -585,7 +593,7 @@ func (s *System) GetCloudinarySettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if settings == nil {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"configured": false,
 		})
@@ -595,7 +603,7 @@ func (s *System) GetCloudinarySettings(w http.ResponseWriter, r *http.Request) {
 	// Never expose the API secret
 	settings.APISecret = ""
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"configured": true,
 		"settings":   settings,
@@ -614,7 +622,7 @@ func (s *System) SaveCloudinarySettings(w http.ResponseWriter, r *http.Request) 
 		APISecret string `json:"api_secret"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
 		return
 	}
 
@@ -629,7 +637,7 @@ func (s *System) SaveCloudinarySettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Cloudinary settings saved",
@@ -648,7 +656,7 @@ func (s *System) DeleteCloudinarySettings(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Cloudinary settings removed",
@@ -663,7 +671,7 @@ func (s *System) TestCloudinaryConnection(w http.ResponseWriter, r *http.Request
 
 	settings, err := s.CloudinaryService.Get()
 	if err != nil || settings == nil {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"message": "Cloudinary not configured",
@@ -675,7 +683,7 @@ func (s *System) TestCloudinaryConnection(w http.ResponseWriter, r *http.Request
 	pingURL := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/ping", settings.CloudName)
 	req, err := http.NewRequest("GET", pingURL, nil)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"message": fmt.Sprintf("Failed to create request: %v", err),
@@ -688,7 +696,7 @@ func (s *System) TestCloudinaryConnection(w http.ResponseWriter, r *http.Request
 	resp, err := client.Do(req)
 	if err != nil {
 		s.CloudinaryService.UpdateHealthStatus("error", settings.ConsecutiveFailures+1)
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"message": fmt.Sprintf("Connection failed: %v", err),
@@ -701,14 +709,14 @@ func (s *System) TestCloudinaryConnection(w http.ResponseWriter, r *http.Request
 
 	if resp.StatusCode == http.StatusOK {
 		s.CloudinaryService.UpdateHealthStatus("healthy", 0)
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"message": "Connection successful",
 		})
 	} else {
 		s.CloudinaryService.UpdateHealthStatus("error", settings.ConsecutiveFailures+1)
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"message": fmt.Sprintf("Cloudinary returned status %d: %s", resp.StatusCode, string(body)),
@@ -740,7 +748,7 @@ func (s *System) GetCloudinarySignature(w http.ResponseWriter, r *http.Request) 
 		Timestamp string `json:"timestamp"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
 		return
 	}
 
@@ -758,7 +766,7 @@ func (s *System) GetCloudinarySignature(w http.ResponseWriter, r *http.Request) 
 
 	signature := models.GenerateSignature(params, settings.APISecret)
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"signature":  signature,
 		"timestamp":  input.Timestamp,
