@@ -72,11 +72,12 @@ type ContentTypeSummary struct {
 
 // TopVisitor represents a top visitor IP with activity summary
 type TopVisitor struct {
-	IPAddress string `json:"ip_address"`
-	Views     int64  `json:"views"`
-	LastSeen  string `json:"last_seen"`
-	TopPath   string `json:"top_path"`
-	UserAgent string `json:"user_agent"`
+	IPAddress  string `json:"ip_address"`
+	Views      int64  `json:"views"`
+	LastSeen   string `json:"last_seen"`
+	TopPath    string `json:"top_path"`
+	UserAgent  string `json:"user_agent"`
+	RuleAction string `json:"rule_action"` // "", "ban", or "allow"
 }
 
 // VisitorDetail represents a single page view by a specific IP
@@ -520,16 +521,18 @@ func (s *AnalyticsService) getSuspiciousVisitors(since string) ([]TopVisitor, er
 			AND ip_address NOT IN (SELECT ip_address FROM ip_rules WHERE action = 'allow')
 			GROUP BY ip_address
 		)
-		SELECT ip_text, views, last_seen, top_path, user_agent
-		FROM visitor_summary
+		SELECT vs.ip_text, vs.views, vs.last_seen, vs.top_path, vs.user_agent,
+			COALESCE(ir.action, '') AS rule_action
+		FROM visitor_summary vs
+		LEFT JOIN ip_rules ir ON ir.ip_address = vs.ip_address
 		WHERE (
-			top_path LIKE '%.php' OR top_path LIKE '%.asp' OR top_path LIKE '%.aspx' OR top_path LIKE '%.jsp'
-			OR top_path LIKE '%/.git%' OR top_path LIKE '%.env%' OR top_path LIKE '%/wp-%'
-			OR top_path LIKE '%/xmlrpc%' OR top_path LIKE '%/phpmyadmin%'
-			OR top_path LIKE '%passwd%' OR top_path LIKE '%/etc/%'
-			OR top_path LIKE '%.bak' OR top_path LIKE '%.sql' OR top_path LIKE '%.conf'
+			vs.top_path LIKE '%.php' OR vs.top_path LIKE '%.asp' OR vs.top_path LIKE '%.aspx' OR vs.top_path LIKE '%.jsp'
+			OR vs.top_path LIKE '%/.git%' OR vs.top_path LIKE '%.env%' OR vs.top_path LIKE '%/wp-%'
+			OR vs.top_path LIKE '%/xmlrpc%' OR vs.top_path LIKE '%/phpmyadmin%'
+			OR vs.top_path LIKE '%passwd%' OR vs.top_path LIKE '%/etc/%'
+			OR vs.top_path LIKE '%.bak' OR vs.top_path LIKE '%.sql' OR vs.top_path LIKE '%.conf'
 		)
-		ORDER BY views DESC LIMIT 20`, since)
+		ORDER BY vs.views DESC LIMIT 500`, since)
 	if err != nil {
 		return nil, fmt.Errorf("suspicious visitors query: %w", err)
 	}
@@ -538,7 +541,7 @@ func (s *AnalyticsService) getSuspiciousVisitors(since string) ([]TopVisitor, er
 	var visitors []TopVisitor
 	for rows.Next() {
 		var v TopVisitor
-		if err := rows.Scan(&v.IPAddress, &v.Views, &v.LastSeen, &v.TopPath, &v.UserAgent); err != nil {
+		if err := rows.Scan(&v.IPAddress, &v.Views, &v.LastSeen, &v.TopPath, &v.UserAgent, &v.RuleAction); err != nil {
 			return nil, fmt.Errorf("suspicious visitors scan: %w", err)
 		}
 		visitors = append(visitors, v)
