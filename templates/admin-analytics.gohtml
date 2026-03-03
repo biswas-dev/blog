@@ -480,9 +480,9 @@
             </div>
             <div class="sys-card-body" style="padding: 0;">
                 <table class="analytics-table">
-                    <thead><tr><th>IP Address</th><th>Views</th><th>Last Seen</th><th>Top Path</th><th>Browser</th></tr></thead>
+                    <thead><tr><th>IP Address</th><th>Views</th><th>Last Seen</th><th>Top Path</th><th>Browser</th><th style="text-align:right;">Actions</th></tr></thead>
                     <tbody id="suspicious-visitors-body">
-                        <tr><td colspan="5" class="analytics-loading">Loading...</td></tr>
+                        <tr><td colspan="6" class="analytics-loading">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -883,7 +883,7 @@
             const svBody = document.getElementById('suspicious-visitors-body');
             const suspVisitors = data.suspicious_visitors || [];
             if (suspVisitors.length === 0) {
-                svBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:20px;">No suspicious visitors detected</td></tr>';
+                svBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:20px;">No suspicious visitors detected</td></tr>';
             } else {
                 svBody.innerHTML = suspVisitors.map(v =>
                     `<tr class="visitor-row" onclick="openIPModal('${escapeHtml(v.ip_address)}')">
@@ -892,6 +892,10 @@
                         <td style="font-size:0.75rem;color:var(--text-secondary);">${formatTimestamp(v.last_seen)}</td>
                         <td class="path" title="${escapeHtml(v.top_path)}">${escapeHtml(v.top_path)}</td>
                         <td><span class="ua-badge">${escapeHtml(classifyBrowserJS(v.user_agent))}</span></td>
+                        <td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation()">
+                            <button onclick="banIPFromAnalytics('${escapeHtml(v.ip_address)}')" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:4px;">Ban</button>
+                            <button onclick="allowIPFromAnalytics('${escapeHtml(v.ip_address)}')" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(22,163,74,0.12);color:#16a34a;font-size:0.75rem;font-weight:600;cursor:pointer;">Allow</button>
+                        </td>
                     </tr>`
                 ).join('');
             }
@@ -970,6 +974,43 @@
             loadData(currentPeriod);
         });
     });
+
+    // Ban / Allow IP from the analytics suspicious visitors table
+    window.banIPFromAnalytics = async function(ip) {
+        if (!confirm('Ban ' + ip + '? They will receive 403 Forbidden on all requests.')) return;
+        try {
+            const resp = await fetch('/api/admin/security/ban', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ip, reason: 'banned from analytics dashboard' }),
+            });
+            if (resp.ok) {
+                loadData(currentPeriod);
+            } else {
+                alert('Failed to ban ' + ip);
+            }
+        } catch (err) {
+            alert('Network error');
+        }
+    };
+
+    window.allowIPFromAnalytics = async function(ip) {
+        if (!confirm('Allow ' + ip + '? They will be excluded from suspicious sections.')) return;
+        try {
+            const resp = await fetch('/api/admin/security/allow', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ip, reason: 'allowed from analytics dashboard' }),
+            });
+            if (resp.ok) {
+                loadData(currentPeriod);
+            } else {
+                alert('Failed to allow ' + ip);
+            }
+        } catch (err) {
+            alert('Network error');
+        }
+    };
 
     // Load initial data
     loadData(currentPeriod);
