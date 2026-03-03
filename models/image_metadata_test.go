@@ -1,7 +1,9 @@
 package models
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 )
 
 func cleanupImageMetadata(t *testing.T, svc *ImageMetadataService, url string) {
@@ -212,6 +214,9 @@ func TestPqStringArray(t *testing.T) {
 		{"single", []string{"a"}, `{"a"}`},
 		{"multiple", []string{"a", "b", "c"}, `{"a","b","c"}`},
 		{"with quotes", []string{`a"b`}, `{"a\"b"}`},
+		{"with backslash", []string{`path\to\file`}, `{"path\\to\\file"}`},
+		{"with special chars", []string{"hello, world", "foo & bar"}, `{"hello, world","foo & bar"}`},
+		{"urls with slashes", []string{"/static/uploads/img.jpg"}, `{"/static/uploads/img.jpg"}`},
 	}
 
 	for _, tt := range tests {
@@ -221,5 +226,44 @@ func TestPqStringArray(t *testing.T) {
 				t.Errorf("pqStringArray(%v) = %q, want %q", tt.input, got, tt.expect)
 			}
 		})
+	}
+}
+
+func TestImageMetadataStruct(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	meta := ImageMetadata{
+		ID:        42,
+		ImageURL:  "/static/uploads/test.jpg",
+		AltText:   "Test image",
+		Title:     "Test Title",
+		Caption:   "A test caption",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	data, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+
+	var decoded ImageMetadata
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+
+	if decoded.ID != 42 {
+		t.Errorf("ID = %d, want 42", decoded.ID)
+	}
+	if decoded.ImageURL != "/static/uploads/test.jpg" {
+		t.Errorf("ImageURL = %q", decoded.ImageURL)
+	}
+	if decoded.AltText != "Test image" {
+		t.Errorf("AltText = %q", decoded.AltText)
+	}
+	if decoded.Title != "Test Title" {
+		t.Errorf("Title = %q", decoded.Title)
+	}
+	if decoded.Caption != "A test caption" {
+		t.Errorf("Caption = %q", decoded.Caption)
 	}
 }

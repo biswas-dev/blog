@@ -14,6 +14,8 @@ import (
 	"github.com/lib/pq"
 )
 
+const friendlyDateFormat = "January 2, 2006"
+
 type PostsList struct {
 	Posts []Post
 }
@@ -241,16 +243,16 @@ func stripHTML(s string) string {
 func formatPostDates(post *Post) {
 	if t, err := time.Parse(time.RFC3339, post.CreatedAt); err == nil {
 		post.CreatedAt = t.Format(time.RFC3339)
-		post.PublicationDate = t.Format("January 2, 2006")
+		post.PublicationDate = t.Format(friendlyDateFormat)
 	}
 	if post.PublicationDate != "" && post.PublicationDate != post.CreatedAt {
 		if t, err := time.Parse(time.RFC3339, post.PublicationDate); err == nil {
-			post.PublicationDate = t.Format("January 2, 2006")
+			post.PublicationDate = t.Format(friendlyDateFormat)
 		}
 	}
 	if post.LastEditDate != "" {
 		if t, err := time.Parse(time.RFC3339, post.LastEditDate); err == nil {
-			post.LastEditDate = t.Format("January 2, 2006")
+			post.LastEditDate = t.Format(friendlyDateFormat)
 		}
 	}
 }
@@ -374,12 +376,12 @@ func (pp *PostService) Create(userID int, categoryID int, title, content string,
 		Title:            title,
 		Content:          content,
 		Slug:             slug,
-		PublicationDate:  timefmt.Format("January 2, 2006"),
-		LastEditDate:     timefmt.Format("January 2, 2006"),
+		PublicationDate:  timefmt.Format(friendlyDateFormat),
+		LastEditDate:     timefmt.Format(friendlyDateFormat),
 		IsPublished:      isPublished,
 		Featured:         featured,
 		FeaturedImageURL: featuredImageURL,
-		CreatedAt:        timefmt.Format("January 2, 2006"),
+		CreatedAt:        timefmt.Format(friendlyDateFormat),
 	}, nil
 }
 

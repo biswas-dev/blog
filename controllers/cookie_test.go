@@ -362,4 +362,31 @@ func TestCookieSecurity(t *testing.T) {
 			t.Errorf("Cookie path should be '/', got %s", cookies[0].Path)
 		}
 	})
+
+	t.Run("cookies have SameSite Lax mode", func(t *testing.T) {
+		expire := time.Now().Add(time.Hour)
+		cookie := newCookie("test", "val", expire)
+		if cookie.SameSite != http.SameSiteLaxMode {
+			t.Errorf("SameSite = %v, want SameSiteLaxMode", cookie.SameSite)
+		}
+	})
+
+	t.Run("non-development cookies are Secure", func(t *testing.T) {
+		// When APP_ENV is not "development", Secure should be true
+		t.Setenv("APP_ENV", "production")
+		expire := time.Now().Add(time.Hour)
+		cookie := newCookie("test", "val", expire)
+		if !cookie.Secure {
+			t.Error("expected Secure=true in non-development environment")
+		}
+	})
+
+	t.Run("development cookies are not Secure", func(t *testing.T) {
+		t.Setenv("APP_ENV", "development")
+		expire := time.Now().Add(time.Hour)
+		cookie := newCookie("test", "val", expire)
+		if cookie.Secure {
+			t.Error("expected Secure=false in development environment")
+		}
+	})
 }

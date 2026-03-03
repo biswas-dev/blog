@@ -24,6 +24,17 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+const (
+	mimeSVG            = "image/svg+xml"
+	headerCacheCtrl    = "Cache-Control"
+	headerContentType  = "Content-Type"
+
+	routeAdminUploads       = "/admin/uploads"
+	routeImageMetadata      = "/api/admin/image-metadata"
+	routeExternalSystemByID = "/api/admin/external-systems/{id}"
+	routeCloudinary         = "/api/admin/cloudinary"
+)
+
 func getAppPort() string {
 	port := os.Getenv("APP_PORT")
 	if port == "" {
@@ -51,7 +62,7 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "application/json", "image/svg+xml"))
+	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "application/json", mimeSVG))
 
 	dbUser, dbPassword, dbName, dbHost, dbPort :=
 		os.Getenv("PG_USER"),
@@ -148,9 +159,9 @@ func main() {
 	// Blog wiki instance configured for the post editor
 	blogWikiOpts := []gowiki.Option{
 		gowiki.WithPreviewEndpoint("/admin/preview"),
-		gowiki.WithUploadEndpoint("/admin/uploads"),
+		gowiki.WithUploadEndpoint(routeAdminUploads),
 		gowiki.WithImageListEndpoint("/api/admin/images"),
-		gowiki.WithImageMetadataEndpoint("/api/admin/image-metadata"),
+		gowiki.WithImageMetadataEndpoint(routeImageMetadata),
 		gowiki.WithCloudinarySignatureEndpoint("/api/admin/cloudinary/signature"),
 		gowiki.WithDrawBasePath("/draw"),
 		gowiki.WithEnableMore(true),
@@ -296,18 +307,18 @@ func main() {
 	r.Get("/admin/posts/{postID}/edit", usersC.EditPost)
 	r.Post("/admin/posts/{postID}", usersC.UpdatePost)
 	r.Delete("/api/admin/posts", usersC.DeletePosts)
-	r.Post("/admin/uploads", usersC.UploadImage)
-	r.Post("/admin/uploads/multiple", usersC.UploadMultipleImages)
-	r.Get("/admin/uploads/list", usersC.ListUploadedImages)
-	r.Delete("/admin/uploads", usersC.DeleteImage)
+	r.Post(routeAdminUploads, usersC.UploadImage)
+	r.Post(routeAdminUploads+"/multiple", usersC.UploadMultipleImages)
+	r.Get(routeAdminUploads+"/list", usersC.ListUploadedImages)
+	r.Delete(routeAdminUploads, usersC.DeleteImage)
 	r.Post("/admin/preview", usersC.PreviewRender)
 
 	// Image Metadata Routes
 	r.Get("/api/admin/images", usersC.ListTrackedImages)
-	r.Put("/api/admin/image-metadata", usersC.SaveImageMetadata)
-	r.Get("/api/admin/image-metadata", usersC.GetImageMetadata)
-	r.Delete("/api/admin/image-metadata", usersC.DeleteImageMetadata)
-	r.Post("/api/admin/image-metadata/bulk", usersC.GetImageMetadataBulk)
+	r.Put(routeImageMetadata, usersC.SaveImageMetadata)
+	r.Get(routeImageMetadata, usersC.GetImageMetadata)
+	r.Delete(routeImageMetadata, usersC.DeleteImageMetadata)
+	r.Post(routeImageMetadata+"/bulk", usersC.GetImageMetadataBulk)
 
 	r.Get("/my-posts", usersC.UserPosts)
 	r.Get("/api-access", usersC.APIAccess)
@@ -339,14 +350,14 @@ func main() {
 
 	// External Systems Routes
 	r.Get("/api/admin/external-systems", systemC.ListExternalSystems)
-	r.Get("/api/admin/external-systems/{id}", systemC.GetExternalSystem)
+	r.Get(routeExternalSystemByID, systemC.GetExternalSystem)
 	r.Post("/api/admin/external-systems", systemC.CreateExternalSystem)
-	r.Put("/api/admin/external-systems/{id}", systemC.UpdateExternalSystem)
-	r.Delete("/api/admin/external-systems/{id}", systemC.DeleteExternalSystem)
-	r.Post("/api/admin/external-systems/{id}/test", systemC.TestExternalConnection)
-	r.Post("/api/admin/external-systems/{id}/sync/preview", systemC.PreviewSync)
-	r.Post("/api/admin/external-systems/{id}/sync/execute", systemC.ExecuteSync)
-	r.Get("/api/admin/external-systems/{id}/sync/logs", systemC.GetSyncLogs)
+	r.Put(routeExternalSystemByID, systemC.UpdateExternalSystem)
+	r.Delete(routeExternalSystemByID, systemC.DeleteExternalSystem)
+	r.Post(routeExternalSystemByID+"/test", systemC.TestExternalConnection)
+	r.Post(routeExternalSystemByID+"/sync/preview", systemC.PreviewSync)
+	r.Post(routeExternalSystemByID+"/sync/execute", systemC.ExecuteSync)
+	r.Get(routeExternalSystemByID+"/sync/logs", systemC.GetSyncLogs)
 
 	// Analytics Routes
 	r.Get("/admin/analytics", analyticsC.Dashboard)
@@ -354,11 +365,11 @@ func main() {
 	r.Get("/api/admin/analytics/visitor", analyticsC.GetVisitorDetail)
 
 	// Cloudinary Settings Routes
-	r.Get("/api/admin/cloudinary", systemC.GetCloudinarySettings)
-	r.Post("/api/admin/cloudinary", systemC.SaveCloudinarySettings)
-	r.Delete("/api/admin/cloudinary", systemC.DeleteCloudinarySettings)
-	r.Post("/api/admin/cloudinary/test", systemC.TestCloudinaryConnection)
-	r.Post("/api/admin/cloudinary/signature", systemC.GetCloudinarySignature)
+	r.Get(routeCloudinary, systemC.GetCloudinarySettings)
+	r.Post(routeCloudinary, systemC.SaveCloudinarySettings)
+	r.Delete(routeCloudinary, systemC.DeleteCloudinarySettings)
+	r.Post(routeCloudinary+"/test", systemC.TestCloudinaryConnection)
+	r.Post(routeCloudinary+"/signature", systemC.GetCloudinarySignature)
 	r.Get("/api/admin/upload-config", usersC.GetUploadConfig)
 
 	r.Get("/users/me", usersC.CurrentUser)
@@ -447,27 +458,13 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set(headerContentType, mimeSVG)
 		http.ServeFile(w, r, "./static/favicon.svg")
 	})
 
 	// Serve static files with cache headers
 	staticFileServer := http.FileServer(http.Dir("./static/"))
-	r.Handle("/static/*", http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		switch {
-		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"):
-			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		case strings.HasSuffix(path, ".svg"):
-			w.Header().Set("Content-Type", "image/svg+xml")
-			w.Header().Set("Cache-Control", "public, max-age=86400")
-		case strings.HasSuffix(path, ".png"), strings.HasSuffix(path, ".jpg"),
-			strings.HasSuffix(path, ".jpeg"), strings.HasSuffix(path, ".webp"),
-			strings.HasSuffix(path, ".gif"), strings.HasSuffix(path, ".ico"):
-			w.Header().Set("Cache-Control", "public, max-age=604800")
-		}
-		staticFileServer.ServeHTTP(w, r)
-	})))
+	r.Handle("/static/*", http.StripPrefix("/static/", staticCacheMiddleware(staticFileServer)))
 
 	// Keep legacy CSS route for backward compatibility
 	cssFileServer := http.FileServer(http.Dir("./css/"))
@@ -482,6 +479,25 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	server.ListenAndServe()
+}
+
+// staticCacheMiddleware sets appropriate Cache-Control headers based on file extension.
+func staticCacheMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"):
+			w.Header().Set(headerCacheCtrl, "public, max-age=31536000, immutable")
+		case strings.HasSuffix(path, ".svg"):
+			w.Header().Set(headerContentType, mimeSVG)
+			w.Header().Set(headerCacheCtrl, "public, max-age=86400")
+		case strings.HasSuffix(path, ".png"), strings.HasSuffix(path, ".jpg"),
+			strings.HasSuffix(path, ".jpeg"), strings.HasSuffix(path, ".webp"),
+			strings.HasSuffix(path, ".gif"), strings.HasSuffix(path, ".ico"):
+			w.Header().Set(headerCacheCtrl, "public, max-age=604800")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getAllPosts(w http.ResponseWriter, r *http.Request) {
@@ -625,7 +641,7 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 
 // jsonResponse sends a JSON response with the given data and status code.
 func jsonResponse(w http.ResponseWriter, data interface{}, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -647,8 +663,8 @@ func rssHandler(ps *models.PostService) http.HandlerFunc {
 			baseURL = "http://localhost:22222"
 		}
 
-		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=300")
+		w.Header().Set(headerContentType, "application/rss+xml; charset=utf-8")
+		w.Header().Set(headerCacheCtrl, "public, max-age=300")
 
 		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
