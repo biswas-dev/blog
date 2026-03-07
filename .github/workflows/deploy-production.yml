@@ -88,13 +88,13 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan 31.97.102.48 >> ~/.ssh/known_hosts
+          ssh-keyscan -T 10 31.97.102.48 >> ~/.ssh/known_hosts 2>/dev/null || true
 
           echo "🚀 Deploying Blog to Production server..."
           echo "Commit: $COMMIT_SHA"
 
           # Deploy to Production server using docker-compose
-          ssh -i ~/.ssh/deploy_key ubuntu@31.97.102.48 "bash -s" << EOF
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/deploy_key ubuntu@31.97.102.48 "bash -s" << EOF
             set -e
 
             # Create deployment directory
@@ -165,7 +165,7 @@ jobs:
             docker compose down --remove-orphans || true
 
             echo "🧹 Cleaning up any stale containers..."
-            docker rm -f blog-postgres blog-app blog-dd-agent 2>/dev/null || true
+            docker rm -f blog-postgres blog-app blog-dd-agent blog-otel-collector 2>/dev/null || true
 
             echo "🧹 Cleaning up Docker resources if disk space is low..."
             DISK_USAGE=\$(df / | tail -1 | awk '{print \$5}' | tr -d '%')
@@ -183,7 +183,7 @@ jobs:
 
             echo "🧹 Final cleanup before starting containers..."
             # Stop and remove ALL containers with these names, regardless of project
-            for c in blog-postgres blog-app blog-dd-agent; do
+            for c in blog-postgres blog-app blog-dd-agent blog-otel-collector; do
               docker stop \$c 2>/dev/null || true
               docker rm -f \$c 2>/dev/null || true
               # Also catch any with partial name matches
