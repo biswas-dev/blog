@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,11 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"anshumanbiswas.com/blog/apm"
 	"anshumanbiswas.com/blog/controllers"
 	authmw "anshumanbiswas.com/blog/middleware"
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/templates"
 	"anshumanbiswas.com/blog/utils"
+	"anshumanbiswas.com/blog/version"
 	"anshumanbiswas.com/blog/views"
 	godraw "github.com/anchoo2kewl/go-draw"
 	godrawstore "github.com/anchoo2kewl/go-draw/store"
@@ -49,6 +52,23 @@ func main() {
 
 	initLogger()
 
+	// Initialise APM (provider-agnostic via OpenTelemetry).
+	// Set APM_ENABLED=true to activate. Switch providers by changing
+	// OTEL_EXPORTER_OTLP_ENDPOINT — no code changes required.
+	apmCfg := apm.ConfigFromEnv(version.Version)
+	apmShutdown, err := apm.Init(context.Background(), apmCfg)
+	if err != nil {
+		logger.Warn().Err(err).Msg("apm: failed to initialise, continuing without tracing")
+		apmShutdown = func(context.Context) error { return nil }
+	} else if apmCfg.Enabled {
+		logger.Info().Str("endpoint", apmCfg.Endpoint).Msg("apm: tracing enabled")
+	}
+	defer func() {
+		if err := apmShutdown(context.Background()); err != nil {
+			logger.Warn().Err(err).Msg("apm: shutdown error")
+		}
+	}()
+
 	apiToken := os.Getenv("API_TOKEN")
 
 	if apiToken == "" {
@@ -63,6 +83,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "application/json", mimeSVG))
+	r.Use(authmw.TracingMiddleware())
 
 	dbUser, dbPassword, dbName, dbHost, dbPort :=
 		os.Getenv("PG_USER"),
