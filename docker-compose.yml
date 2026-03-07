@@ -35,6 +35,11 @@ services:
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
       - /etc/passwd:/etc/passwd:ro
+    # Required for the embedded OTel collector (OTLP ingest pipeline) to start.
+    # Without host cgroup namespace the pipeline errors with
+    # "failed to register process metrics: process does not exist" and port 4317
+    # never binds, so no traces reach Datadog.
+    cgroupns_mode: "host"
     networks:
       - blog-network
     restart: unless-stopped
