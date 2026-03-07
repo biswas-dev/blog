@@ -13,11 +13,20 @@ import (
 type User struct {
 	UserID           int
 	Username         string
+	FullName         string
 	Email            string
 	Password         string
 	PasswordHash     string
 	RegistrationDate string
 	Role             int
+}
+
+// DisplayName returns FullName if set, otherwise Username.
+func (u User) DisplayName() string {
+	if u.FullName != "" {
+		return u.FullName
+	}
+	return u.Username
 }
 
 type UserService struct {
@@ -59,8 +68,8 @@ func (us UserService) Authenticate(email, password string) (*User, error) {
 		Email: email,
 	}
 
-	row := us.DB.QueryRow(`SELECT user_id, username, password, role_id FROM users WHERE email=$1`, email)
-	err := row.Scan(&user.UserID, &user.Username, &user.PasswordHash, &user.Role)
+	row := us.DB.QueryRow(`SELECT user_id, username, full_name, password, role_id FROM users WHERE email=$1`, email)
+	err := row.Scan(&user.UserID, &user.Username, &user.FullName, &user.PasswordHash, &user.Role)
 	if err != nil {
 		return nil, fmt.Errorf("authenticate: %w", err)
 	}
@@ -81,8 +90,16 @@ func (ss *UserService) GenerateHashedToken(token string) (string, error) {
 	return string(hashedTokenBytes), nil
 }
 
+func (us *UserService) UpdateName(userID int, fullName string) error {
+	_, err := us.DB.Exec("UPDATE Users SET full_name = $1 WHERE user_id = $2", fullName, userID)
+	if err != nil {
+		return fmt.Errorf("update name: %w", err)
+	}
+	return nil
+}
+
 func (us *UserService) GetAllUsers() ([]*User, error) {
-	rows, err := us.DB.Query("SELECT user_id, email, username, registration_date, role_id FROM Users")
+	rows, err := us.DB.Query("SELECT user_id, email, username, full_name, registration_date, role_id FROM Users")
 	if err != nil {
 		return nil, fmt.Errorf("get all users: %w", err)
 	}
@@ -92,7 +109,7 @@ func (us *UserService) GetAllUsers() ([]*User, error) {
 
 	for rows.Next() {
 		var user User
-		err := rows.Scan(&user.UserID, &user.Email, &user.Username, &user.RegistrationDate, &user.Role)
+		err := rows.Scan(&user.UserID, &user.Email, &user.Username, &user.FullName, &user.RegistrationDate, &user.Role)
 		if err != nil {
 			return nil, fmt.Errorf("get all users: %w", err)
 		}
@@ -137,7 +154,7 @@ func (us *UserService) UpdateEmail(userID int, newEmail string) error {
 // CreateOAuthUser creates a user for OAuth sign-in (no usable password).
 // A random bytes hash is stored so the password column is non-null but
 // can never be used for password-based login.
-func (us *UserService) CreateOAuthUser(email, username string, roleID int) (*User, error) {
+func (us *UserService) CreateOAuthUser(email, username, fullName string, roleID int) (*User, error) {
 	email = strings.ToLower(email)
 
 	// Generate a random placeholder password that can never be used to sign in.
@@ -152,13 +169,14 @@ func (us *UserService) CreateOAuthUser(email, username string, roleID int) (*Use
 	passwordHash := string(hashedBytes)
 
 	row := us.DB.QueryRow(`
-		INSERT INTO Users (email, username, password, role_id, registration_date, auth_provider)
-		VALUES ($1, $2, $3, $4, $5, 'github') RETURNING user_id`,
-		email, username, passwordHash, roleID, time.Now().UTC())
+		INSERT INTO Users (email, username, full_name, password, role_id, registration_date, auth_provider)
+		VALUES ($1, $2, $3, $4, $5, $6, 'github') RETURNING user_id`,
+		email, username, fullName, passwordHash, roleID, time.Now().UTC())
 
 	user := User{
 		Email:        email,
 		Username:     username,
+		FullName:     fullName,
 		PasswordHash: passwordHash,
 		Role:         roleID,
 	}

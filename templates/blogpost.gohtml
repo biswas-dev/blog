@@ -322,6 +322,18 @@
   border-color: var(--text-tertiary, #9ca3af);
 }
 
+/* Annotation comment thread indentation */
+.ann-comment-thread {
+  margin-top: 8px;
+  margin-left: 16px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-light, rgba(127,127,127,0.25));
+  font-size: 0.8125rem;
+}
+.ann-comment-author { font-weight: 600; color: var(--text-primary); }
+.ann-comment-date { font-size: 0.75rem; color: var(--text-tertiary, #9ca3af); margin-left: 6px; }
+.ann-comment-body { margin: 4px 0 0; color: var(--text-secondary); line-height: 1.5; }
+
 /* Back to top */
 .back-to-top {
     position: fixed;
@@ -631,10 +643,10 @@
       const colorDot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${escapeHTML(a.color)};margin-right:4px;"></span>`;
       const commentsHTML = (a.comments || []).map(c => {
         const cdate = new Date(c.created_at).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
-        return `<div class="ml-4 mt-2 text-sm border-l-2 border-gray-200 pl-3">
-          <span class="font-medium">${escapeHTML(c.author_name)}</span>
-          <span class="text-xs text-gray-400 ml-1">${cdate}</span>
-          <p class="mt-1">${escapeHTML(c.content)}</p>
+        return `<div class="ann-comment-thread">
+          <span class="ann-comment-author">${escapeHTML(c.author_name)}</span>
+          <span class="ann-comment-date">${cdate}</span>
+          <p class="ann-comment-body">${escapeHTML(c.content)}</p>
         </div>`;
       }).join('');
       const deleteBtn = (currentUserID > 0 && currentUserID === a.author_id)
