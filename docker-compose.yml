@@ -15,15 +15,26 @@ services:
       # Enable OTLP receiver so the app sends standard OTel traces
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
+      # Log collection from containers
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=false
+      # Process and container monitoring
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_CONTAINER_EXCLUDE=name:dd-agent
+      # DogStatsD for custom metrics
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
       - DD_LOG_LEVEL=warn
-      # Tag all traces/metrics with the deployment environment
+      # Unified tags applied to all data sent by this agent
       - DD_ENV=${APP_ENV:-development}
       - DD_SERVICE=blog
       - DD_VERSION=${VERSION:-dev}
+      # Made available for postgres autodiscovery check (%%env_PG_PASSWORD%%)
+      - PG_PASSWORD=${PG_PASSWORD:-secureprodpassword123}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - /etc/passwd:/etc/passwd:ro
     networks:
       - blog-network
     restart: unless-stopped
@@ -45,6 +56,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      # Unified Service Tagging — links metrics, logs, and traces in Datadog
+      com.datadoghq.tags.service: "blog-postgres"
+      com.datadoghq.tags.env: "${APP_ENV:-development}"
+      # Ship postgres logs to Datadog Logs
+      com.datadoghq.ad.logs: '[{"source":"postgresql","service":"blog-postgres"}]'
+      # PostgreSQL integration — autodiscovered by the DD agent
+      # Exposes query metrics, connection pool stats, replication lag, etc.
+      com.datadoghq.ad.check_names: '["postgres"]'
+      com.datadoghq.ad.init_configs: '[{}]'
+      com.datadoghq.ad.instances: '[{"host":"%%host%%","port":5432,"username":"blog","password":"%%env_PG_PASSWORD%%","dbname":"blog","tags":["env:${APP_ENV:-development}"]}]'
 
   app:
     build:
@@ -88,6 +110,13 @@ services:
     networks:
       - blog-network
     restart: unless-stopped
+    labels:
+      # Unified Service Tagging — links APM traces, logs, and infra metrics
+      com.datadoghq.tags.service: "blog"
+      com.datadoghq.tags.env: "${APP_ENV:-development}"
+      com.datadoghq.tags.version: "${VERSION:-dev}"
+      # Ship Go app logs to Datadog Logs (structured JSON from zerolog)
+      com.datadoghq.ad.logs: '[{"source":"go","service":"blog"}]'
 
 volumes:
   blog-postgres-data:
