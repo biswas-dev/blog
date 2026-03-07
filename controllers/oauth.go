@@ -55,6 +55,18 @@ func (oc *OAuthController) HandleGitHubLogin(w http.ResponseWriter, r *http.Requ
 		SameSite: http.SameSiteLaxMode,
 	})
 
+	// Store return_to if provided (must be a relative path for safety).
+	if returnTo := r.URL.Query().Get("return_to"); returnTo != "" && strings.HasPrefix(returnTo, "/") && !strings.HasPrefix(returnTo, "//") {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "oauth_return_to",
+			Value:    returnTo,
+			Path:     "/",
+			MaxAge:   600,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
+
 	callbackURL := oc.AppURL + "/auth/github/callback"
 	authURL := fmt.Sprintf(
 		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=read:user,user:email&state=%s",
@@ -147,7 +159,19 @@ func (oc *OAuthController) HandleGitHubCallback(w http.ResponseWriter, r *http.R
 	setCookie(w, CookieSession, session.Token)
 	setCookie(w, CookieUserEmail, email)
 
-	http.Redirect(w, r, "/", http.StatusFound)
+	// Redirect to return_to if set, otherwise home.
+	redirectTo := "/"
+	if c, err := r.Cookie("oauth_return_to"); err == nil && strings.HasPrefix(c.Value, "/") {
+		redirectTo = c.Value
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:    "oauth_return_to",
+		Value:   "",
+		Path:    "/",
+		MaxAge:  -1,
+		Expires: time.Unix(0, 0),
+	})
+	http.Redirect(w, r, redirectTo, http.StatusFound)
 }
 
 // exchangeCode exchanges the GitHub OAuth authorization code for an access token.
