@@ -165,7 +165,7 @@ jobs:
             docker compose down --remove-orphans || true
 
             echo "🧹 Cleaning up any stale containers..."
-            docker rm -f blog-postgres blog-app blog-dd-agent 2>/dev/null || true
+            docker rm -f blog-postgres blog-app blog-dd-agent blog-otel-collector 2>/dev/null || true
 
             echo "🧹 Cleaning up Docker resources if disk space is low..."
             DISK_USAGE=\$(df / | tail -1 | awk '{print \$5}' | tr -d '%')
@@ -183,7 +183,7 @@ jobs:
 
             echo "🧹 Final cleanup before starting containers..."
             # Stop and remove ALL containers with these names, regardless of project
-            for c in blog-postgres blog-app blog-dd-agent; do
+            for c in blog-postgres blog-app blog-dd-agent blog-otel-collector; do
               docker stop \$c 2>/dev/null || true
               docker rm -f \$c 2>/dev/null || true
               # Also catch any with partial name matches
