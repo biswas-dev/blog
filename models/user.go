@@ -1,6 +1,7 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -124,11 +125,47 @@ func (us *UserService) UpdatePassword(userID int, newPassword string) error {
 
 func (us *UserService) UpdateEmail(userID int, newEmail string) error {
 	newEmail = strings.ToLower(newEmail)
-	
+
 	_, err := us.DB.Exec("UPDATE Users SET email = $1 WHERE user_id = $2", newEmail, userID)
 	if err != nil {
 		return fmt.Errorf("update email: %w", err)
 	}
 
 	return nil
+}
+
+// CreateOAuthUser creates a user for OAuth sign-in (no usable password).
+// A random bytes hash is stored so the password column is non-null but
+// can never be used for password-based login.
+func (us *UserService) CreateOAuthUser(email, username string, roleID int) (*User, error) {
+	email = strings.ToLower(email)
+
+	// Generate a random placeholder password that can never be used to sign in.
+	randBytes := make([]byte, 32)
+	if _, err := rand.Read(randBytes); err != nil {
+		return nil, fmt.Errorf("create oauth user: %w", err)
+	}
+	hashedBytes, err := bcrypt.GenerateFromPassword(randBytes, bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("create oauth user: %w", err)
+	}
+	passwordHash := string(hashedBytes)
+
+	row := us.DB.QueryRow(`
+		INSERT INTO Users (email, username, password, role_id, registration_date, auth_provider)
+		VALUES ($1, $2, $3, $4, $5, 'github') RETURNING user_id`,
+		email, username, passwordHash, roleID, time.Now().UTC())
+
+	user := User{
+		Email:        email,
+		Username:     username,
+		PasswordHash: passwordHash,
+		Role:         roleID,
+	}
+
+	err = row.Scan(&user.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("create oauth user: %w", err)
+	}
+	return &user, nil
 }

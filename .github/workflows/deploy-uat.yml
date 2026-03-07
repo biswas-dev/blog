@@ -94,6 +94,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
+          APP_URL: ${{ secrets.UAT_APP_URL }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
           cd biswas-infrastructure/ansible
@@ -120,7 +124,11 @@ jobs:
             -e "dockerhub_token=$DOCKERHUB_TOKEN" \
             -e "dd_api_key=$DD_API_KEY" \
             -e "dd_site=${DD_SITE:-datadoghq.com}" \
-            -e "apm_enabled=true"
+            -e "apm_enabled=true" \
+            -e "github_client_id=$GH_CLIENT_ID" \
+            -e "github_client_secret=$GH_CLIENT_SECRET" \
+            -e "oauth_state_secret=$OAUTH_STATE_SECRET" \
+            -e "app_url=$APP_URL"
 
       - name: Clean up local upload files (Cloudinary migration)
         run: |

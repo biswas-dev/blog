@@ -77,6 +77,11 @@ func main() {
 		logger.Info().Msg("API token loaded")
 	}
 
+	githubClientID := os.Getenv("GH_CLIENT_ID")
+	githubClientSecret := os.Getenv("GH_CLIENT_SECRET")
+	oauthStateSecret := os.Getenv("OAUTH_STATE_SECRET")
+	appURL := os.Getenv("APP_URL")
+
 	listenAddr := flag.String("listen-addr", ":"+getAppPort(), "server listen address")
 	flag.Parse()
 
@@ -446,6 +451,45 @@ func main() {
 
 	// Define a route for the blog post
 	r.Get("/blog/{slug}", blogC.GetBlogPost)
+
+	// GitHub OAuth routes
+	oauthC := controllers.OAuthController{
+		DB:                 DB,
+		UserService:        &userService,
+		SessionService:     &sessionService,
+		GitHubClientID:     githubClientID,
+		GitHubClientSecret: githubClientSecret,
+		AppURL:             appURL,
+		StateSecret:        oauthStateSecret,
+	}
+	r.Get("/auth/github", oauthC.HandleGitHubLogin)
+	r.Get("/auth/github/callback", oauthC.HandleGitHubCallback)
+
+	// Comments routes
+	commentsC := controllers.CommentsController{
+		DB:          DB,
+		BlogService: blogService,
+	}
+	r.Get("/blog/{slug}/comments", commentsC.HandleListComments)
+	r.Group(func(r chi.Router) {
+		r.Use(authmw.AuthenticatedUser(&sessionService, &apiTokenService))
+		r.Post("/blog/{slug}/comments", commentsC.HandleCreateComment)
+		r.Delete("/comments/{commentID}", commentsC.HandleDeleteComment)
+	})
+
+	// Annotations routes
+	annotationsC := controllers.AnnotationsController{DB: DB}
+	r.Get("/blog/{slug}/annotations", annotationsC.HandleListAnnotations)
+	r.Group(func(r chi.Router) {
+		r.Use(authmw.AuthenticatedUser(&sessionService, &apiTokenService))
+		r.Use(authmw.RequirePermission(func(p models.UserPermissions) bool { return p.CanComment }))
+		r.Post("/blog/{slug}/annotations", annotationsC.HandleCreateAnnotation)
+		r.Patch("/annotations/{annotationID}", annotationsC.HandleUpdateAnnotation)
+		r.Delete("/annotations/{annotationID}", annotationsC.HandleDeleteAnnotation)
+		r.Post("/annotations/{annotationID}/comments", annotationsC.HandleCreateAnnotationComment)
+		r.Patch("/annotation-comments/{commentID}", annotationsC.HandleUpdateAnnotationComment)
+		r.Delete("/annotation-comments/{commentID}", annotationsC.HandleDeleteAnnotationComment)
+	})
 
 	// Public API for lazy loading posts
 	r.Get("/api/posts/load-more", usersC.LoadMorePosts)

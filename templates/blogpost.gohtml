@@ -107,6 +107,59 @@
         </div>
     </div>
     
+    <!-- Comments Section -->
+    <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700" id="comments-section">
+      <h2 class="text-2xl font-bold mb-6">Comments</h2>
+
+      <div id="comments-list" class="space-y-6 mb-8">
+        <p class="text-gray-500 dark:text-gray-400 text-sm" id="comments-loading">Loading comments...</p>
+      </div>
+
+      {{if .LoggedIn}}
+        {{if .UserPermissions.CanComment}}
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+          <h3 class="font-semibold mb-3">Leave a comment</h3>
+          <textarea id="new-comment-content" rows="4" maxlength="5000"
+            class="form-input w-full resize-y"
+            placeholder="Write your comment here..."></textarea>
+          <div class="flex justify-between items-center mt-3">
+            <span id="comment-char-count" class="text-xs text-gray-400">0 / 5000</span>
+            <button id="submit-comment" class="btn btn-primary">Post Comment</button>
+          </div>
+        </div>
+        {{end}}
+      {{else}}
+      <div class="text-center py-6 rounded-xl border border-gray-200 dark:border-gray-700">
+        <p class="text-gray-600 dark:text-gray-400 mb-3">Sign in to join the discussion</p>
+        <a href="/auth/github" class="btn btn-secondary inline-flex items-center gap-2">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/></svg>
+          Sign in with GitHub to comment
+        </a>
+      </div>
+      {{end}}
+    </section>
+
+    <!-- Annotations Section -->
+    <div id="annotation-bar" class="mt-6 flex items-center gap-3">
+      <button id="toggle-annotations" class="btn btn-secondary text-sm flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+        <span id="toggle-annotations-label">Show Annotations</span>
+      </button>
+      <span id="annotation-count" class="text-xs text-gray-500"></span>
+    </div>
+
+    <div id="annotation-panel" style="display:none;" class="mt-4 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <h3 class="font-semibold mb-4">Annotations</h3>
+      <div id="annotation-list" class="space-y-4">
+        <p class="text-sm text-gray-500">No annotations yet.</p>
+      </div>
+      {{if not .LoggedIn}}
+      <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-500">
+        <a href="/auth/github" class="hover:underline" style="color: var(--accent);">Sign in with GitHub</a> to annotate this post.
+      </div>
+      {{end}}
+    </div>
+
     <!-- Navigation (only shown when prev/next posts exist) -->
     {{if or .PrevPost .NextPost}}
     <nav class="post-nav">
@@ -348,6 +401,313 @@
             this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy Link';
         }, 2000);
     });
+})();
+</script>
+
+<script>
+(function() {
+  const postSlug = {{.Post.Slug | printf "%q"}};
+  const canAnnotate = {{if .CanAnnotate}}true{{else}}false{{end}};
+  const currentUserID = {{if .UserID}}{{.UserID}}{{else}}0{{end}};
+
+  // ---- Comments ----
+  const commentsList = document.getElementById('comments-list');
+
+  function renderComment(c, depth) {
+    depth = depth || 0;
+    const indent = depth > 0 ? 'ml-8 pl-4 border-l border-gray-200 dark:border-gray-700' : '';
+    const date = new Date(c.comment_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+    let repliesHTML = '';
+    if (c.replies && c.replies.length) {
+      repliesHTML = c.replies.map(r => renderComment(r, depth + 1)).join('');
+    }
+    const deleteBtn = (currentUserID > 0 && currentUserID === c.user_id)
+      ? `<button class="text-xs text-red-500 hover:underline ml-2 delete-comment" data-id="${c.comment_id}">Delete</button>`
+      : '';
+    return `<div class="comment-item ${indent}" data-id="${c.comment_id}">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="font-semibold text-sm">${escapeHTML(c.username)}</span>
+        <span class="text-xs text-gray-400">${date}</span>
+        ${deleteBtn}
+      </div>
+      <p class="text-sm leading-relaxed">${escapeHTML(c.content)}</p>
+      ${repliesHTML}
+    </div>`;
+  }
+
+  async function loadComments() {
+    try {
+      const res = await fetch('/blog/' + postSlug + '/comments');
+      const comments = await res.json();
+      if (!comments || comments.length === 0) {
+        commentsList.innerHTML = '<p class="text-sm text-gray-500">No comments yet. Be the first!</p>';
+      } else {
+        commentsList.innerHTML = comments.map(c => renderComment(c, 0)).join('');
+        commentsList.querySelectorAll('.delete-comment').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Delete this comment?')) return;
+            const id = btn.dataset.id;
+            const r = await fetch('/comments/' + id, {method: 'DELETE'});
+            if (r.ok) loadComments();
+          });
+        });
+      }
+    } catch(e) {
+      commentsList.innerHTML = '<p class="text-sm text-red-500">Failed to load comments.</p>';
+    }
+  }
+  loadComments();
+
+  const submitBtn = document.getElementById('submit-comment');
+  const commentInput = document.getElementById('new-comment-content');
+  const charCount = document.getElementById('comment-char-count');
+  if (commentInput && charCount) {
+    commentInput.addEventListener('input', () => {
+      charCount.textContent = commentInput.value.length + ' / 5000';
+    });
+  }
+  if (submitBtn && commentInput) {
+    submitBtn.addEventListener('click', async () => {
+      const content = commentInput.value.trim();
+      if (!content) return;
+      submitBtn.disabled = true;
+      try {
+        const res = await fetch('/blog/' + postSlug + '/comments', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({content})
+        });
+        if (res.ok) {
+          commentInput.value = '';
+          if (charCount) charCount.textContent = '0 / 5000';
+          await loadComments();
+        } else {
+          const text = await res.text();
+          alert('Error: ' + text);
+        }
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  // ---- Annotations ----
+  const toggleBtn = document.getElementById('toggle-annotations');
+  const annotationPanel = document.getElementById('annotation-panel');
+  const annotationList = document.getElementById('annotation-list');
+  const annotationCount = document.getElementById('annotation-count');
+  const toggleLabel = document.getElementById('toggle-annotations-label');
+  let annotationsVisible = false;
+  let annotationsData = [];
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderAnnotationPanel(annotations) {
+    if (!annotations || annotations.length === 0) {
+      annotationList.innerHTML = '<p class="text-sm text-gray-500">No annotations yet.</p>';
+      if (annotationCount) annotationCount.textContent = '';
+      return;
+    }
+    if (annotationCount) annotationCount.textContent = annotations.length + ' annotation' + (annotations.length !== 1 ? 's' : '');
+    annotationList.innerHTML = annotations.map(a => {
+      const date = new Date(a.created_at).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+      const colorDot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${escapeHTML(a.color)};margin-right:4px;"></span>`;
+      const commentsHTML = (a.comments || []).map(c => {
+        const cdate = new Date(c.created_at).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+        return `<div class="ml-4 mt-2 text-sm border-l-2 border-gray-200 pl-3">
+          <span class="font-medium">${escapeHTML(c.author_name)}</span>
+          <span class="text-xs text-gray-400 ml-1">${cdate}</span>
+          <p class="mt-1">${escapeHTML(c.content)}</p>
+        </div>`;
+      }).join('');
+      const deleteBtn = (currentUserID > 0 && currentUserID === a.author_id)
+        ? `<button class="text-xs text-red-500 hover:underline ml-2 delete-annotation" data-id="${a.id}">Delete</button>`
+        : '';
+      const addCommentForm = canAnnotate
+        ? `<div class="mt-2 flex gap-2">
+            <input type="text" class="form-input text-sm flex-1 annotation-comment-input" placeholder="Add a comment..." data-ann="${a.id}" />
+            <button class="btn btn-primary text-sm annotation-comment-submit" data-ann="${a.id}">Reply</button>
+          </div>` : '';
+      return `<div class="annotation-entry rounded-lg p-3 bg-gray-50 dark:bg-gray-800" data-id="${a.id}">
+        <div class="flex items-start gap-2 mb-1">
+          ${colorDot}
+          <div class="flex-1">
+            <span class="text-xs font-medium text-gray-500">by ${escapeHTML(a.author_name)} &middot; ${date}</span>
+            ${deleteBtn}
+            <p class="mt-1 text-sm italic">"${escapeHTML(a.selected_text)}"</p>
+          </div>
+        </div>
+        ${commentsHTML}
+        ${addCommentForm}
+      </div>`;
+    }).join('');
+
+    annotationList.querySelectorAll('.delete-annotation').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this annotation?')) return;
+        const r = await fetch('/annotations/' + btn.dataset.id, {method: 'DELETE'});
+        if (r.ok) loadAnnotations();
+      });
+    });
+
+    annotationList.querySelectorAll('.annotation-comment-submit').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const annID = btn.dataset.ann;
+        const input = annotationList.querySelector('.annotation-comment-input[data-ann="' + annID + '"]');
+        const content = input ? input.value.trim() : '';
+        if (!content) return;
+        btn.disabled = true;
+        try {
+          const res = await fetch('/annotations/' + annID + '/comments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({content})
+          });
+          if (res.ok) {
+            if (input) input.value = '';
+            await loadAnnotations();
+          }
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function applyAnnotationHighlights(annotations) {
+    const contentEl = document.getElementById('article-content');
+    if (!contentEl || !annotations || annotations.length === 0) return;
+
+    // Collect all text nodes and their cumulative offsets.
+    const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT, null);
+    const textNodes = [];
+    let offset = 0;
+    let node;
+    while ((node = walker.nextNode())) {
+      textNodes.push({node, start: offset, end: offset + node.textContent.length});
+      offset += node.textContent.length;
+    }
+
+    // Apply each annotation as a highlight span (process in reverse order to avoid offset drift).
+    const sorted = [...annotations].sort((a, b) => b.start_offset - a.start_offset);
+    sorted.forEach(ann => {
+      highlightRange(textNodes, ann.start_offset, ann.end_offset, ann.color, ann.id);
+    });
+  }
+
+  function highlightRange(textNodes, start, end, color, annID) {
+    for (let i = 0; i < textNodes.length; i++) {
+      const {node, start: ns, end: ne} = textNodes[i];
+      if (ne <= start || ns >= end) continue;
+      const relStart = Math.max(0, start - ns);
+      const relEnd = Math.min(node.textContent.length, end - ns);
+      if (relStart >= relEnd) continue;
+      const span = document.createElement('mark');
+      span.style.background = color || 'yellow';
+      span.style.opacity = '0.4';
+      span.style.cursor = 'pointer';
+      span.dataset.annId = annID;
+      span.addEventListener('click', () => {
+        annotationPanel.style.display = 'block';
+        annotationsVisible = true;
+        if (toggleLabel) toggleLabel.textContent = 'Hide Annotations';
+        const entry = annotationList.querySelector('.annotation-entry[data-id="' + annID + '"]');
+        if (entry) entry.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+      });
+      const after = node.splitText(relEnd);
+      const highlighted = node.splitText(relStart);
+      highlighted.parentNode.insertBefore(span, after);
+      span.appendChild(highlighted);
+      // Update offsets for nodes we haven't processed yet (not needed since we go in reverse).
+      break;
+    }
+  }
+
+  async function loadAnnotations() {
+    try {
+      const res = await fetch('/blog/' + postSlug + '/annotations');
+      const annotations = await res.json();
+      annotationsData = annotations || [];
+      renderAnnotationPanel(annotationsData);
+      applyAnnotationHighlights(annotationsData);
+    } catch(e) {
+      console.warn('Failed to load annotations', e);
+    }
+  }
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      annotationsVisible = !annotationsVisible;
+      annotationPanel.style.display = annotationsVisible ? 'block' : 'none';
+      if (toggleLabel) toggleLabel.textContent = annotationsVisible ? 'Hide Annotations' : 'Show Annotations';
+    });
+  }
+
+  // Text-selection annotation creation for commenters.
+  if (canAnnotate) {
+    const contentEl = document.getElementById('article-content');
+    if (contentEl) {
+      let selectionTooltip = null;
+
+      contentEl.addEventListener('mouseup', () => {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) {
+          if (selectionTooltip) { selectionTooltip.remove(); selectionTooltip = null; }
+          return;
+        }
+        const selectedText = sel.toString().trim();
+        if (!selectedText) return;
+
+        // Calculate character offsets relative to content element.
+        const range = sel.getRangeAt(0);
+        const preRange = document.createRange();
+        preRange.setStart(contentEl, 0);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        const startOffset = preRange.toString().length;
+        const endOffset = startOffset + selectedText.length;
+
+        // Show tooltip near selection.
+        if (selectionTooltip) selectionTooltip.remove();
+        selectionTooltip = document.createElement('div');
+        selectionTooltip.style.cssText = 'position:fixed;z-index:1000;background:#1f2937;color:#fff;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+        selectionTooltip.textContent = 'Annotate';
+        const rect = range.getBoundingClientRect();
+        selectionTooltip.style.left = (rect.left + rect.width / 2 - 36) + 'px';
+        selectionTooltip.style.top = (rect.top + window.scrollY - 36) + 'px';
+        document.body.appendChild(selectionTooltip);
+
+        selectionTooltip.addEventListener('click', async () => {
+          selectionTooltip.remove(); selectionTooltip = null;
+          sel.removeAllRanges();
+          const res = await fetch('/blog/' + postSlug + '/annotations', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({start_offset: startOffset, end_offset: endOffset, selected_text: selectedText, color: 'yellow'})
+          });
+          if (res.ok) {
+            annotationPanel.style.display = 'block';
+            annotationsVisible = true;
+            if (toggleLabel) toggleLabel.textContent = 'Hide Annotations';
+            await loadAnnotations();
+          }
+        });
+      });
+
+      document.addEventListener('mousedown', (e) => {
+        if (selectionTooltip && !selectionTooltip.contains(e.target)) {
+          selectionTooltip.remove(); selectionTooltip = null;
+        }
+      });
+    }
+  }
+
+  loadAnnotations();
 })();
 </script>
 

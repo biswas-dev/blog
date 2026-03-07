@@ -113,6 +113,11 @@ services:
       - APP_ENV=${APP_ENV:-development}
       - DEPLOY_BRANCH=${DEPLOY_BRANCH:-unknown}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      # GitHub OAuth
+      - GH_CLIENT_ID=${GH_CLIENT_ID:-}
+      - GH_CLIENT_SECRET=${GH_CLIENT_SECRET:-}
+      - OAUTH_STATE_SECRET=${OAUTH_STATE_SECRET:-}
+      - APP_URL=${APP_URL:-http://localhost:22222}
       # APM — set APM_ENABLED=true to activate tracing.
       # Change OTEL_EXPORTER_OTLP_ENDPOINT to switch providers (no code changes).
       - APM_ENABLED=${APM_ENABLED:-false}
