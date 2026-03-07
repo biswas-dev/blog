@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"html/template"
 
@@ -95,6 +97,7 @@ type Users struct {
 		APIAccess  Template
 		PostEditor Template
 	}
+	DB                   *sql.DB
 	UserService          *models.UserService
 	SessionService       *models.SessionService
 	PostService          *models.PostService
@@ -932,6 +935,25 @@ func (u Users) DeletePosts(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UserComment is a comment made by a user, enriched with post info.
+type UserComment struct {
+	CommentID   int
+	PostTitle   string
+	PostSlug    string
+	Content     string
+	CommentDate time.Time
+}
+
+// UserAnnotation is an annotation made by a user, enriched with post info.
+type UserAnnotation struct {
+	ID           int
+	PostTitle    string
+	PostSlug     string
+	SelectedText string
+	Color        string
+	CreatedAt    time.Time
+}
+
 // UserPosts shows posts for the current user
 func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 	user, err := u.isUserLoggedIn(r)
@@ -946,6 +968,42 @@ func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch user's comments with post info.
+	var userComments []UserComment
+	commentRows, err := u.DB.QueryContext(r.Context(), `
+		SELECT c.comment_id, p.title, p.slug, c.content, c.comment_date
+		FROM Comments c
+		JOIN Posts p ON p.post_id = c.post_id
+		WHERE c.user_id = $1
+		ORDER BY c.comment_date DESC`, user.UserID)
+	if err == nil {
+		defer commentRows.Close()
+		for commentRows.Next() {
+			var uc UserComment
+			if err := commentRows.Scan(&uc.CommentID, &uc.PostTitle, &uc.PostSlug, &uc.Content, &uc.CommentDate); err == nil {
+				userComments = append(userComments, uc)
+			}
+		}
+	}
+
+	// Fetch user's annotations with post info.
+	var userAnnotations []UserAnnotation
+	annRows, err := u.DB.QueryContext(r.Context(), `
+		SELECT a.id, p.title, p.slug, a.selected_text, a.color, a.created_at
+		FROM post_annotations a
+		JOIN Posts p ON p.post_id = a.post_id
+		WHERE a.author_id = $1
+		ORDER BY a.created_at DESC`, user.UserID)
+	if err == nil {
+		defer annRows.Close()
+		for annRows.Next() {
+			var ua UserAnnotation
+			if err := annRows.Scan(&ua.ID, &ua.PostTitle, &ua.PostSlug, &ua.SelectedText, &ua.Color, &ua.CreatedAt); err == nil {
+				userAnnotations = append(userAnnotations, ua)
+			}
+		}
+	}
+
 	var data struct {
 		Email           string
 		LoggedIn        bool
@@ -956,6 +1014,8 @@ func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 		CurrentPage     string
 		Posts           *models.PostsList
 		UserPermissions models.UserPermissions
+		UserComments    []UserComment
+		UserAnnotations []UserAnnotation
 	}
 
 	data.Email = user.Email
@@ -963,10 +1023,12 @@ func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 	data.LoggedIn = true
 	data.IsAdmin = (user.Role == 2)
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
-	data.Description = "My Posts - Anshuman Biswas Blog"
+	data.Description = "My Posts & Comments - Anshuman Biswas Blog"
 	data.CurrentPage = "my-posts"
 	data.Posts = posts
 	data.UserPermissions = models.GetPermissions(user.Role)
+	data.UserComments = userComments
+	data.UserAnnotations = userAnnotations
 
 	u.Templates.UserPosts.Execute(w, r, data)
 }
