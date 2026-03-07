@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	_ "github.com/lib/pq"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 // DB is a global variable to hold db connection
@@ -21,9 +23,25 @@ func Initialize(username, password, database string, host string, port string) (
 	db := Database{}
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, username, password, database)
-	conn, err := sql.Open("postgres", dsn)
+	// otelsql wraps the postgres driver to emit an OpenTelemetry span for every
+	// SQL query. When APM is disabled the global tracer is a noop, so this is
+	// zero-overhead. In Datadog it appears as "blog-postgres" under the blog
+	// service in the Service Map and APM trace view.
+	// otelsql wraps the postgres driver to emit an OpenTelemetry span for every
+	// SQL query. When APM is disabled the global tracer is a noop, so this is
+	// zero-overhead. In Datadog it appears as "blog-postgres" under the blog
+	// service in the Service Map and APM trace view.
+	conn, err := otelsql.Open("postgres", dsn,
+		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
+	)
 	if err != nil {
 		return db, err
+	}
+
+	if _, err := otelsql.RegisterDBStatsMetrics(conn,
+		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
+	); err != nil {
+		logger.Warn().Err(err).Msg("db: failed to register otelsql stats metrics")
 	}
 
 	db.Conn = conn
