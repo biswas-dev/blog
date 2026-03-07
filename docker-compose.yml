@@ -36,10 +36,11 @@ services:
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
       - /etc/passwd:/etc/passwd:ro
     # Required for the embedded OTel collector (OTLP ingest pipeline) to start.
-    # Without host cgroup namespace the pipeline errors with
-    # "failed to register process metrics: process does not exist" and port 4317
-    # never binds, so no traces reach Datadog.
-    cgroupns_mode: "host"
+    # Without this the agent errors "failed to register process metrics: process
+    # does not exist" on cgroupv2 hosts and port 4317 never binds.
+    # The dd-agent already mounts /proc, /sys/fs/cgroup and docker.sock —
+    # privileged: true removes the last namespace barrier for that pipeline.
+    privileged: true
     networks:
       - blog-network
     restart: unless-stopped
