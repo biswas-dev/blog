@@ -27,6 +27,8 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		Email           string
 		Username        string
 		IsAdmin         bool
+		CanAnnotate     bool
+		UserID          int
 		SignupDisabled  bool
 		Description     string
 		CurrentPage     string
@@ -143,8 +145,10 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		data.LoggedIn = true
 		data.Email = user.Email
 		data.Username = user.Username
+		data.UserID = user.UserID
 		data.IsAdmin = (user.Role == 2) // Administrator role
 		data.UserPermissions = models.GetPermissions(user.Role)
+		data.CanAnnotate = data.UserPermissions.CanComment
 	}
 	w.Header().Set("Cache-Control", "public, max-age=60")
 	b.Templates.Post.Execute(w, r, data)
