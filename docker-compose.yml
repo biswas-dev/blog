@@ -1,4 +1,33 @@
 services:
+  # Datadog Agent — receives OTLP traces from the app and forwards to Datadog.
+  # To disable: set DD_API_KEY to empty or remove the service.
+  # To switch APM providers: update OTEL_EXPORTER_OTLP_ENDPOINT in the app
+  # service to point at a different OTLP-compatible collector — this service
+  # can be replaced entirely without changing any application code.
+  dd-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: blog-dd-agent
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      # Enable OTLP receiver so the app sends standard OTel traces
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
+      - DD_LOG_LEVEL=warn
+      # Tag all traces/metrics with the deployment environment
+      - DD_ENV=${APP_ENV:-development}
+      - DD_SERVICE=blog
+      - DD_VERSION=${VERSION:-dev}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    networks:
+      - blog-network
+    restart: unless-stopped
+
   postgres:
     image: postgres:15-alpine
     container_name: blog-postgres
@@ -46,6 +75,13 @@ services:
       - APP_ENV=${APP_ENV:-development}
       - DEPLOY_BRANCH=${DEPLOY_BRANCH:-unknown}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      # APM — set APM_ENABLED=true to activate tracing.
+      # Change OTEL_EXPORTER_OTLP_ENDPOINT to switch providers (no code changes).
+      - APM_ENABLED=${APM_ENABLED:-false}
+      - OTEL_SERVICE_NAME=blog
+      - OTEL_SERVICE_VERSION=${VERSION:-dev}
+      - OTEL_ENVIRONMENT=${APP_ENV:-development}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=dd-agent:4317
     depends_on:
       postgres:
         condition: service_healthy
