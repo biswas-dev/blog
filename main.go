@@ -213,6 +213,7 @@ func main() {
 
 	// Setup our controllers
 	usersC := controllers.Users{
+		DB:                   DB,
 		UserService:          &userService,
 		SessionService:       &sessionService,
 		PostService:          &postService,
