@@ -2,6 +2,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 )
 
 type Blog struct {
+	DB *sql.DB
 	Templates struct {
 		Post Template
 	}
@@ -47,6 +49,9 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 
 	post, err := b.BlogService.GetBlogPostBySlug(slug)
 	if err != nil {
+		if b.DB != nil {
+			go trackSlug404(b.DB, slug)
+		}
 		http.NotFound(w, r)
 		return
 	}
@@ -174,6 +179,18 @@ func stripMarkdownLinks(s string) string {
 		s = s[:start] + linkText + s[start+mid+end+1:]
 	}
 	return s
+}
+
+// trackSlug404 upserts a hit count for an unknown slug in slug_404s.
+// Called in a goroutine; errors are silently ignored.
+func trackSlug404(db *sql.DB, slug string) {
+	_, _ = db.Exec(`
+		INSERT INTO slug_404s (slug, hit_count, first_seen, last_seen)
+		VALUES ($1, 1, NOW(), NOW())
+		ON CONFLICT (slug) DO UPDATE SET
+			hit_count = slug_404s.hit_count + 1,
+			last_seen = NOW()
+	`, slug)
 }
 
 // ogExcerpt extracts a plain-text excerpt from markdown content for OG description.

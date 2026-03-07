@@ -226,6 +226,7 @@ func main() {
 
 	// Initialize Blog controller
 	blogC := controllers.Blog{
+		DB:             DB,
 		BlogService:    blogService,
 		SessionService: &sessionService,
 	}
@@ -328,6 +329,7 @@ func main() {
 
 	// Initialize Analytics controller
 	analyticsC := controllers.Analytics{
+		DB:               DB,
 		AnalyticsService: analyticsService,
 		SessionService:   &sessionService,
 	}
@@ -413,6 +415,16 @@ func main() {
 	r.Get("/api/admin/analytics", analyticsC.GetAnalyticsJSON)
 	r.Get("/api/admin/analytics/visitor", analyticsC.GetVisitorDetail)
 
+	// Engagement Management Routes (admin)
+	r.Get("/api/admin/engagement", analyticsC.GetEngagementJSON)
+	r.Delete("/api/admin/engagement/comments/{id}", analyticsC.AdminDeleteComment)
+	r.Delete("/api/admin/engagement/annotations/{id}", analyticsC.AdminDeleteAnnotation)
+
+	// 404 Slug Tracking Routes (admin)
+	r.Get("/api/admin/slug-404s", analyticsC.GetSlug404sJSON)
+	r.Post("/api/admin/slug-404s/{id}/whitelist", analyticsC.WhitelistSlug404)
+	r.Delete("/api/admin/slug-404s/{id}", analyticsC.DeleteSlug404)
+
 	// Security Routes
 	r.Get("/admin/security", securityC.Dashboard)
 	r.Get("/api/admin/security/rules", securityC.ListRulesJSON)
@@ -431,6 +443,7 @@ func main() {
 	r.Get("/users/me", usersC.CurrentUser)
 	r.Post("/users/password", usersC.UpdatePassword)
 	r.Post("/users/email", usersC.UpdateEmail)
+	r.Post("/users/name", usersC.UpdateName)
 	r.Post("/users/api-tokens", usersC.CreateAPIToken)
 	r.Post("/users/api-tokens/revoke", usersC.RevokeAPIToken)
 	r.Post("/users/api-tokens/delete", usersC.DeleteAPIToken)

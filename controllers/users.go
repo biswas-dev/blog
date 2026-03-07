@@ -713,6 +713,7 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 		Email           string
 		LoggedIn        bool
 		Username        string
+		FullName        string
 		IsAdmin         bool
 		SignupDisabled  bool
 		Description     string
@@ -723,6 +724,7 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	data.Email = user.Email
 	data.Username = user.Username
+	data.FullName = user.FullName
 	data.LoggedIn = true
 	data.IsAdmin = models.IsAdmin(user.Role)
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
@@ -845,6 +847,25 @@ func (u Users) UpdateEmail(w http.ResponseWriter, r *http.Request) {
 	setCookie(w, CookieUserEmail, newEmail)
 
 	http.Redirect(w, r, "/users/me?message=Email updated successfully", http.StatusFound)
+}
+
+// UpdateName updates the user's display name.
+func (u Users) UpdateName(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	fullName := strings.TrimSpace(r.FormValue("full_name"))
+	if len(fullName) > 100 {
+		http.Redirect(w, r, "/users/me?message=Name too long (max 100 characters)", http.StatusFound)
+		return
+	}
+	if err := u.UserService.UpdateName(user.UserID, fullName); err != nil {
+		http.Redirect(w, r, "/users/me?message=Failed to update name", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/users/me?message=Name updated successfully", http.StatusFound)
 }
 
 // AdminPosts shows all posts for admin users

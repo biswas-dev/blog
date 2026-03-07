@@ -144,7 +144,7 @@ func (oc *OAuthController) HandleGitHubCallback(w http.ResponseWriter, r *http.R
 	email = strings.ToLower(email)
 
 	// --- Find or create user ---
-	user, err := oc.findOrCreateUser(email, ghUser.Login, ghUser.ID)
+	user, err := oc.findOrCreateUser(email, ghUser.Login, ghUser.Name, ghUser.ID)
 	if err != nil {
 		http.Error(w, "Failed to sign in with GitHub", http.StatusInternalServerError)
 		return
@@ -294,7 +294,7 @@ func (oc *OAuthController) fetchPrimaryEmail(ctx context.Context, token string) 
 }
 
 // findOrCreateUser looks up a user by GitHub provider ID or email, creating one if needed.
-func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubID string) (*models.User, error) {
+func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubName, githubID string) (*models.User, error) {
 	// 1. Find by provider ID.
 	var userID int
 	err := oc.DB.QueryRow(
@@ -309,10 +309,10 @@ func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubID string)
 	// 2. Find by email.
 	var user models.User
 	row := oc.DB.QueryRow(
-		`SELECT user_id, username, email, role_id FROM Users WHERE email = $1`,
+		`SELECT user_id, username, full_name, email, role_id FROM Users WHERE email = $1`,
 		email,
 	)
-	err = row.Scan(&user.UserID, &user.Username, &user.Email, &user.Role)
+	err = row.Scan(&user.UserID, &user.Username, &user.FullName, &user.Email, &user.Role)
 	if err == nil {
 		// Upsert oauth_providers row so future logins use provider_id path.
 		_, _ = oc.DB.Exec(
@@ -324,7 +324,7 @@ func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubID string)
 	}
 
 	// 3. New user — create with commenter role.
-	newUser, err := oc.UserService.CreateOAuthUser(email, githubLogin, models.RoleCommenter)
+	newUser, err := oc.UserService.CreateOAuthUser(email, githubLogin, githubName, models.RoleCommenter)
 	if err != nil {
 		return nil, fmt.Errorf("create oauth user: %w", err)
 	}
@@ -341,8 +341,8 @@ func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubID string)
 func (oc *OAuthController) userByID(userID int) (*models.User, error) {
 	var u models.User
 	err := oc.DB.QueryRow(
-		`SELECT user_id, username, email, role_id FROM Users WHERE user_id = $1`, userID,
-	).Scan(&u.UserID, &u.Username, &u.Email, &u.Role)
+		`SELECT user_id, username, full_name, email, role_id FROM Users WHERE user_id = $1`, userID,
+	).Scan(&u.UserID, &u.Username, &u.FullName, &u.Email, &u.Role)
 	if err != nil {
 		return nil, fmt.Errorf("user by id: %w", err)
 	}

@@ -52,7 +52,7 @@ func (ac *AnnotationsController) HandleListAnnotations(w http.ResponseWriter, r 
 	}
 
 	rows, err := ac.DB.QueryContext(r.Context(), `
-		SELECT a.id, a.post_id, a.author_id, u.username, a.start_offset, a.end_offset,
+		SELECT a.id, a.post_id, a.author_id, COALESCE(NULLIF(u.full_name, ''), u.username), a.start_offset, a.end_offset,
 		       a.selected_text, a.color, a.resolved, a.created_at
 		FROM post_annotations a
 		JOIN Users u ON u.user_id = a.author_id
@@ -104,7 +104,7 @@ func (ac *AnnotationsController) HandleListAnnotations(w http.ResponseWriter, r 
 			placeholders[i] = id
 		}
 		commentRows, err := ac.DB.QueryContext(r.Context(), `
-			SELECT ac.id, ac.annotation_id, ac.author_id, u.username, ac.parent_comment_id,
+			SELECT ac.id, ac.annotation_id, ac.author_id, COALESCE(NULLIF(u.full_name, ''), u.username), ac.parent_comment_id,
 			       ac.content, ac.created_at
 			FROM post_annotation_comments ac
 			JOIN Users u ON u.user_id = ac.author_id
