@@ -1,20 +1,35 @@
 services:
-  # Datadog Agent — receives OTLP traces from the app and forwards to Datadog.
-  # To disable: set DD_API_KEY to empty or remove the service.
-  # To switch APM providers: update OTEL_EXPORTER_OTLP_ENDPOINT in the app
-  # service to point at a different OTLP-compatible collector — this service
-  # can be replaced entirely without changing any application code.
+  # Standalone OpenTelemetry Collector — receives OTLP traces from the app and
+  # exports directly to Datadog APM.
+  #
+  # The dd-agent's built-in OTLP ingest pipeline fails on cgroupv2 hosts with
+  # "failed to register process metrics: process does not exist". This standalone
+  # collector has no such requirement and works on all Linux kernel versions.
+  #
+  # To switch APM providers: replace the datadog exporter in otel-config.yaml
+  # with a different OTLP-compatible backend — no application code changes needed.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: blog-otel-collector
+    command: ["--config", "/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+    networks:
+      - blog-network
+    restart: unless-stopped
+
   dd-agent:
     image: gcr.io/datadoghq/agent:7
     container_name: blog-dd-agent
     environment:
       - DD_API_KEY=${DD_API_KEY}
       - DD_SITE=${DD_SITE:-datadoghq.com}
+      # APM port for native Datadog traces (not OTLP — that goes via otel-collector)
       - DD_APM_ENABLED=true
       - DD_APM_NON_LOCAL_TRAFFIC=true
-      # Enable OTLP receiver so the app sends standard OTel traces
-      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
-      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
       # Log collection from containers
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=false
@@ -35,11 +50,6 @@ services:
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
       - /etc/passwd:/etc/passwd:ro
-    # Required for the embedded OTel collector (OTLP ingest pipeline) to start.
-    # Without this the agent errors "failed to register process metrics: process
-    # does not exist" on cgroupv2 hosts and port 4317 never binds.
-    # The dd-agent already mounts /proc, /sys/fs/cgroup and docker.sock —
-    # privileged: true removes the last namespace barrier for that pipeline.
     privileged: true
     networks:
       - blog-network
@@ -109,7 +119,7 @@ services:
       - OTEL_SERVICE_NAME=blog
       - OTEL_SERVICE_VERSION=${VERSION:-dev}
       - OTEL_ENVIRONMENT=${APP_ENV:-development}
-      - OTEL_EXPORTER_OTLP_ENDPOINT=dd-agent:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
     depends_on:
       postgres:
         condition: service_healthy
