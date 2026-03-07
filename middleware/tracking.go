@@ -32,6 +32,16 @@ func TrackingMiddleware(analyticsService *models.AnalyticsService, sessionServic
 				return
 			}
 
+			// Skip blog sub-resource endpoints (comments, annotations) — not page views
+			if strings.HasSuffix(path, "/comments") || strings.HasSuffix(path, "/annotations") {
+				return
+			}
+
+			// Skip paths with unresolved JS template literals (bot noise, e.g. /blog/${escapeHTML(post.Slug)})
+			if strings.Contains(path, "${") {
+				return
+			}
+
 			// Extract IP address
 			ip := ExtractIP(r)
 
