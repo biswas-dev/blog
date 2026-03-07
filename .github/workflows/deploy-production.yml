@@ -88,13 +88,13 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan 31.97.102.48 >> ~/.ssh/known_hosts
+          ssh-keyscan -T 10 31.97.102.48 >> ~/.ssh/known_hosts 2>/dev/null || true
 
           echo "🚀 Deploying Blog to Production server..."
           echo "Commit: $COMMIT_SHA"
 
           # Deploy to Production server using docker-compose
-          ssh -i ~/.ssh/deploy_key ubuntu@31.97.102.48 "bash -s" << EOF
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/deploy_key ubuntu@31.97.102.48 "bash -s" << EOF
             set -e
 
             # Create deployment directory
