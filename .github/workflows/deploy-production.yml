@@ -74,6 +74,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
+          APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.base_ref || github.ref_name }}
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -135,6 +139,12 @@ jobs:
             export API_TOKEN='$BLOG_API_TOKEN'
             export BLOG_UPLOADS_PATH="/home/ubuntu/blog-production/static/uploads"
             export ENCRYPTION_KEY='$ENCRYPTION_KEY'
+
+            # GitHub OAuth
+            export GH_CLIENT_ID='$GH_CLIENT_ID'
+            export GH_CLIENT_SECRET='$GH_CLIENT_SECRET'
+            export OAUTH_STATE_SECRET='$OAUTH_STATE_SECRET'
+            export APP_URL='$APP_URL'
 
             # Set version information for build
             export VERSION='$VERSION'
