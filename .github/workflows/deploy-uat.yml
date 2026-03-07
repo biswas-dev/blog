@@ -92,6 +92,8 @@ jobs:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
           cd biswas-infrastructure/ansible
@@ -115,7 +117,10 @@ jobs:
             -e "deploy_branch=${{ github.base_ref || 'uat' }}" \
             -e "encryption_key=$ENCRYPTION_KEY" \
             -e "dockerhub_username=$DOCKERHUB_USERNAME" \
-            -e "dockerhub_token=$DOCKERHUB_TOKEN"
+            -e "dockerhub_token=$DOCKERHUB_TOKEN" \
+            -e "dd_api_key=$DD_API_KEY" \
+            -e "dd_site=${DD_SITE:-datadoghq.com}" \
+            -e "apm_enabled=true"
 
       - name: Clean up local upload files (Cloudinary migration)
         run: |

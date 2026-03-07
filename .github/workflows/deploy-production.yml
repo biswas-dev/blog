@@ -72,6 +72,8 @@ jobs:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.base_ref || github.ref_name }}
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -144,11 +146,16 @@ jobs:
             export APP_ENV='production'
             export DEPLOY_BRANCH='$BRANCH'
 
+            # APM — Datadog agent will be started automatically via docker-compose
+            export DD_API_KEY='$DD_API_KEY'
+            export DD_SITE='${DD_SITE:-datadoghq.com}'
+            export APM_ENABLED='true'
+
             echo "🛑 Stopping existing containers..."
             docker compose down --remove-orphans || true
 
             echo "🧹 Cleaning up any stale containers..."
-            docker rm -f blog-postgres blog-app 2>/dev/null || true
+            docker rm -f blog-postgres blog-app blog-dd-agent 2>/dev/null || true
 
             echo "🧹 Cleaning up Docker resources if disk space is low..."
             DISK_USAGE=\$(df / | tail -1 | awk '{print \$5}' | tr -d '%')
@@ -166,7 +173,7 @@ jobs:
 
             echo "🧹 Final cleanup before starting containers..."
             # Stop and remove ALL containers with these names, regardless of project
-            for c in blog-postgres blog-app; do
+            for c in blog-postgres blog-app blog-dd-agent; do
               docker stop \$c 2>/dev/null || true
               docker rm -f \$c 2>/dev/null || true
               # Also catch any with partial name matches
