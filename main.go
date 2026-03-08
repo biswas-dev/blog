@@ -153,6 +153,8 @@ func main() {
 		DB: DB,
 	}
 
+	postVersionService := &models.PostVersionService{DB: DB}
+
 	// Initialize BlogService
 	blogService := models.NewBlogService(DB)
 
@@ -217,6 +219,7 @@ func main() {
 		UserService:          &userService,
 		SessionService:       &sessionService,
 		PostService:          &postService,
+		PostVersionService:   postVersionService,
 		APITokenService:      &apiTokenService,
 		CategoryService:      &categoryService,
 		CloudinaryService:    &cloudinaryService,
@@ -226,8 +229,17 @@ func main() {
 
 	// Initialize Blog controller
 	blogC := controllers.Blog{
-		BlogService:    blogService,
-		SessionService: &sessionService,
+		DB:                 DB,
+		BlogService:        blogService,
+		SessionService:     &sessionService,
+		PostVersionService: postVersionService,
+	}
+
+	// Initialize PostVersions controller
+	postVersionsC := controllers.PostVersions{
+		PostVersionService: postVersionService,
+		SessionService:     &sessionService,
+		PostService:        &postService,
 	}
 
 	// Initialize Categories controller
@@ -310,6 +322,9 @@ func main() {
 	usersC.Templates.PostEditor = views.Must(views.ParseFS(
 		templates.FS, "post-editor.gohtml", "tailwind.gohtml"))
 
+	usersC.Templates.UserProfile = views.Must(views.ParseFS(
+		templates.FS, "user-profile.gohtml", "tailwind.gohtml"))
+
 	categoriesC.Templates.Manage = views.Must(views.ParseFS(
 		templates.FS, "admin-categories.gohtml", "tailwind.gohtml"))
 
@@ -328,6 +343,7 @@ func main() {
 
 	// Initialize Analytics controller
 	analyticsC := controllers.Analytics{
+		DB:               DB,
 		AnalyticsService: analyticsService,
 		SessionService:   &sessionService,
 	}
@@ -413,6 +429,16 @@ func main() {
 	r.Get("/api/admin/analytics", analyticsC.GetAnalyticsJSON)
 	r.Get("/api/admin/analytics/visitor", analyticsC.GetVisitorDetail)
 
+	// Engagement Management Routes (admin)
+	r.Get("/api/admin/engagement", analyticsC.GetEngagementJSON)
+	r.Delete("/api/admin/engagement/comments/{id}", analyticsC.AdminDeleteComment)
+	r.Delete("/api/admin/engagement/annotations/{id}", analyticsC.AdminDeleteAnnotation)
+
+	// 404 Slug Tracking Routes (admin)
+	r.Get("/api/admin/slug-404s", analyticsC.GetSlug404sJSON)
+	r.Post("/api/admin/slug-404s/{id}/whitelist", analyticsC.WhitelistSlug404)
+	r.Delete("/api/admin/slug-404s/{id}", analyticsC.DeleteSlug404)
+
 	// Security Routes
 	r.Get("/admin/security", securityC.Dashboard)
 	r.Get("/api/admin/security/rules", securityC.ListRulesJSON)
@@ -429,8 +455,10 @@ func main() {
 	r.Get("/api/admin/upload-config", usersC.GetUploadConfig)
 
 	r.Get("/users/me", usersC.CurrentUser)
+	r.Get("/users/{username}", usersC.PublicProfile)
 	r.Post("/users/password", usersC.UpdatePassword)
 	r.Post("/users/email", usersC.UpdateEmail)
+	r.Post("/users/name", usersC.UpdateName)
 	r.Post("/users/api-tokens", usersC.CreateAPIToken)
 	r.Post("/users/api-tokens/revoke", usersC.RevokeAPIToken)
 	r.Post("/users/api-tokens/delete", usersC.DeleteAPIToken)
@@ -491,6 +519,11 @@ func main() {
 		r.Patch("/annotation-comments/{commentID}", annotationsC.HandleUpdateAnnotationComment)
 		r.Delete("/annotation-comments/{commentID}", annotationsC.HandleDeleteAnnotationComment)
 	})
+
+	// Post version history API (editor+ only)
+	r.Get("/api/posts/{postID}/versions", postVersionsC.HandleListVersions)
+	r.Get("/api/posts/{postID}/versions/{versionNum}", postVersionsC.HandleGetVersion)
+	r.Post("/api/posts/{postID}/versions/{versionNum}/restore", postVersionsC.HandleRestoreVersion)
 
 	// Public API for lazy loading posts
 	r.Get("/api/posts/load-more", usersC.LoadMorePosts)

@@ -53,8 +53,15 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                 </svg>
-                <span>Anshuman Biswas</span>
+                <a href="/users/{{.Post.Username}}" class="hover:underline">{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}</a>
             </div>
+            {{if .Contributors}}
+            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <span>With contributions from:
+                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.DisplayName}}</a>{{end}}
+                </span>
+            </div>
+            {{end}}
             
             {{if .Post.LastEditDate}}
                 {{if ne .Post.PublicationDate .Post.LastEditDate}}
@@ -67,7 +74,7 @@
                 {{end}}
             {{end}}
             
-            {{if .IsAdmin}}
+            {{if .UserPermissions.CanEditPosts}}
             <div class="flex items-center gap-2 ml-auto">
                 <a href="/admin/posts/{{.Post.ID}}/edit" class="text-blue-600 hover:text-blue-700 flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,6 +328,18 @@
   background: var(--bg-secondary, rgba(127,127,127,0.08));
   border-color: var(--text-tertiary, #9ca3af);
 }
+
+/* Annotation comment thread indentation */
+.ann-comment-thread {
+  margin-top: 8px;
+  margin-left: 16px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-light, rgba(127,127,127,0.25));
+  font-size: 0.8125rem;
+}
+.ann-comment-author { font-weight: 600; color: var(--text-primary); }
+.ann-comment-date { font-size: 0.75rem; color: var(--text-tertiary, #9ca3af); margin-left: 6px; }
+.ann-comment-body { margin: 4px 0 0; color: var(--text-secondary); line-height: 1.5; }
 
 /* Back to top */
 .back-to-top {
@@ -631,10 +650,10 @@
       const colorDot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${escapeHTML(a.color)};margin-right:4px;"></span>`;
       const commentsHTML = (a.comments || []).map(c => {
         const cdate = new Date(c.created_at).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
-        return `<div class="ml-4 mt-2 text-sm border-l-2 border-gray-200 pl-3">
-          <span class="font-medium">${escapeHTML(c.author_name)}</span>
-          <span class="text-xs text-gray-400 ml-1">${cdate}</span>
-          <p class="mt-1">${escapeHTML(c.content)}</p>
+        return `<div class="ann-comment-thread">
+          <span class="ann-comment-author">${escapeHTML(c.author_name)}</span>
+          <span class="ann-comment-date">${cdate}</span>
+          <p class="ann-comment-body">${escapeHTML(c.content)}</p>
         </div>`;
       }).join('');
       const deleteBtn = (currentUserID > 0 && currentUserID === a.author_id)

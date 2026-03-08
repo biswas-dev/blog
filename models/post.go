@@ -21,21 +21,22 @@ type PostsList struct {
 }
 
 type Post struct {
-	ID               int
-	UserID           int // Added UserID field
-	Username         string // Username of the author
-	CategoryID       int // Legacy field, kept for backward compatibility
-	Title            string
-	Content          string
-	ContentHTML      template.HTML
-	Slug             string
-	PublicationDate  string
-	LastEditDate     string
-	IsPublished      bool
-	Featured         bool   // Boolean field to mark posts as featured
-	FeaturedImageURL string
-	CreatedAt        string
-	Categories       []Category `json:"categories,omitempty"` // New many-to-many categories
+	ID                  int
+	UserID              int // Added UserID field
+	Username            string // Username of the author
+	AuthorDisplayName   string // COALESCE(full_name, username) of the author
+	CategoryID          int // Legacy field, kept for backward compatibility
+	Title               string
+	Content             string
+	ContentHTML         template.HTML
+	Slug                string
+	PublicationDate     string
+	LastEditDate        string
+	IsPublished         bool
+	Featured            bool   // Boolean field to mark posts as featured
+	FeaturedImageURL    string
+	CreatedAt           string
+	Categories          []Category `json:"categories,omitempty"` // New many-to-many categories
 }
 
 type PostService struct {
@@ -186,6 +187,28 @@ func (pp *PostService) GetPostsByUser(userID int) (*PostsList, error) {
 	}
 
 	return &list, nil
+}
+
+func (pp *PostService) GetPublishedPostsByUser(userID int) ([]Post, error) {
+	query := `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE user_id = $1 AND is_published = true ORDER BY created_at DESC`
+	rows, err := pp.DB.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []Post
+	for rows.Next() {
+		var post Post
+		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		if err != nil {
+			return nil, err
+		}
+		formatPostDates(&post)
+		post.Content = trimContent(post.Content)
+		posts = append(posts, post)
+	}
+	return posts, rows.Err()
 }
 
 // fenceRe matches fenced code blocks for stripping during content trimming.

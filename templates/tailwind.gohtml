@@ -147,7 +147,7 @@
                                 <a href="/my-posts" class="dropdown-item">
                                     <span class="flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V7a2 2 0 00-2-2H5a2 2 0 00-2 2v4"/></svg>
-                                        <span>My Posts</span>
+                                        <span>My Activity</span>
                                     </span>
                                 </a>
                                 <a href="/api-access" class="dropdown-item">
@@ -235,7 +235,7 @@
                     <li><a href="/slides" class="nav-link {{if eq .CurrentPage "slides"}}active{{end}}">Slides</a></li>
                     <li><a href="/about" class="nav-link {{if eq .CurrentPage "about"}}active{{end}}">About</a></li>
                     {{if .LoggedIn}}
-                        <li><a href="/my-posts" class="nav-link {{if eq .CurrentPage "my-posts"}}active{{end}}">My Posts</a></li>
+                        <li><a href="/my-posts" class="nav-link {{if eq .CurrentPage "my-posts"}}active{{end}}">My Activity</a></li>
                         <li><a href="/users/me" class="nav-link {{if eq .CurrentPage "profile"}}active{{end}}">Profile ({{.Username}})</a></li>
                         {{if .IsAdmin}}
                             <li><a href="/admin/posts" class="nav-link {{if eq .CurrentPage "admin"}}active{{end}}">Posts</a></li>

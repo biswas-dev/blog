@@ -40,7 +40,7 @@ func (cc *CommentsController) HandleListComments(w http.ResponseWriter, r *http.
 	}
 
 	rows, err := cc.DB.QueryContext(r.Context(), `
-		SELECT c.comment_id, c.user_id, u.username, c.parent_comment_id, c.content, c.comment_date
+		SELECT c.comment_id, c.user_id, COALESCE(NULLIF(u.full_name, ''), u.username), c.parent_comment_id, c.content, c.comment_date
 		FROM Comments c
 		JOIN Users u ON u.user_id = c.user_id
 		WHERE c.post_id = $1
