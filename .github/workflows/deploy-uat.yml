@@ -125,6 +125,8 @@ jobs:
             -e "dd_api_key=$DD_API_KEY" \
             -e "dd_site=${DD_SITE:-datadoghq.com}" \
             -e "apm_enabled=true" \
+            -e "dd_profiling_enabled=true" \
+            -e "dd_agent_host=dd-agent" \
             -e "github_client_id=$GH_CLIENT_ID" \
             -e "github_client_secret=$GH_CLIENT_SECRET" \
             -e "oauth_state_secret=$OAUTH_STATE_SECRET" \

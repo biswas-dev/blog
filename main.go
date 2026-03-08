@@ -69,6 +69,16 @@ func main() {
 		}
 	}()
 
+	// Continuous profiling — sends CPU, heap, goroutine and mutex profiles to
+	// the Datadog agent. Activate with DD_PROFILING_ENABLED=true.
+	profilerStop, err := apm.StartProfiling(apmCfg)
+	if err != nil {
+		logger.Warn().Err(err).Msg("apm: profiling failed to start, continuing without profiling")
+	} else if os.Getenv("DD_PROFILING_ENABLED") == "true" {
+		logger.Info().Msg("apm: continuous profiling enabled")
+	}
+	defer profilerStop()
+
 	apiToken := os.Getenv("API_TOKEN")
 
 	if apiToken == "" {

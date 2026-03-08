@@ -42,6 +42,31 @@
     </script>
 
     <title>{{block "page-title" .}}Blog - Anshuman Biswas{{end}}</title>
+
+    <!-- Datadog Browser RUM — real user monitoring, session replay, error tracking -->
+    <script>
+        (function(h,o,u,n,d) {
+            h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
+            d=o.createElement(u);d.async=1;d.src=n
+            n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
+        })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v6/datadog-rum.js','DD_RUM')
+        window.DD_RUM.onReady(function() {
+            window.DD_RUM.init({
+                clientToken: 'pubfbcbf0288df99fa7a982bfc422df9ae7',
+                applicationId: '88d1ea7c-beae-4a1a-9b81-1195af940658',
+                site: 'datadoghq.com',
+                service: 'blog',
+                env: '{{block "dd-env" .}}production{{end}}',
+                version: '{{block "dd-version" .}}{{end}}',
+                sessionSampleRate: 100,
+                sessionReplaySampleRate: 20,
+                trackUserInteractions: true,
+                trackResources: true,
+                trackLongTasks: true,
+                defaultPrivacyLevel: 'mask-user-input',
+            });
+        });
+    </script>
 </head>
 <body>
     <!-- Navigation -->

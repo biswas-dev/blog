@@ -32,12 +32,18 @@ services:
       - DD_APM_NON_LOCAL_TRAFFIC=true
       # Log collection from containers
       - DD_LOGS_ENABLED=true
-      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=false
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       # Process and container monitoring
       - DD_PROCESS_AGENT_ENABLED=true
+      - DD_PROCESS_AGENT_PROCESS_COLLECTION_ENABLED=true
       - DD_CONTAINER_EXCLUDE=name:dd-agent
       # DogStatsD for custom metrics
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      # Universal Service Monitoring (eBPF-based — requires privileged mode, already set)
+      - DD_SYSTEM_PROBE_ENABLED=true
+      - DD_SERVICE_MONITORING_ENABLED=true
+      # Cloud Network Monitoring
+      - DD_NETWORK_PERFORMANCE_MONITORING_ENABLED=true
       - DD_LOG_LEVEL=warn
       # Unified tags applied to all data sent by this agent
       - DD_ENV=${APP_ENV:-development}
@@ -50,6 +56,10 @@ services:
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
       - /etc/passwd:/etc/passwd:ro
+      # Required for container log file collection (more reliable than Docker socket streaming)
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Required for system probe / eBPF (USM and Cloud Network Monitoring)
+      - /sys/kernel/debug:/sys/kernel/debug
     privileged: true
     networks:
       - blog-network
@@ -125,6 +135,9 @@ services:
       - OTEL_SERVICE_VERSION=${VERSION:-dev}
       - OTEL_ENVIRONMENT=${APP_ENV:-development}
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      # Continuous profiling — CPU, heap, goroutine and mutex profiles → DD agent
+      - DD_PROFILING_ENABLED=${DD_PROFILING_ENABLED:-false}
+      - DD_AGENT_HOST=dd-agent
     depends_on:
       postgres:
         condition: service_healthy

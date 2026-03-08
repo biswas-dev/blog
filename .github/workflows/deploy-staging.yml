@@ -157,6 +157,8 @@ jobs:
             export DD_API_KEY='$DD_API_KEY'
             export DD_SITE='${DD_SITE:-datadoghq.com}'
             export APM_ENABLED='true'
+            export DD_PROFILING_ENABLED='true'
+            export DD_AGENT_HOST='dd-agent'
 
             echo "🛑 Stopping existing containers..."
             docker compose down --remove-orphans || true
