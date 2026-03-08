@@ -112,6 +112,10 @@ func main() {
 		DB: DB,
 	}
 
+	userActivityService := models.UserActivityService{
+		DB: DB,
+	}
+
 	sessionService := models.SessionService{
 		DB: DB,
 	}
@@ -224,7 +228,14 @@ func main() {
 		CategoryService:      &categoryService,
 		CloudinaryService:    &cloudinaryService,
 		ImageMetadataService: &imageMetadataService,
+		UserActivityService:  &userActivityService,
 		BlogWiki:             blogWiki,
+	}
+
+	// Initialize AdminUsers controller
+	adminUsersC := controllers.AdminUsers{
+		UserActivityService: &userActivityService,
+		SessionService:      &sessionService,
 	}
 
 	// Initialize Blog controller
@@ -364,6 +375,10 @@ func main() {
 	securityC.Templates.Dashboard = views.Must(views.ParseFS(
 		templates.FS, "admin-security.gohtml", "tailwind.gohtml"))
 
+	// Initialize AdminUsers templates
+	adminUsersC.Templates.Dashboard = views.Must(views.ParseFS(
+		templates.FS, "admin-users.gohtml", "tailwind.gohtml"))
+
 	r.Get("/", usersC.Home)
 	r.Get("/admin/posts", usersC.AdminPosts)
 	r.Get("/admin/posts/new", usersC.NewPost)
@@ -445,6 +460,13 @@ func main() {
 	r.Post("/api/admin/security/ban", securityC.BanIP)
 	r.Post("/api/admin/security/allow", securityC.AllowIP)
 	r.Delete("/api/admin/security/rules", securityC.RemoveRule)
+
+	// Admin User Management Routes
+	r.Get("/admin/users", adminUsersC.Dashboard)
+	r.Get("/api/admin/users", adminUsersC.GetUsersJSON)
+	r.Get("/api/admin/users/{id}/activity", adminUsersC.GetUserActivityJSON)
+	r.Post("/api/admin/users/{id}/role", adminUsersC.UpdateUserRole)
+	r.Post("/api/admin/users/{id}/password", adminUsersC.AdminResetPassword)
 
 	// Cloudinary Settings Routes
 	r.Get(routeCloudinary, systemC.GetCloudinarySettings)
