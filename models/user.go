@@ -151,6 +151,19 @@ func (us *UserService) UpdateEmail(userID int, newEmail string) error {
 	return nil
 }
 
+func (us *UserService) GetByEmail(email string) (*User, error) {
+	email = strings.ToLower(email)
+	var u User
+	err := us.DB.QueryRow(
+		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id FROM Users WHERE email = $1`,
+		email,
+	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role)
+	if err != nil {
+		return nil, fmt.Errorf("get user by email: %w", err)
+	}
+	return &u, nil
+}
+
 func (us *UserService) GetByUsername(username string) (*User, error) {
 	var u User
 	err := us.DB.QueryRow(

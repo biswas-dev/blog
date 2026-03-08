@@ -1,0 +1,485 @@
+{{template "modern-header" .}}
+
+<style>
+    .sys-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .dark .sys-card { background: var(--bg-secondary); border-color: var(--border); }
+    .sys-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .sys-card-header { border-color: var(--border); }
+    .sys-icon {
+        width: 36px; height: 36px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .sys-icon svg { width: 18px; height: 18px; }
+    .sys-icon-blue { background: rgba(59,130,246,0.1); color: #3b82f6; }
+    .dark .sys-icon-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .sys-icon-red  { background: rgba(239,68,68,0.1); color: #ef4444; }
+    .dark .sys-icon-red  { background: rgba(239,68,68,0.15); color: #f87171; }
+    .sys-card-header h3 {
+        font-size: 0.9375rem; font-weight: 600; color: var(--text-primary); margin: 0;
+    }
+    .sys-card-body { padding: 16px 20px; }
+    .sys-page-header {
+        display: flex; align-items: center;
+        justify-content: space-between; margin-bottom: 24px;
+    }
+    .sys-page-header h1 {
+        font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0;
+    }
+    .sys-page-header p {
+        font-size: 0.875rem; color: var(--text-secondary); margin: 4px 0 0 0;
+    }
+    .sys-back-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 16px; font-size: 0.8125rem; font-weight: 500;
+        color: var(--text-secondary); border: 1px solid var(--border);
+        border-radius: 8px; text-decoration: none; transition: all 0.15s;
+    }
+    .sys-back-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+
+    /* Summary stats */
+    .users-summary {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px; margin-bottom: 24px;
+    }
+    @media (min-width: 768px) { .users-summary { grid-template-columns: repeat(4, 1fr); } }
+    .stat-card {
+        background: var(--bg-primary); border: 1px solid var(--border-light);
+        border-radius: 12px; padding: 20px;
+    }
+    .dark .stat-card { background: var(--bg-secondary); border-color: var(--border); }
+    .stat-label {
+        font-size: 0.75rem; font-weight: 500; color: var(--text-secondary);
+        text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;
+    }
+    .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+    .stat-sub { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px; }
+
+    /* Table */
+    .analytics-table { width: 100%; border-collapse: collapse; }
+    .analytics-table th {
+        text-align: left; font-size: 0.6875rem; font-weight: 600;
+        color: var(--text-tertiary); text-transform: uppercase;
+        letter-spacing: 0.05em; padding: 8px 12px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .dark .analytics-table th { border-bottom-color: var(--border); }
+    .analytics-table td {
+        font-size: 0.8125rem; color: var(--text-primary);
+        padding: 10px 12px; border-bottom: 1px solid var(--border-light);
+    }
+    .dark .analytics-table td { border-bottom-color: var(--border); }
+    .analytics-table td.mono {
+        font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem;
+    }
+    .analytics-table td.muted { color: var(--text-secondary); font-size: 0.75rem; }
+    .analytics-table tr:last-child td { border-bottom: none; }
+
+    /* Role badge */
+    .role-badge {
+        display: inline-block; padding: 2px 8px; border-radius: 4px;
+        font-size: 0.6875rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .role-admin   { background: rgba(239,68,68,0.12); color: #ef4444; }
+    .role-editor  { background: rgba(59,130,246,0.12); color: #3b82f6; }
+    .role-viewer  { background: rgba(217,119,6,0.12); color: #d97706; }
+    .role-commenter { background: rgba(107,114,128,0.12); color: #6b7280; }
+    .dark .role-admin   { background: rgba(239,68,68,0.2);  color: #f87171; }
+    .dark .role-editor  { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .dark .role-viewer  { background: rgba(251,191,36,0.2); color: #fbbf24; }
+    .dark .role-commenter { background: rgba(156,163,175,0.2); color: #9ca3af; }
+
+    /* Action buttons */
+    .action-btn {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 10px; border-radius: 6px; font-size: 0.75rem;
+        font-weight: 500; border: 1px solid var(--border); cursor: pointer;
+        background: transparent; color: var(--text-secondary);
+        transition: all 0.15s;
+    }
+    .action-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+    .action-btn-danger:hover { color: #ef4444; border-color: #ef4444; }
+    .action-btn svg { width: 13px; height: 13px; }
+
+    /* Modal */
+    .modal-backdrop {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 1000; padding: 16px;
+    }
+    .modal-box {
+        background: var(--bg-primary); border: 1px solid var(--border);
+        border-radius: 12px; padding: 24px; width: 100%; max-width: 420px;
+    }
+    .dark .modal-box { background: var(--bg-secondary); }
+    .modal-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin: 0 0 16px; }
+    .modal-label { font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 6px; display: block; }
+    .modal-input {
+        width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+        border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary);
+        color: var(--text-primary); box-sizing: border-box;
+    }
+    .dark .modal-input { background: var(--bg-tertiary); }
+    .modal-input:focus { outline: none; border-color: #3b82f6; }
+    .modal-select {
+        width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+        border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary);
+        color: var(--text-primary);
+    }
+    .dark .modal-select { background: var(--bg-tertiary); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+    .btn-primary {
+        padding: 8px 16px; border-radius: 8px; font-size: 0.875rem; font-weight: 500;
+        background: #3b82f6; color: #fff; border: none; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-secondary {
+        padding: 8px 16px; border-radius: 8px; font-size: 0.875rem; font-weight: 500;
+        background: transparent; color: var(--text-secondary);
+        border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+    }
+    .btn-secondary:hover { color: var(--text-primary); }
+    .toast {
+        position: fixed; bottom: 24px; right: 24px;
+        padding: 12px 20px; border-radius: 8px; font-size: 0.875rem;
+        font-weight: 500; color: #fff; z-index: 2000;
+        animation: fadeInUp 0.2s ease;
+    }
+    .toast-success { background: #16a34a; }
+    .toast-error   { background: #dc2626; }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Activity modal */
+    .activity-list { max-height: 320px; overflow-y: auto; }
+    .activity-row {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 8px 0; border-bottom: 1px solid var(--border-light);
+        font-size: 0.8125rem;
+    }
+    .dark .activity-row { border-bottom-color: var(--border); }
+    .activity-row:last-child { border-bottom: none; }
+    .activity-type {
+        flex-shrink: 0; padding: 2px 8px; border-radius: 4px;
+        font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .at-login        { background: rgba(22,163,74,0.12);  color: #16a34a; }
+    .at-failed_login { background: rgba(239,68,68,0.12);  color: #ef4444; }
+    .at-password_change { background: rgba(217,119,6,0.12); color: #d97706; }
+    .at-role_change  { background: rgba(59,130,246,0.12); color: #3b82f6; }
+    .dark .at-login        { background: rgba(74,222,128,0.18);  color: #4ade80; }
+    .dark .at-failed_login { background: rgba(239,68,68,0.2);    color: #f87171; }
+    .dark .at-password_change { background: rgba(251,191,36,0.18); color: #fbbf24; }
+    .dark .at-role_change  { background: rgba(96,165,250,0.18);  color: #60a5fa; }
+    .activity-meta { color: var(--text-secondary); font-size: 0.75rem; }
+</style>
+
+<div class="admin-container" style="max-width:1100px;margin:0 auto;padding:24px 16px;">
+    <div class="sys-page-header">
+        <div>
+            <h1>User Management</h1>
+            <p>Manage accounts, roles, passwords, and login history</p>
+        </div>
+        <a href="/admin/posts" class="sys-back-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            Back
+        </a>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="users-summary" id="user-stats">
+        <div class="stat-card">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value" id="stat-total">{{len .Users}}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Admins</div>
+            <div class="stat-value" id="stat-admins">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total Logins</div>
+            <div class="stat-value" id="stat-logins">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Failed Attempts</div>
+            <div class="stat-value" id="stat-failed">0</div>
+        </div>
+    </div>
+
+    <!-- Users table -->
+    <div class="sys-card">
+        <div class="sys-card-header">
+            <div class="sys-icon sys-icon-blue">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </div>
+            <h3>All Users</h3>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Auth</th>
+                        <th>Logins</th>
+                        <th>Last Login</th>
+                        <th>Last IP</th>
+                        <th>Failed</th>
+                        <th>Registered</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Users}}
+                    <tr data-userid="{{.UserID}}">
+                        <td>
+                            <div style="font-weight:500;">{{.Username}}</div>
+                            {{if .FullName}}<div class="muted" style="font-size:0.75rem;">{{.FullName}}</div>{{end}}
+                            <div class="muted" style="font-size:0.75rem;">{{.Email}}</div>
+                        </td>
+                        <td>
+                            <span class="role-badge {{if eq .Role 2}}role-admin{{else if eq .Role 3}}role-editor{{else if eq .Role 4}}role-viewer{{else}}role-commenter{{end}}">
+                                {{.RoleName}}
+                            </span>
+                        </td>
+                        <td class="muted">{{.AuthProvider}}</td>
+                        <td>{{.LoginCount}}</td>
+                        <td class="muted">{{if .LastLoginAt}}{{.LastLoginAt}}{{else}}—{{end}}</td>
+                        <td class="mono">{{if .LastLoginIP}}{{.LastLoginIP}}{{else}}—{{end}}</td>
+                        <td>{{if gt .FailedAttempts 0}}<span style="color:#ef4444;font-weight:600;">{{.FailedAttempts}}</span>{{else}}0{{end}}</td>
+                        <td class="muted">{{.RegistrationDate}}</td>
+                        <td>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <button class="action-btn" onclick="showActivity({{.UserID}},'{{.Username}}')">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                    Logins
+                                </button>
+                                <button class="action-btn" onclick="showRoleModal({{.UserID}},'{{.Username}}',{{.Role}})">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    Role
+                                </button>
+                                <button class="action-btn action-btn-danger" onclick="showPasswordModal({{.UserID}},'{{.Username}}')">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                    Pwd
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="9" style="text-align:center;color:var(--text-secondary);padding:32px;">No users found.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Modal -->
+<div id="activity-modal" class="modal-backdrop" style="display:none;" onclick="closeModal('activity-modal')">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <p class="modal-title" id="activity-modal-title">Login History</p>
+        <div class="activity-list" id="activity-list">
+            <p style="color:var(--text-secondary);font-size:0.875rem;">Loading…</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeModal('activity-modal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Role Modal -->
+<div id="role-modal" class="modal-backdrop" style="display:none;" onclick="closeModal('role-modal')">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <p class="modal-title" id="role-modal-title">Change Role</p>
+        <label class="modal-label" for="role-select">New Role</label>
+        <select id="role-select" class="modal-select">
+            <option value="1">Commenter</option>
+            <option value="2">Administrator</option>
+            <option value="3">Editor</option>
+            <option value="4">Viewer</option>
+        </select>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeModal('role-modal')">Cancel</button>
+            <button class="btn-primary" onclick="submitRole()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Password Modal -->
+<div id="password-modal" class="modal-backdrop" style="display:none;" onclick="closeModal('password-modal')">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <p class="modal-title" id="password-modal-title">Reset Password</p>
+        <label class="modal-label" for="new-password">New Password (min 8 chars)</label>
+        <input id="new-password" type="password" class="modal-input" placeholder="New password" autocomplete="new-password">
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeModal('password-modal')">Cancel</button>
+            <button class="btn-primary" onclick="submitPassword()">Reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Compute summary stats from rendered rows
+    let admins = 0, logins = 0, failed = 0;
+    document.querySelectorAll('tbody tr[data-userid]').forEach(row => {
+        const cells = row.querySelectorAll('td');
+        // role cell text
+        const roleBadge = cells[1] && cells[1].querySelector('.role-badge');
+        if (roleBadge && roleBadge.textContent.trim().toLowerCase() === 'administrator') admins++;
+        // logins count
+        if (cells[3]) logins += parseInt(cells[3].textContent.trim()) || 0;
+        // failed count
+        if (cells[6]) failed += parseInt(cells[6].textContent.trim()) || 0;
+    });
+    document.getElementById('stat-admins').textContent = admins;
+    document.getElementById('stat-logins').textContent = logins;
+    document.getElementById('stat-failed').textContent = failed;
+
+    // Modal state
+    let activeUserID = null;
+
+    window.closeModal = function(id) {
+        document.getElementById(id).style.display = 'none';
+    };
+
+    // Activity
+    window.showActivity = async function(userID, username) {
+        activeUserID = userID;
+        document.getElementById('activity-modal-title').textContent = 'Login History — ' + username;
+        document.getElementById('activity-list').innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem;">Loading…</p>';
+        document.getElementById('activity-modal').style.display = 'flex';
+
+        try {
+            const res = await fetch('/api/admin/users/' + userID + '/activity');
+            const data = await res.json();
+            renderActivity(data);
+        } catch(e) {
+            document.getElementById('activity-list').innerHTML = '<p style="color:#ef4444;">Failed to load activity.</p>';
+        }
+    };
+
+    function renderActivity(items) {
+        if (!items || items.length === 0) {
+            document.getElementById('activity-list').innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem;">No activity recorded yet.</p>';
+            return;
+        }
+        let html = '';
+        items.forEach(a => {
+            const typeClass = 'at-' + (a.ActivityType || a.activity_type || '');
+            const atype = a.ActivityType || a.activity_type || '';
+            const ip = a.IPAddress || a.ip_address || '';
+            const ua = a.UserAgent || a.user_agent || '';
+            const ts = a.CreatedAt || a.created_at || '';
+            const tsStr = ts ? new Date(ts).toLocaleString() : '';
+            html += '<div class="activity-row">';
+            html += '<span class="activity-type ' + typeClass + '">' + atype.replace('_',' ') + '</span>';
+            html += '<div><div style="font-size:0.8125rem;color:var(--text-primary);">' + (tsStr || '—') + '</div>';
+            if (ip) html += '<div class="activity-meta">' + ip + '</div>';
+            if (ua && ua.length < 80) html += '<div class="activity-meta" style="word-break:break-all;">' + ua + '</div>';
+            html += '</div></div>';
+        });
+        document.getElementById('activity-list').innerHTML = html;
+    }
+
+    // Role
+    window.showRoleModal = function(userID, username, currentRole) {
+        activeUserID = userID;
+        document.getElementById('role-modal-title').textContent = 'Change Role — ' + username;
+        document.getElementById('role-select').value = String(currentRole);
+        document.getElementById('role-modal').style.display = 'flex';
+    };
+
+    window.submitRole = async function() {
+        const role = parseInt(document.getElementById('role-select').value);
+        try {
+            const res = await fetch('/api/admin/users/' + activeUserID + '/role', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({role})
+            });
+            if (!res.ok) {
+                const txt = await res.text();
+                showToast(txt || 'Failed to update role', 'error');
+                return;
+            }
+            closeModal('role-modal');
+            showToast('Role updated', 'success');
+            setTimeout(() => location.reload(), 800);
+        } catch(e) {
+            showToast('Network error', 'error');
+        }
+    };
+
+    // Password
+    window.showPasswordModal = function(userID, username) {
+        activeUserID = userID;
+        document.getElementById('password-modal-title').textContent = 'Reset Password — ' + username;
+        document.getElementById('new-password').value = '';
+        document.getElementById('password-modal').style.display = 'flex';
+        setTimeout(() => document.getElementById('new-password').focus(), 100);
+    };
+
+    window.submitPassword = async function() {
+        const password = document.getElementById('new-password').value.trim();
+        if (password.length < 8) {
+            showToast('Password must be at least 8 characters', 'error');
+            return;
+        }
+        try {
+            const res = await fetch('/api/admin/users/' + activeUserID + '/password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({password})
+            });
+            if (!res.ok) {
+                const txt = await res.text();
+                showToast(txt || 'Failed to reset password', 'error');
+                return;
+            }
+            closeModal('password-modal');
+            showToast('Password reset successfully', 'success');
+        } catch(e) {
+            showToast('Network error', 'error');
+        }
+    };
+
+    // Toast
+    function showToast(msg, type) {
+        const t = document.createElement('div');
+        t.className = 'toast toast-' + (type || 'success');
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+
+    // Keyboard: Esc closes modals
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            ['activity-modal','role-modal','password-modal'].forEach(closeModal);
+        }
+    });
+})();
+</script>
+
+{{template "modern-footer" .}}

@@ -107,6 +107,7 @@ type Users struct {
 	CategoryService      *models.CategoryService
 	CloudinaryService    *models.CloudinaryService
 	ImageMetadataService *models.ImageMetadataService
+	UserActivityService  *models.UserActivityService
 	BlogWiki             *gowiki.Wiki
 }
 
@@ -587,8 +588,17 @@ func (u Users) ProcessSignIn(w http.ResponseWriter, r *http.Request) {
 
 	user, err := u.UserService.Authenticate(data.Email, data.Password)
 	if err != nil {
+		if u.UserActivityService != nil {
+			// Best-effort: look up userID by email to log the failure
+			if existing, lookupErr := u.UserService.GetByEmail(data.Email); lookupErr == nil {
+				u.UserActivityService.Log(existing.UserID, "failed_login", utils.GetClientIP(r), r.UserAgent())
+			}
+		}
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
+	}
+	if u.UserActivityService != nil {
+		u.UserActivityService.Log(user.UserID, "login", utils.GetClientIP(r), r.UserAgent())
 	}
 	session, err := u.SessionService.Create(user.UserID)
 	if err != nil {
