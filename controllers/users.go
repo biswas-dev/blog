@@ -858,6 +858,7 @@ func (u Users) UpdateName(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/signin", http.StatusFound)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
 	fullName := strings.TrimSpace(r.FormValue("full_name"))
 	if len(fullName) > 100 {
 		http.Redirect(w, r, "/users/me?message=Name too long (max 100 characters)", http.StatusFound)
@@ -905,7 +906,7 @@ func (u Users) AdminPosts(w http.ResponseWriter, r *http.Request) {
 	data.Email = user.Email
 	data.Username = user.Username
 	data.LoggedIn = true
-	data.IsAdmin = true
+	data.IsAdmin = models.IsAdmin(user.Role)
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
 	data.Description = "Manage All Posts - Anshuman Biswas Blog"
 	data.CurrentPage = "admin-posts"

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -48,7 +49,9 @@ func (pv *PostVersions) HandleListVersions(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(versions)
+	if err := json.NewEncoder(w).Encode(versions); err != nil {
+		log.Printf("list versions encode: %v", err)
+	}
 }
 
 // HandleGetVersion GET /api/posts/{postID}/versions/{versionNum}
@@ -75,7 +78,9 @@ func (pv *PostVersions) HandleGetVersion(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(version)
+	if err := json.NewEncoder(w).Encode(version); err != nil {
+		log.Printf("get version encode: %v", err)
+	}
 }
 
 // HandleRestoreVersion POST /api/posts/{postID}/versions/{versionNum}/restore
@@ -102,24 +107,25 @@ func (pv *PostVersions) HandleRestoreVersion(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Load current post to preserve other fields
+	// Load current post to preserve other fields and snapshot pre-restore state
 	post, err := pv.PostService.GetByID(postID)
 	if err != nil {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
 
-	// Update with restored content (preserve slug, published state, featured, categories)
+	// Snapshot current content BEFORE overwriting it, so the pre-restore state is preserved
+	_ = pv.PostVersionService.MaybeCreateVersion(postID, user.UserID, post.Title, post.Content)
+
+	// Restore: overwrite with old version content (preserve slug, published state, featured image)
 	if err := pv.PostService.Update(postID, post.CategoryID, version.Title, version.Content,
 		post.IsPublished, post.Featured, post.FeaturedImageURL, post.Slug); err != nil {
 		http.Error(w, "Failed to restore version", http.StatusInternalServerError)
 		return
 	}
 
-	// Save restore as a new version
-	_ = pv.PostVersionService.MaybeCreateVersion(postID, user.UserID, version.Title, version.Content)
-
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "restored"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "restored"}); err != nil {
+		log.Printf("restore version encode: %v", err)
+	}
 }

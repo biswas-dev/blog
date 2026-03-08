@@ -58,7 +58,7 @@
             {{if .Contributors}}
             <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <span>With contributions from:
-                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.FullName}}</a>{{end}}
+                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.DisplayName}}</a>{{end}}
                 </span>
             </div>
             {{end}}

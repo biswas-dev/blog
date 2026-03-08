@@ -70,6 +70,7 @@ func (pvs *PostVersionService) MaybeCreateVersion(postID, userID int, title, con
 		_, err = pvs.DB.Exec(`
 			INSERT INTO post_versions (post_id, version_number, title, content, content_hash, created_by, created_at)
 			VALUES ($1, 1, $2, $3, $4, $5, NOW())
+			ON CONFLICT (post_id, version_number) DO NOTHING
 		`, postID, title, content, hash, userID)
 		return err
 	}
@@ -87,10 +88,13 @@ func (pvs *PostVersionService) MaybeCreateVersion(postID, userID int, title, con
 		return nil
 	}
 
+	// Use a subquery to compute the next version number atomically, avoiding TOCTOU races.
+	// ON CONFLICT DO NOTHING handles the case where a concurrent save wins the same slot.
 	_, err = pvs.DB.Exec(`
 		INSERT INTO post_versions (post_id, version_number, title, content, content_hash, created_by, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
-	`, postID, lastVersionNumber+1, title, content, hash, userID)
+		VALUES ($1, (SELECT COALESCE(MAX(version_number), 0) + 1 FROM post_versions WHERE post_id = $1), $2, $3, $4, $5, NOW())
+		ON CONFLICT (post_id, version_number) DO NOTHING
+	`, postID, title, content, hash, userID)
 	return err
 }
 
@@ -143,10 +147,11 @@ func (pvs *PostVersionService) GetVersion(postID, versionNumber int) (*PostVersi
 	return &v, nil
 }
 
-// GetContributors returns all users who have edited the post, excluding the original author.
+// GetContributors returns all users recorded in post_contributors for the given post.
+// Callers are responsible for filtering out the original author if desired.
 func (pvs *PostVersionService) GetContributors(postID int) ([]User, error) {
 	rows, err := pvs.DB.Query(`
-		SELECT u.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username)
+		SELECT u.user_id, u.username, COALESCE(u.full_name, '')
 		FROM Users u
 		JOIN post_contributors pc ON pc.user_id = u.user_id
 		WHERE pc.post_id = $1
