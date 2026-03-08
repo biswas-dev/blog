@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, staging, uat]
+    branches: [main, staging, uat, production]
   pull_request:
-    branches: [main, staging, uat]
+    branches: [main, staging, uat, production]
 
 env:
   GO_VERSION: "1.26"
@@ -128,10 +128,76 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonar.taskai.cc
 
+  # Security Scanning
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (blocking)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Run Trivy vulnerability scanner (SARIF report)
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Go Security Check
+        uses: securego/gosec@master
+        continue-on-error: true
+        with:
+          args: '-no-fail -fmt sarif -out gosec-results.sarif ./...'
+
+      - name: Upload GoSec results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: 'gosec-results.sarif'
+
+  # Dependency Review (PRs only)
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+
   all-tests-passed:
     name: All Tests Passed
     runs-on: ubuntu-latest
-    needs: [test, sonarqube]
+    needs: [test, security-scan]
     if: always()
 
     steps:
@@ -141,8 +207,8 @@ jobs:
             echo "Tests failed"
             exit 1
           fi
-          if [ "${{ needs.sonarqube.result }}" != "success" ] && [ "${{ needs.sonarqube.result }}" != "skipped" ]; then
-            echo "SonarQube analysis failed"
+          if [ "${{ needs.security-scan.result }}" != "success" ]; then
+            echo "Security scan failed"
             exit 1
           fi
           echo "All tests passed!"

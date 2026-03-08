@@ -1380,7 +1380,7 @@ PG_DB=blog
 PG_HOST=127.0.0.1
 APP_DISABLE_SIGNUP=true
 APP_PORT=22222
-API_TOKEN=productionSecretToken456
+API_TOKEN=\${API_TOKEN:-changeme}
 ENVEOF
 
 # Build the application

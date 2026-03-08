@@ -103,13 +103,13 @@ services:
       - blog-draw-data:/data/draw-data
     environment:
       - PG_USER=blog
-      - PG_PASSWORD=${PG_PASSWORD:-secureprodpassword123}
+      - PG_PASSWORD=${PG_PASSWORD:-changeme}
       - PG_DB=blog
       - PG_HOST=postgres
       - PG_PORT=5432
       - APP_DISABLE_SIGNUP=true
-      - API_TOKEN=${API_TOKEN:-productionSecretToken456}
-      - SESSION_SECRET=${SESSION_SECRET:-productionSessionSecret789}
+      - API_TOKEN=${API_TOKEN:-changeme}
+      - SESSION_SECRET=${SESSION_SECRET:-changeme}
       - APP_ENV=${APP_ENV:-development}
       - DEPLOY_BRANCH=${DEPLOY_BRANCH:-unknown}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
