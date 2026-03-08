@@ -37,6 +37,7 @@ type Post struct {
 	FeaturedImageURL    string
 	CreatedAt           string
 	Categories          []Category `json:"categories,omitempty"` // New many-to-many categories
+	Contributors        []User     `json:"-"`                    // All users who have edited this post
 }
 
 type PostService struct {
@@ -131,9 +132,9 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 func (pp *PostService) GetAllPosts() (*PostsList, error) {
 	list := PostsList{}
 
-	query := `SELECT p.post_id, p.user_id, u.username, p.category_id, p.title, p.content, p.slug, p.publication_date, p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured 
-			  FROM posts p 
-			  JOIN users u ON p.user_id = u.user_id 
+	query := `SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username), p.category_id, p.title, p.content, p.slug, p.publication_date, p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured
+			  FROM posts p
+			  JOIN users u ON p.user_id = u.user_id
 			  ORDER BY p.created_at DESC`
 	rows, err := pp.DB.Query(query)
 	if err != nil {
@@ -143,7 +144,7 @@ func (pp *PostService) GetAllPosts() (*PostsList, error) {
 
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.AuthorDisplayName, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
 			return nil, err
 		}
@@ -155,6 +156,14 @@ func (pp *PostService) GetAllPosts() (*PostsList, error) {
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("get all posts: %w", err)
+	}
+
+	if err := pp.loadCategoriesForPosts(list.Posts); err != nil {
+		return nil, fmt.Errorf("load categories: %w", err)
+	}
+
+	if err := pp.loadContributorsForPosts(list.Posts); err != nil {
+		return nil, fmt.Errorf("load contributors: %w", err)
 	}
 
 	return &list, nil
@@ -523,6 +532,43 @@ func (pp *PostService) loadCategoriesForPosts(posts []Post) error {
 		}
 		for _, idx := range idIdx[postID] {
 			posts[idx].Categories = append(posts[idx].Categories, cat)
+		}
+	}
+	return rows.Err()
+}
+
+// loadContributorsForPosts batch-loads contributors for all posts in a single query.
+func (pp *PostService) loadContributorsForPosts(posts []Post) error {
+	if len(posts) == 0 {
+		return nil
+	}
+	ids := make([]int, len(posts))
+	idIdx := make(map[int][]int)
+	for i, p := range posts {
+		ids[i] = p.ID
+		idIdx[p.ID] = append(idIdx[p.ID], i)
+	}
+
+	rows, err := pp.DB.Query(`
+		SELECT pc.post_id, u.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username)
+		FROM post_contributors pc
+		JOIN Users u ON u.user_id = pc.user_id
+		WHERE pc.post_id = ANY($1)
+		ORDER BY pc.first_contributed_at ASC
+	`, pq.Array(ids))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var postID int
+		var u User
+		if err := rows.Scan(&postID, &u.UserID, &u.Username, &u.FullName); err != nil {
+			return err
+		}
+		for _, idx := range idIdx[postID] {
+			posts[idx].Contributors = append(posts[idx].Contributors, u)
 		}
 	}
 	return rows.Err()
