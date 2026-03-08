@@ -87,20 +87,22 @@ func (u Users) Disabled(w http.ResponseWriter, r *http.Request) {
 
 type Users struct {
 	Templates struct {
-		New        Template
-		SignIn     Template
-		Home       Template
-		LoggedIn   Template
-		Profile    Template
-		AdminPosts Template
-		UserPosts  Template
-		APIAccess  Template
-		PostEditor Template
+		New         Template
+		SignIn      Template
+		Home        Template
+		LoggedIn    Template
+		Profile     Template
+		AdminPosts  Template
+		UserPosts   Template
+		APIAccess   Template
+		PostEditor  Template
+		UserProfile Template
 	}
 	DB                   *sql.DB
 	UserService          *models.UserService
 	SessionService       *models.SessionService
 	PostService          *models.PostService
+	PostVersionService   *models.PostVersionService
 	APITokenService      *models.APITokenService
 	CategoryService      *models.CategoryService
 	CloudinaryService    *models.CloudinaryService
@@ -876,8 +878,8 @@ func (u Users) AdminPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is admin
-	if !models.IsAdmin(user.Role) {
+	// Allow admins and editors
+	if !models.CanEditPosts(user.Role) && !models.IsAdmin(user.Role) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -1164,6 +1166,10 @@ func (u Users) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if u.PostVersionService != nil {
+		_ = u.PostVersionService.MaybeCreateVersion(post.ID, user.UserID, title, content)
+	}
+
 	// Assign categories to the post
 	if err := u.CategoryService.AssignCategoriesToPost(post.ID, categoryIDs); err != nil {
 		log.Printf("Error assigning categories to post: %v", err)
@@ -1302,6 +1308,10 @@ func (u Users) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	if err := u.PostService.Update(id, categoryID, title, content, isPublished, featured, featuredImageURL, slug); err != nil {
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
+	}
+
+	if u.PostVersionService != nil {
+		_ = u.PostVersionService.MaybeCreateVersion(id, user.UserID, title, content)
 	}
 
 	// Update categories for the post
@@ -1720,4 +1730,54 @@ func (u Users) GetImageMetadataBulk(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+// PublicProfile shows the public profile page for a user.
+func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
+	username := chi.URLParam(r, "username")
+
+	profileUser, err := u.UserService.GetByUsername(username)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	authoredPosts, _ := u.PostService.GetPublishedPostsByUser(profileUser.UserID)
+
+	var contributedPosts []models.Post
+	if u.PostVersionService != nil {
+		contributedPosts, _ = u.PostVersionService.GetContributedPosts(profileUser.UserID)
+	}
+
+	var data struct {
+		LoggedIn        bool
+		Email           string
+		Username        string
+		IsAdmin         bool
+		SignupDisabled  bool
+		Description     string
+		CurrentPage     string
+		UserPermissions models.UserPermissions
+		ProfileUser     *models.User
+		AuthoredPosts   []models.Post
+		ContributedPosts []models.Post
+	}
+
+	data.Description = profileUser.DisplayName() + " - Anshuman Biswas Blog"
+	data.CurrentPage = "profile"
+	data.ProfileUser = profileUser
+	data.AuthoredPosts = authoredPosts
+	data.ContributedPosts = contributedPosts
+	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
+
+	loggedInUser, _ := u.isUserLoggedIn(r)
+	if loggedInUser != nil {
+		data.LoggedIn = true
+		data.Email = loggedInUser.Email
+		data.Username = loggedInUser.Username
+		data.IsAdmin = models.IsAdmin(loggedInUser.Role)
+		data.UserPermissions = models.GetPermissions(loggedInUser.Role)
+	}
+
+	u.Templates.UserProfile.Execute(w, r, data)
 }

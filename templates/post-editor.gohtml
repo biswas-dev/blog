@@ -188,6 +188,75 @@ if (window.__goWikiConfig) {
 })();
 </script>
 
+{{if eq .Mode "edit"}}
+<div id="version-history-section" style="max-width:900px;margin:1.5rem auto 0;">
+  <button type="button" onclick="toggleVersionHistory()" style="background:none;border:1px solid #d1d5db;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:14px;color:#374151;" class="dark:text-gray-300 dark:border-gray-600">
+    &#x1F4DC; Version History
+  </button>
+  <div id="version-list" hidden style="margin-top:1rem;border:1px solid #e5e7eb;border-radius:8px;padding:1rem;background:#f9fafb;" class="dark:bg-gray-800 dark:border-gray-700">
+    <p id="version-loading" style="color:#6b7280;font-size:14px;">Loading versions...</p>
+  </div>
+</div>
+<script>
+(function() {
+  var loaded = false;
+  window.toggleVersionHistory = function() {
+    var div = document.getElementById('version-list');
+    if (div.hidden) {
+      div.hidden = false;
+      if (!loaded) { loadVersions(); loaded = true; }
+    } else {
+      div.hidden = true;
+    }
+  };
+
+  window.loadVersions = async function() {
+    var div = document.getElementById('version-list');
+    try {
+      var res = await fetch('/api/posts/{{.Post.ID}}/versions');
+      if (!res.ok) { div.innerHTML = '<p style="color:#ef4444">Failed to load versions.</p>'; return; }
+      var versions = await res.json();
+      if (!versions || versions.length === 0) {
+        div.innerHTML = '<p style="color:#6b7280;font-size:14px;">No versions saved yet.</p>';
+        return;
+      }
+      var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+      html += '<tr style="border-bottom:1px solid #e5e7eb;"><th style="text-align:left;padding:6px;">Version</th><th style="text-align:left;padding:6px;">Title</th><th style="text-align:left;padding:6px;">Editor</th><th style="text-align:left;padding:6px;">Date</th><th style="padding:6px;"></th></tr>';
+      versions.forEach(function(v) {
+        var date = new Date(v.CreatedAt).toLocaleDateString();
+        html += '<tr style="border-bottom:1px solid #f3f4f6;">';
+        html += '<td style="padding:6px;">#' + v.VersionNumber + '</td>';
+        html += '<td style="padding:6px;">' + escHtml(v.Title) + '</td>';
+        html += '<td style="padding:6px;">' + escHtml(v.CreatedByName) + '</td>';
+        html += '<td style="padding:6px;">' + date + '</td>';
+        html += '<td style="padding:6px;"><button type="button" onclick="restoreVersion(' + v.VersionNumber + ')" style="font-size:12px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;cursor:pointer;">Restore</button></td>';
+        html += '</tr>';
+      });
+      html += '</table>';
+      div.innerHTML = html;
+    } catch(e) {
+      div.innerHTML = '<p style="color:#ef4444">Error loading versions.</p>';
+    }
+  };
+
+  window.restoreVersion = async function(vNum) {
+    if (!confirm('Restore version #' + vNum + '? The current content will be saved as a new version before restoring.')) return;
+    try {
+      var res = await fetch('/api/posts/{{.Post.ID}}/versions/' + vNum + '/restore', {method:'POST'});
+      if (!res.ok) { alert('Failed to restore version.'); return; }
+      window.location.reload();
+    } catch(e) {
+      alert('Error restoring version.');
+    }
+  };
+
+  function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+})();
+</script>
+{{end}}
+
 <style>
 /* Blog-specific sidebar styles */
 .editor-sidebar {

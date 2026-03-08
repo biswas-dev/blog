@@ -19,8 +19,9 @@ type Blog struct {
 	Templates struct {
 		Post Template
 	}
-	BlogService    *models.BlogService
-	SessionService *models.SessionService
+	BlogService        *models.BlogService
+	SessionService     *models.SessionService
+	PostVersionService *models.PostVersionService
 }
 
 func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
@@ -42,6 +43,7 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		PrevPost        *models.Post
 		NextPost        *models.Post
 		UserPermissions models.UserPermissions
+		Contributors    []models.User
 	}
 
 	// Extract the slug from the URL
@@ -144,6 +146,16 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	data.OGDescription = ogExcerpt(post.Content, 160)
+
+	if b.PostVersionService != nil {
+		contributors, _ := b.PostVersionService.GetContributors(post.ID)
+		// Filter out the original author from contributors list
+		for _, c := range contributors {
+			if c.UserID != post.UserID {
+				data.Contributors = append(data.Contributors, c)
+			}
+		}
+	}
 
 	user, _ := utils.IsUserLoggedIn(r, b.SessionService)
 	if user != nil {
