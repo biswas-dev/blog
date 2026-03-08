@@ -226,7 +226,9 @@ func (a *Analytics) GetEngagementJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Printf("engagement encode: %v", err)
+	}
 }
 
 // AdminDeleteComment deletes any comment by ID (admin-only).
@@ -306,7 +308,9 @@ func (a *Analytics) GetSlug404sJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		log.Printf("slug-404s encode: %v", err)
+	}
 }
 
 // WhitelistSlug404 marks a slug as whitelisted (admin-only).
@@ -323,7 +327,7 @@ func (a *Analytics) WhitelistSlug404(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Note string `json:"note"`
 	}
-	json.NewDecoder(r.Body).Decode(&body)
+	_ = json.NewDecoder(r.Body).Decode(&body)
 	if _, err := a.DB.ExecContext(r.Context(),
 		`UPDATE slug_404s SET whitelisted = true, whitelist_note = $1 WHERE id = $2`,
 		body.Note, id,

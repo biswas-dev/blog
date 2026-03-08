@@ -53,8 +53,15 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                 </svg>
-                <span>Anshuman Biswas</span>
+                <a href="/users/{{.Post.Username}}" class="hover:underline">{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}</a>
             </div>
+            {{if .Contributors}}
+            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <span>With contributions from:
+                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.DisplayName}}</a>{{end}}
+                </span>
+            </div>
+            {{end}}
             
             {{if .Post.LastEditDate}}
                 {{if ne .Post.PublicationDate .Post.LastEditDate}}
@@ -67,7 +74,7 @@
                 {{end}}
             {{end}}
             
-            {{if .IsAdmin}}
+            {{if .UserPermissions.CanEditPosts}}
             <div class="flex items-center gap-2 ml-auto">
                 <a href="/admin/posts/{{.Post.ID}}/edit" class="text-blue-600 hover:text-blue-700 flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

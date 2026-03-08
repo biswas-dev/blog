@@ -1,0 +1,41 @@
+{{template "modern-header" .}}
+
+<div class="max-w-3xl mx-auto px-4 py-10">
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-50">{{.ProfileUser.DisplayName}}</h1>
+    {{if .ProfileUser.FullName}}
+    <p class="text-gray-500 dark:text-gray-400 mt-1">@{{.ProfileUser.Username}}</p>
+    {{end}}
+  </div>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Posts by {{.ProfileUser.DisplayName}}</h2>
+    {{if .AuthoredPosts}}
+    <ul class="space-y-3">
+      {{range .AuthoredPosts}}
+      <li class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-400 transition-colors">
+        <a href="/blog/{{.Slug}}" class="text-blue-600 dark:text-blue-400 font-medium hover:underline">{{.Title}}</a>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{.PublicationDate}}</p>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="text-gray-500 dark:text-gray-400">No published posts yet.</p>
+    {{end}}
+  </section>
+
+  {{if .ContributedPosts}}
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Contributions by {{.ProfileUser.DisplayName}}</h2>
+    <ul class="space-y-3">
+      {{range .ContributedPosts}}
+      <li class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-400 transition-colors">
+        <a href="/blog/{{.Slug}}" class="text-blue-600 dark:text-blue-400 font-medium hover:underline">{{.Title}}</a>
+      </li>
+      {{end}}
+    </ul>
+  </section>
+  {{end}}
+</div>
+
+{{template "modern-footer" .}}

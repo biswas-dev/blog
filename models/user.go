@@ -151,6 +151,18 @@ func (us *UserService) UpdateEmail(userID int, newEmail string) error {
 	return nil
 }
 
+func (us *UserService) GetByUsername(username string) (*User, error) {
+	var u User
+	err := us.DB.QueryRow(
+		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id FROM Users WHERE username = $1`,
+		username,
+	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role)
+	if err != nil {
+		return nil, fmt.Errorf("get user by username: %w", err)
+	}
+	return &u, nil
+}
+
 // CreateOAuthUser creates a user for OAuth sign-in (no usable password).
 // A random bytes hash is stored so the password column is non-null but
 // can never be used for password-based login.

@@ -153,6 +153,8 @@ func main() {
 		DB: DB,
 	}
 
+	postVersionService := &models.PostVersionService{DB: DB}
+
 	// Initialize BlogService
 	blogService := models.NewBlogService(DB)
 
@@ -217,6 +219,7 @@ func main() {
 		UserService:          &userService,
 		SessionService:       &sessionService,
 		PostService:          &postService,
+		PostVersionService:   postVersionService,
 		APITokenService:      &apiTokenService,
 		CategoryService:      &categoryService,
 		CloudinaryService:    &cloudinaryService,
@@ -226,9 +229,17 @@ func main() {
 
 	// Initialize Blog controller
 	blogC := controllers.Blog{
-		DB:             DB,
-		BlogService:    blogService,
-		SessionService: &sessionService,
+		DB:                 DB,
+		BlogService:        blogService,
+		SessionService:     &sessionService,
+		PostVersionService: postVersionService,
+	}
+
+	// Initialize PostVersions controller
+	postVersionsC := controllers.PostVersions{
+		PostVersionService: postVersionService,
+		SessionService:     &sessionService,
+		PostService:        &postService,
 	}
 
 	// Initialize Categories controller
@@ -310,6 +321,9 @@ func main() {
 
 	usersC.Templates.PostEditor = views.Must(views.ParseFS(
 		templates.FS, "post-editor.gohtml", "tailwind.gohtml"))
+
+	usersC.Templates.UserProfile = views.Must(views.ParseFS(
+		templates.FS, "user-profile.gohtml", "tailwind.gohtml"))
 
 	categoriesC.Templates.Manage = views.Must(views.ParseFS(
 		templates.FS, "admin-categories.gohtml", "tailwind.gohtml"))
@@ -441,6 +455,7 @@ func main() {
 	r.Get("/api/admin/upload-config", usersC.GetUploadConfig)
 
 	r.Get("/users/me", usersC.CurrentUser)
+	r.Get("/users/{username}", usersC.PublicProfile)
 	r.Post("/users/password", usersC.UpdatePassword)
 	r.Post("/users/email", usersC.UpdateEmail)
 	r.Post("/users/name", usersC.UpdateName)
@@ -504,6 +519,11 @@ func main() {
 		r.Patch("/annotation-comments/{commentID}", annotationsC.HandleUpdateAnnotationComment)
 		r.Delete("/annotation-comments/{commentID}", annotationsC.HandleDeleteAnnotationComment)
 	})
+
+	// Post version history API (editor+ only)
+	r.Get("/api/posts/{postID}/versions", postVersionsC.HandleListVersions)
+	r.Get("/api/posts/{postID}/versions/{versionNum}", postVersionsC.HandleGetVersion)
+	r.Post("/api/posts/{postID}/versions/{versionNum}/restore", postVersionsC.HandleRestoreVersion)
 
 	// Public API for lazy loading posts
 	r.Get("/api/posts/load-more", usersC.LoadMorePosts)
