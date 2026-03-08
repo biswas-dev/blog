@@ -183,7 +183,7 @@ func (ac *AnnotationsController) HandleCreateAnnotation(w http.ResponseWriter, r
 		http.Error(w, "Failed to create annotation", http.StatusInternalServerError)
 		return
 	}
-	a.AuthorName = user.Username
+	a.AuthorName = user.DisplayName()
 	a.CreatedAt = createdAt.Format(time.RFC3339)
 	a.Comments = []annotationCommentResp{}
 
@@ -354,7 +354,7 @@ func (ac *AnnotationsController) HandleCreateAnnotationComment(w http.ResponseWr
 		http.Error(w, "Failed to create annotation comment", http.StatusInternalServerError)
 		return
 	}
-	c.AuthorName = user.Username
+	c.AuthorName = user.DisplayName()
 	c.CreatedAt = createdAt.Format(time.RFC3339)
 
 	w.Header().Set("Content-Type", "application/json")
