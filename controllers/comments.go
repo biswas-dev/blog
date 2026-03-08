@@ -165,7 +165,7 @@ func (cc *CommentsController) HandleCreateComment(w http.ResponseWriter, r *http
 	resp := commentResponse{
 		CommentID:       commentID,
 		UserID:          user.UserID,
-		Username:        user.Username,
+		Username:        user.DisplayName(),
 		ParentCommentID: body.ParentCommentID,
 		Content:         body.Content,
 		CommentDate:     commentDate.Format(time.RFC3339),
