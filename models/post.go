@@ -36,8 +36,9 @@ type Post struct {
 	Featured            bool   // Boolean field to mark posts as featured
 	FeaturedImageURL    string
 	CreatedAt           string
-	Categories          []Category `json:"categories,omitempty"` // New many-to-many categories
-	Contributors        []User     `json:"-"`                    // All users who have edited this post
+	ReadingTime         int        `json:"reading_time,omitempty"` // Estimated minutes to read
+	Categories          []Category `json:"categories,omitempty"`   // New many-to-many categories
+	Contributors        []User     `json:"-"`                      // All users who have edited this post
 }
 
 type PostService struct {
@@ -81,8 +82,13 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 		return nil, fmt.Errorf("load categories: %w", err)
 	}
 
-	// Render previews
+	// Calculate reading time and render previews
 	for i := range list.Posts {
+		wordCount := len(strings.Fields(list.Posts[i].Content))
+		list.Posts[i].ReadingTime = (wordCount + 199) / 200
+		if list.Posts[i].ReadingTime < 1 {
+			list.Posts[i].ReadingTime = 1
+		}
 		preview := previewContentRaw(list.Posts[i].Content)
 		list.Posts[i].ContentHTML = template.HTML(RenderContent(preview))
 	}
@@ -120,8 +126,13 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 		return nil, fmt.Errorf("load categories: %w", err)
 	}
 
-	// Render previews
+	// Calculate reading time and render previews
 	for i := range list.Posts {
+		wordCount := len(strings.Fields(list.Posts[i].Content))
+		list.Posts[i].ReadingTime = (wordCount + 199) / 200
+		if list.Posts[i].ReadingTime < 1 {
+			list.Posts[i].ReadingTime = 1
+		}
 		preview := previewContentRaw(list.Posts[i].Content)
 		list.Posts[i].ContentHTML = template.HTML(RenderContent(preview))
 	}

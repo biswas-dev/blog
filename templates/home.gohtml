@@ -17,6 +17,8 @@
             <div class="post-item-text">
                 <div class="post-item-meta">
                     <time class="relative-time" datetime="{{$post.CreatedAt}}">{{$post.PublicationDate}}</time>
+                    <span class="sep">&middot;</span>
+                    <span class="reading-time">{{$post.ReadingTime}} min read</span>
                     {{if $post.Featured}}
                     <span class="sep">&middot;</span>
                     <span class="featured-badge">
@@ -37,10 +39,6 @@
                 <div class="post-item-excerpt">
                     {{if $post.ContentHTML}}{{$post.ContentHTML}}{{else}}{{$post.Content}}{{end}}
                 </div>
-                <span class="read-more">
-                    Read more
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                </span>
             </div>
             {{if $post.FeaturedImageURL}}
             <div class="post-item-image">
@@ -109,16 +107,14 @@ function appendPost(post) {
                 <div class="post-item-text">
                     <div class="post-item-meta">
                         <time datetime="${post.CreatedAt}">${post.PublicationDate}</time>
+                        <span class="sep">&middot;</span>
+                        <span class="reading-time">${post.ReadingTime || post.reading_time || 1} min read</span>
                         ${categoriesHTML}
                     </div>
                     <h2 class="post-item-title"><a href="/blog/${escapeHTML(post.Slug)}">${escapeHTML(post.Title)}</a></h2>
                     <div class="post-item-excerpt">
                         ${post.ContentHTML || (post.Content && post.Content.length > 200 ? escapeHTML(post.Content.substring(0, 200)) + '...' : escapeHTML(post.Content || ''))}
                     </div>
-                    <span class="read-more">
-                        Read more
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                    </span>
                 </div>
                 ${imageHTML}
             </div>
