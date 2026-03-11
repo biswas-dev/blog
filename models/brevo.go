@@ -218,3 +218,63 @@ func (bs *BrevoService) SendTestEmail(apiKey, fromEmail, fromName, toEmail strin
 
 	return false, fmt.Sprintf("Brevo returned status %d: %s", resp.StatusCode, string(body))
 }
+
+// SendWelcomeEmail sends a welcome email to a newly created user.
+func (bs *BrevoService) SendWelcomeEmail(apiKey, fromEmail, fromName, toEmail, username, fullName string) (bool, string) {
+	displayName := fullName
+	if displayName == "" {
+		displayName = username
+	}
+
+	htmlContent := fmt.Sprintf(`<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+<h2 style="color:#1a1a1a;">Welcome to the Blog!</h2>
+<p>Hi %s,</p>
+<p>An account has been created for you. You can now sign in with your credentials:</p>
+<ul>
+<li><strong>Username:</strong> %s</li>
+<li><strong>Email:</strong> %s</li>
+</ul>
+<p>Please sign in and change your password at your earliest convenience.</p>
+<p style="color:#666;font-size:0.875rem;">— The Blog Admin</p>
+</body></html>`, displayName, username, toEmail)
+
+	payload := map[string]interface{}{
+		"sender": map[string]string{
+			"name":  fromName,
+			"email": fromEmail,
+		},
+		"to": []map[string]string{
+			{"email": toEmail, "name": displayName},
+		},
+		"subject":     "Your blog account has been created",
+		"htmlContent": htmlContent,
+	}
+
+	jsonBody, err := json.Marshal(payload)
+	if err != nil {
+		return false, fmt.Sprintf("Failed to build request: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", "https://api.brevo.com/v3/smtp/email", bytes.NewReader(jsonBody))
+	if err != nil {
+		return false, fmt.Sprintf("Failed to create request: %v", err)
+	}
+	req.Header.Set("api-key", apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Sprintf("Send failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+
+	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK {
+		return true, fmt.Sprintf("Welcome email sent to %s", toEmail)
+	}
+
+	return false, fmt.Sprintf("Brevo returned status %d: %s", resp.StatusCode, string(body))
+}

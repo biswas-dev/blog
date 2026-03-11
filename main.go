@@ -243,10 +243,17 @@ func main() {
 		BlogWiki:             blogWiki,
 	}
 
+	// Initialize BrevoService
+	brevoService := models.BrevoService{
+		DB: DB,
+	}
+
 	// Initialize AdminUsers controller
 	adminUsersC := controllers.AdminUsers{
 		UserActivityService: &userActivityService,
 		SessionService:      &sessionService,
+		UserService:         &userService,
+		BrevoService:        &brevoService,
 	}
 
 	// Initialize Blog controller
@@ -291,11 +298,6 @@ func main() {
 	// Initialize Search controller
 	searchC := controllers.Search{
 		SearchService: searchService,
-	}
-
-	// Initialize BrevoService
-	brevoService := models.BrevoService{
-		DB: DB,
 	}
 
 	// Initialize System controller
@@ -481,6 +483,7 @@ func main() {
 	// Admin User Management Routes
 	r.Get("/admin/users", adminUsersC.Dashboard)
 	r.Get("/api/admin/users", adminUsersC.GetUsersJSON)
+	r.Post("/api/admin/users/create", adminUsersC.CreateUser)
 	r.Get("/api/admin/users/{id}/activity", adminUsersC.GetUserActivityJSON)
 	r.Post("/api/admin/users/{id}/role", adminUsersC.UpdateUserRole)
 	r.Post("/api/admin/users/{id}/password", adminUsersC.AdminResetPassword)
