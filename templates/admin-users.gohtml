@@ -225,14 +225,22 @@
 
     <!-- Users table -->
     <div class="sys-card">
-        <div class="sys-card-header">
-            <div class="sys-icon sys-icon-blue">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-                </svg>
+        <div class="sys-card-header" style="justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div class="sys-icon sys-icon-blue">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                </div>
+                <h3>All Users</h3>
             </div>
-            <h3>All Users</h3>
+            <button class="btn-primary" onclick="showCreateUserModal()" style="display:inline-flex;align-items:center;gap:6px;font-size:0.8125rem;padding:6px 14px;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add User
+            </button>
         </div>
         <div style="overflow-x:auto;">
             <table class="analytics-table">
@@ -334,6 +342,50 @@
         <div class="modal-actions">
             <button class="btn-secondary" onclick="closeModal('password-modal')">Cancel</button>
             <button class="btn-primary" onclick="submitPassword()">Reset</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div id="create-user-modal" class="modal-backdrop" style="display:none;" onclick="closeModal('create-user-modal')">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:460px;">
+        <p class="modal-title">Add User</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <label class="modal-label" for="cu-email">Email *</label>
+                <input id="cu-email" type="email" class="modal-input" placeholder="user@example.com" autocomplete="off">
+            </div>
+            <div>
+                <label class="modal-label" for="cu-username">Username *</label>
+                <input id="cu-username" type="text" class="modal-input" placeholder="johndoe" autocomplete="off">
+            </div>
+            <div>
+                <label class="modal-label" for="cu-fullname">Full Name</label>
+                <input id="cu-fullname" type="text" class="modal-input" placeholder="John Doe" autocomplete="off">
+            </div>
+            <div>
+                <label class="modal-label" for="cu-role">Role</label>
+                <select id="cu-role" class="modal-select">
+                    <option value="1">Commenter</option>
+                    <option value="4">Viewer</option>
+                    <option value="3">Editor</option>
+                    <option value="2">Administrator</option>
+                </select>
+            </div>
+            <div>
+                <label class="modal-label" for="cu-password">Password * (min 8 chars)</label>
+                <input id="cu-password" type="password" class="modal-input" placeholder="Minimum 8 characters" autocomplete="new-password">
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <input id="cu-send-email" type="checkbox" style="accent-color:#3b82f6;">
+                <label for="cu-send-email" style="font-size:0.8125rem;color:var(--text-secondary);cursor:pointer;">
+                    Send welcome email (requires Brevo)
+                </label>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeModal('create-user-modal')">Cancel</button>
+            <button class="btn-primary" id="cu-submit-btn" onclick="submitCreateUser()">Create User</button>
         </div>
     </div>
 </div>
@@ -473,10 +525,71 @@
         setTimeout(() => t.remove(), 3000);
     }
 
+    // Create User
+    window.showCreateUserModal = function() {
+        document.getElementById('cu-email').value = '';
+        document.getElementById('cu-username').value = '';
+        document.getElementById('cu-fullname').value = '';
+        document.getElementById('cu-password').value = '';
+        document.getElementById('cu-role').value = '1';
+        document.getElementById('cu-send-email').checked = false;
+        document.getElementById('cu-submit-btn').disabled = false;
+        document.getElementById('cu-submit-btn').textContent = 'Create User';
+        document.getElementById('create-user-modal').style.display = 'flex';
+        setTimeout(() => document.getElementById('cu-email').focus(), 100);
+    };
+
+    window.submitCreateUser = async function() {
+        const email = document.getElementById('cu-email').value.trim();
+        const username = document.getElementById('cu-username').value.trim();
+        const fullName = document.getElementById('cu-fullname').value.trim();
+        const password = document.getElementById('cu-password').value;
+        const role = parseInt(document.getElementById('cu-role').value);
+        const sendEmail = document.getElementById('cu-send-email').checked;
+
+        if (!email || !username || !password) {
+            showToast('Email, username, and password are required', 'error');
+            return;
+        }
+        if (password.length < 8) {
+            showToast('Password must be at least 8 characters', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('cu-submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        try {
+            const res = await fetch('/api/admin/users/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email, username, full_name: fullName, password, role, send_email: sendEmail})
+            });
+            if (!res.ok) {
+                const txt = await res.text();
+                showToast(txt || 'Failed to create user', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Create User';
+                return;
+            }
+            const data = await res.json();
+            closeModal('create-user-modal');
+            let msg = 'User created successfully';
+            if (data.email_sent) msg += ' — welcome email sent';
+            showToast(msg, 'success');
+            setTimeout(() => location.reload(), 800);
+        } catch(e) {
+            showToast('Network error', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Create User';
+        }
+    };
+
     // Keyboard: Esc closes modals
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
-            ['activity-modal','role-modal','password-modal'].forEach(closeModal);
+            ['activity-modal','role-modal','password-modal','create-user-modal'].forEach(closeModal);
         }
     });
 })();
