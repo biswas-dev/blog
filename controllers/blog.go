@@ -58,6 +58,15 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If the post is not published, only allow users with CanViewUnpublished permission
+	if !post.IsPublished {
+		user, _ := utils.IsUserLoggedIn(r, b.SessionService)
+		if user == nil || !models.CanViewUnpublished(user.Role) {
+			http.NotFound(w, r)
+			return
+		}
+	}
+
 	// Initialize default data
 	data.LoggedIn = false
 	data.Post = post
