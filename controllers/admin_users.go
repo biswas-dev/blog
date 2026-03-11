@@ -177,6 +177,62 @@ func (a *AdminUsers) AdminResetPassword(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"}) //nolint:errcheck
 }
 
+// AdminUpdateUser updates full name, role, and optionally password for a user.
+func (a *AdminUsers) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
+	admin, ok := a.requireAdmin(r)
+	if !ok {
+		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
+		return
+	}
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	var body struct {
+		FullName string `json:"full_name"`
+		Role     int    `json:"role"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Update full name
+	if err := a.UserService.UpdateName(userID, strings.TrimSpace(body.FullName)); err != nil {
+		http.Error(w, "Failed to update name", http.StatusInternalServerError)
+		return
+	}
+
+	// Update role (cannot change own role)
+	if body.Role >= 1 && body.Role <= 4 && userID != admin.UserID {
+		if err := a.UserActivityService.UpdateUserRole(userID, body.Role); err != nil {
+			http.Error(w, "Failed to update role", http.StatusInternalServerError)
+			return
+		}
+		a.UserActivityService.Log(userID, "role_change", utils.GetClientIP(r), "admin:"+admin.Username)
+	}
+
+	// Update password if provided
+	body.Password = strings.TrimSpace(body.Password)
+	if body.Password != "" {
+		if len(body.Password) < 8 {
+			http.Error(w, "Password must be at least 8 characters", http.StatusBadRequest)
+			return
+		}
+		if err := a.UserActivityService.AdminResetPassword(userID, body.Password); err != nil {
+			http.Error(w, "Failed to reset password", http.StatusInternalServerError)
+			return
+		}
+		a.UserActivityService.Log(userID, "password_change", utils.GetClientIP(r), "admin reset by:"+admin.Username)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"}) //nolint:errcheck
+}
+
 // CreateUser creates a new user account (admin-only).
 // Optionally sends a welcome email via Brevo if configured.
 func (a *AdminUsers) CreateUser(w http.ResponseWriter, r *http.Request) {
