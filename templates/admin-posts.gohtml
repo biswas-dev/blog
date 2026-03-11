@@ -21,6 +21,21 @@
 .dark .admin-action-btn:hover { color: #818cf8; background-color: rgba(255,255,255,0.08); }
 .dark .admin-action-btn.danger:hover { color: #f87171; background-color: rgba(220,38,38,0.1); }
 
+.category-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: #eef2ff;
+    color: #4338ca;
+    border: none;
+}
+.dark .category-badge {
+    background-color: rgba(99,102,241,0.15);
+    color: #a5b4fc;
+}
+
 .post-row { cursor: pointer; }
 .post-row:hover td { background-color: #f8fafc; }
 .dark .post-row:hover td { background-color: rgba(255,255,255,0.04); }
@@ -167,7 +182,7 @@
                             <td data-col-td="categories" class="px-4 py-3" style="min-width:100px;">
                                 <div class="flex flex-wrap gap-1">
                                     {{range .Categories}}
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300" style="border:none !important;">{{.Name}}</span>
+                                        <span class="category-badge">{{.Name}}</span>
                                     {{end}}
                                     {{if not .Categories}}<span class="text-xs text-gray-300 dark:text-gray-600">—</span>{{end}}
                                 </div>
