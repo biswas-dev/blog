@@ -36,6 +36,7 @@ const (
 	routeImageMetadata      = "/api/admin/image-metadata"
 	routeExternalSystemByID = "/api/admin/external-systems/{id}"
 	routeCloudinary         = "/api/admin/cloudinary"
+	routeBrevo              = "/api/admin/brevo"
 )
 
 func getAppPort() string {
@@ -292,6 +293,11 @@ func main() {
 		SearchService: searchService,
 	}
 
+	// Initialize BrevoService
+	brevoService := models.BrevoService{
+		DB: DB,
+	}
+
 	// Initialize System controller
 	systemC := controllers.System{
 		SystemService:         systemService,
@@ -300,6 +306,7 @@ func main() {
 		ExternalSystemService: &externalSystemService,
 		SyncClient:            &syncClient,
 		CloudinaryService:     &cloudinaryService,
+		BrevoService:          &brevoService,
 	}
 
 	usersC.Templates.New = views.Must(views.ParseFS(
@@ -484,6 +491,13 @@ func main() {
 	r.Delete(routeCloudinary, systemC.DeleteCloudinarySettings)
 	r.Post(routeCloudinary+"/test", systemC.TestCloudinaryConnection)
 	r.Post(routeCloudinary+"/signature", systemC.GetCloudinarySignature)
+
+	// Brevo Email Settings Routes
+	r.Get(routeBrevo, systemC.GetBrevoSettings)
+	r.Post(routeBrevo, systemC.SaveBrevoSettings)
+	r.Delete(routeBrevo, systemC.DeleteBrevoSettings)
+	r.Post(routeBrevo+"/test", systemC.TestBrevoConnection)
+
 	r.Get("/api/admin/upload-config", usersC.GetUploadConfig)
 
 	r.Get("/users/me", usersC.CurrentUser)

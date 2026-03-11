@@ -33,6 +33,7 @@ type System struct {
 	ExternalSystemService *models.ExternalSystemService
 	SyncClient            *models.SyncClient
 	CloudinaryService     *models.CloudinaryService
+	BrevoService          *models.BrevoService
 	Templates             struct {
 		Dashboard Template
 	}
@@ -772,5 +773,153 @@ func (s *System) GetCloudinarySignature(w http.ResponseWriter, r *http.Request) 
 		"timestamp":  input.Timestamp,
 		"api_key":    settings.APIKey,
 		"cloud_name": settings.CloudName,
+	})
+}
+
+// --- Brevo Email Settings Handlers ---
+
+// GetBrevoSettings returns current Brevo settings (API key omitted)
+func (s *System) GetBrevoSettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	settings, err := s.BrevoService.Get()
+	if err != nil {
+		log.Printf("Error getting brevo settings: %v", err)
+		http.Error(w, "Failed to get brevo settings", http.StatusInternalServerError)
+		return
+	}
+
+	if settings == nil {
+		w.Header().Set(headerContentType, mimeJSON)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"configured": false,
+		})
+		return
+	}
+
+	// Never expose the API key
+	settings.APIKey = ""
+
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"configured": true,
+		"settings":   settings,
+	})
+}
+
+// SaveBrevoSettings saves or updates Brevo credentials
+func (s *System) SaveBrevoSettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	var input struct {
+		APIKey    string `json:"api_key"`
+		FromEmail string `json:"from_email"`
+		FromName  string `json:"from_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
+		return
+	}
+
+	if input.FromEmail == "" {
+		http.Error(w, "from_email is required", http.StatusBadRequest)
+		return
+	}
+	if input.FromName == "" {
+		input.FromName = "Blog"
+	}
+
+	if err := s.BrevoService.Save(input.APIKey, input.FromEmail, input.FromName); err != nil {
+		log.Printf("Error saving brevo settings: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Brevo settings saved",
+	})
+}
+
+// DeleteBrevoSettings removes Brevo credentials
+func (s *System) DeleteBrevoSettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	if err := s.BrevoService.Delete(); err != nil {
+		log.Printf("Error deleting brevo settings: %v", err)
+		http.Error(w, "Failed to delete brevo settings", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Brevo settings removed",
+	})
+}
+
+// TestBrevoConnection tests the Brevo API key and optionally sends a test email
+func (s *System) TestBrevoConnection(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	var input struct {
+		SendTestTo string `json:"send_test_to"`
+	}
+	// Body is optional — if empty, just test the API key
+	json.NewDecoder(r.Body).Decode(&input)
+
+	settings, err := s.BrevoService.Get()
+	if err != nil || settings == nil {
+		w.Header().Set(headerContentType, mimeJSON)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Brevo not configured",
+		})
+		return
+	}
+
+	// First test API key validity
+	ok, msg := s.BrevoService.TestConnection(settings.APIKey)
+	if !ok {
+		s.BrevoService.UpdateHealthStatus("error", settings.ConsecutiveFailures+1)
+		w.Header().Set(headerContentType, mimeJSON)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": msg,
+		})
+		return
+	}
+
+	s.BrevoService.UpdateHealthStatus("healthy", 0)
+
+	// If a test email address was provided, send a test email
+	if input.SendTestTo != "" {
+		emailOk, emailMsg := s.BrevoService.SendTestEmail(
+			settings.APIKey, settings.FromEmail, settings.FromName, input.SendTestTo,
+		)
+		if !emailOk {
+			w.Header().Set(headerContentType, mimeJSON)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"message": fmt.Sprintf("API key valid (%s), but email send failed: %s", msg, emailMsg),
+			})
+			return
+		}
+		msg = emailMsg
+	}
+
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": msg,
 	})
 }

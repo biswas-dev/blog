@@ -701,6 +701,75 @@
             </div>
         </div>
 
+        <!-- Brevo Email Service Section -->
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-blue">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Brevo Email Service</h3>
+                        <p>Transactional email for invitations and notifications</p>
+                    </div>
+                </div>
+                <button onclick="openBrevoModal()" class="sys-btn-outline">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Configure
+                </button>
+            </div>
+            <div class="sys-section-body">
+                <div id="brevo-status" style="text-align: center; padding: 12px 0; color: var(--text-secondary); font-size: 0.8125rem;">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Brevo Settings Modal -->
+        <div id="brevo-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeBrevoModal()"></div>
+                <div class="sys-modal relative max-w-lg w-full p-6">
+                    <h3 class="sys-modal-title">Brevo Email Settings</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="sys-modal-label">API Key</label>
+                            <input type="password" id="brevo-api-key" placeholder="xkeysib-..." class="sys-input w-full px-3 py-2">
+                            <p class="sys-hint">Encrypted at rest. Leave blank when editing to keep the existing key.</p>
+                        </div>
+                        <div>
+                            <label class="sys-modal-label">From Email</label>
+                            <input type="email" id="brevo-from-email" placeholder="noreply@yourdomain.com" class="sys-input w-full px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="sys-modal-label">From Name</label>
+                            <input type="text" id="brevo-from-name" placeholder="Blog" class="sys-input w-full px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="sys-modal-label">Send Test Email To (optional)</label>
+                            <input type="email" id="brevo-test-email" placeholder="your@email.com" class="sys-input w-full px-3 py-2">
+                            <p class="sys-hint">If provided, a test email will be sent when you click "Test Connection".</p>
+                        </div>
+                        <div id="brevo-test-result" class="hidden rounded-md p-3 text-sm"></div>
+                    </div>
+                    <div class="mt-6 flex justify-between">
+                        <button onclick="deleteBrevo()" id="brevo-delete-btn" class="hidden sys-btn-remove">
+                            Remove
+                        </button>
+                        <div class="flex space-x-3 ml-auto">
+                            <button onclick="closeBrevoModal()" class="sys-btn-cancel">Cancel</button>
+                            <button onclick="testBrevo()" class="sys-btn-test-teal">Test Connection</button>
+                            <button onclick="saveBrevo()" class="sys-btn-primary">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Cloudinary Settings Modal -->
         <div id="cloudinary-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
@@ -1497,9 +1566,159 @@ async function deleteCloudinary() {
     }
 }
 
+// --- Brevo Email Settings ---
+
+async function loadBrevoStatus() {
+    const container = document.getElementById('brevo-status');
+    try {
+        const resp = await fetch('/api/admin/brevo');
+        if (!resp.ok) throw new Error('Failed to load');
+        const data = await resp.json();
+        if (!data.configured) {
+            container.innerHTML = `
+                <p class="sys-text-muted">Not configured</p>
+                <p class="text-sm sys-text-muted mt-1">Click Configure to set up Brevo for transactional email (invitations, notifications).</p>`;
+        } else {
+            const s = data.settings;
+            const statusClass = s.status === 'healthy' ? 'sys-status-success' : s.status === 'error' ? 'sys-status-error' : 'sys-status-warning';
+            container.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="sys-badge ${statusClass}">
+                            ${escapeHtml(s.status)}
+                        </span>
+                        <span class="text-sm sys-text-secondary">From: <strong>${escapeHtml(s.from_name)}</strong> &lt;${escapeHtml(s.from_email)}&gt;</span>
+                    </div>
+                    <span class="text-xs sys-text-muted">${s.last_checked_at ? 'Last checked: ' + new Date(s.last_checked_at).toLocaleString() : 'Not tested yet'}</span>
+                </div>`;
+        }
+    } catch (e) {
+        container.innerHTML = '<p class="text-red-500">Failed to load Brevo status</p>';
+    }
+}
+
+function openBrevoModal() {
+    const modal = document.getElementById('brevo-modal');
+    const deleteBtn = document.getElementById('brevo-delete-btn');
+    const testResult = document.getElementById('brevo-test-result');
+    testResult.classList.add('hidden');
+
+    fetch('/api/admin/brevo')
+        .then(r => r.json())
+        .then(data => {
+            if (data.configured) {
+                document.getElementById('brevo-api-key').value = '';
+                document.getElementById('brevo-api-key').placeholder = 'Leave blank to keep existing';
+                document.getElementById('brevo-from-email').value = data.settings.from_email;
+                document.getElementById('brevo-from-name').value = data.settings.from_name;
+                deleteBtn.classList.remove('hidden');
+            } else {
+                document.getElementById('brevo-api-key').value = '';
+                document.getElementById('brevo-api-key').placeholder = 'xkeysib-...';
+                document.getElementById('brevo-from-email').value = '';
+                document.getElementById('brevo-from-name').value = '';
+                deleteBtn.classList.add('hidden');
+            }
+        });
+
+    document.getElementById('brevo-test-email').value = '';
+    modal.classList.remove('hidden');
+}
+
+function closeBrevoModal() {
+    document.getElementById('brevo-modal').classList.add('hidden');
+}
+
+async function saveBrevo() {
+    const apiKey = document.getElementById('brevo-api-key').value;
+    const fromEmail = document.getElementById('brevo-from-email').value.trim();
+    const fromName = document.getElementById('brevo-from-name').value.trim();
+
+    if (!fromEmail) {
+        showMessage('From email is required', 'error');
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/admin/brevo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey, from_email: fromEmail, from_name: fromName })
+        });
+        if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text);
+        }
+        closeBrevoModal();
+        showMessage('Brevo settings saved successfully');
+        loadBrevoStatus();
+    } catch (e) {
+        showMessage('Failed to save: ' + e.message, 'error');
+    }
+}
+
+async function testBrevo() {
+    const resultDiv = document.getElementById('brevo-test-result');
+    resultDiv.className = 'rounded-md p-3 text-sm sys-result-loading';
+    resultDiv.textContent = 'Testing connection...';
+    resultDiv.classList.remove('hidden');
+
+    // Save first if fields have values
+    const apiKey = document.getElementById('brevo-api-key').value;
+    const fromEmail = document.getElementById('brevo-from-email').value.trim();
+    const fromName = document.getElementById('brevo-from-name').value.trim();
+    if (fromEmail) {
+        const saveResp = await fetch('/api/admin/brevo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey, from_email: fromEmail, from_name: fromName })
+        });
+        if (!saveResp.ok) {
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
+            resultDiv.textContent = 'Failed to save settings before testing';
+            return;
+        }
+    }
+
+    try {
+        const testEmail = document.getElementById('brevo-test-email').value.trim();
+        const resp = await fetch('/api/admin/brevo/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ send_test_to: testEmail })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-success';
+            resultDiv.textContent = data.message;
+        } else {
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
+            resultDiv.textContent = 'Connection failed: ' + data.message;
+        }
+        loadBrevoStatus();
+    } catch (e) {
+        resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
+        resultDiv.textContent = 'Error: ' + e.message;
+    }
+}
+
+async function deleteBrevo() {
+    if (!confirm('Remove Brevo settings? Email features (invitations, notifications) will be disabled.')) return;
+    try {
+        const resp = await fetch('/api/admin/brevo', { method: 'DELETE' });
+        if (!resp.ok) throw new Error('Failed to delete');
+        closeBrevoModal();
+        showMessage('Brevo settings removed');
+        loadBrevoStatus();
+    } catch (e) {
+        showMessage('Failed to remove: ' + e.message, 'error');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     loadExternalSystems();
     loadCloudinaryStatus();
+    loadBrevoStatus();
 });
 
 document.getElementById('import-form').addEventListener('submit', async function(e) {
