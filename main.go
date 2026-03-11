@@ -487,6 +487,7 @@ func main() {
 	r.Get("/api/admin/users/{id}/activity", adminUsersC.GetUserActivityJSON)
 	r.Post("/api/admin/users/{id}/role", adminUsersC.UpdateUserRole)
 	r.Post("/api/admin/users/{id}/password", adminUsersC.AdminResetPassword)
+	r.Put("/api/admin/users/{id}", adminUsersC.AdminUpdateUser)
 
 	// Cloudinary Settings Routes
 	r.Get(routeCloudinary, systemC.GetCloudinarySettings)
