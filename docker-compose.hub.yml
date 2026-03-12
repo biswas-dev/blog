@@ -1,0 +1,10 @@
+# Docker Hub image overlay for Blog
+# Usage: docker compose -f docker-compose.yml -f docker-compose.hub.yml pull
+#        docker compose -f docker-compose.yml -f docker-compose.hub.yml up -d --no-build
+#
+# Set IMAGE_TAG to a git short SHA or "latest"
+
+services:
+  app:
+    image: anchoo2kewl/blog:${IMAGE_TAG:-latest}
+    build: !reset null

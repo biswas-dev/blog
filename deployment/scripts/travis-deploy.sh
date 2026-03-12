@@ -140,8 +140,9 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
     docker image prune -f || true
   fi
 
-  # Build and start
-  docker compose build
+  # Pull pre-built images from Docker Hub
+  export IMAGE_TAG='$(git rev-parse --short HEAD)'
+  docker compose -f docker-compose.yml -f docker-compose.hub.yml pull app
 
   # Final cleanup before start
   for c in blog-postgres blog-app blog-dd-agent blog-otel-collector; do
@@ -151,7 +152,7 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
   docker network rm ${ENV//-/_}_blog-network 2>/dev/null || true
   sleep 2
 
-  docker compose up -d
+  docker compose -f docker-compose.yml -f docker-compose.hub.yml up -d --no-build
   sudo systemctl reload nginx || true
 
   # Wait for postgres

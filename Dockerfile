@@ -1,5 +1,5 @@
-# Dockerfile.distroless
-FROM golang:1.26-alpine as base
+# Build stage — runs on host arch, cross-compiles via GOARCH
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine as base
 
 ENV APP_HOME /go/src/blog
 RUN mkdir -p "$APP_HOME"
@@ -12,21 +12,13 @@ RUN go mod download
 RUN go mod verify
 RUN go mod tidy
 
-ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG TARGETVARIANT
 
 # Version information for build-time injection
 ARG VERSION=dev
 ARG GIT_COMMIT=unknown
 ARG BUILD_TIME=unknown
 ARG GO_VERSION=unknown
-
-RUN printf "I'm building for TARGETPLATFORM=${TARGETPLATFORM}" \
-    && printf ", TARGETARCH=${TARGETARCH}" \
-    && printf ", TARGETVARIANT=${TARGETVARIANT} \n" \
-    && printf "With uname -s : " && uname -s \
-    && printf "and  uname -m : " && uname -m
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
     -ldflags="-X 'anshumanbiswas.com/blog/version.Version=${VERSION}' \
