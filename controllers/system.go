@@ -92,7 +92,7 @@ func (s *System) Dashboard(w http.ResponseWriter, r *http.Request) {
 		Email:           user.Email,
 		LoggedIn:        true,
 		Username:        user.Username,
-		IsAdmin:         true,
+		IsAdmin:         models.IsAdmin(user.Role),
 		SignupDisabled:  true,
 		Description:     "System Information - Anshuman Biswas Blog",
 		CurrentPage:     "admin-system",

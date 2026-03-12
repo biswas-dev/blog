@@ -63,7 +63,7 @@ func (a *AdminUsers) Dashboard(w http.ResponseWriter, r *http.Request) {
 		Email:           user.Email,
 		LoggedIn:        true,
 		Username:        user.Username,
-		IsAdmin:         true,
+		IsAdmin:         models.IsAdmin(user.Role),
 		Description:     "User Management",
 		CurrentPage:     "admin",
 		User:            user,

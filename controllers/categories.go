@@ -53,8 +53,8 @@ func (c *Categories) Manage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is admin
-	if !models.IsAdmin(user.Role) {
+	// Check if user can view admin panel (admin or editor)
+	if !models.CanViewAdminPanel(user.Role) {
 		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
@@ -225,7 +225,7 @@ func (c *Categories) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 }
 
 // requireAdminOrRedirect checks that the request is authenticated and from an admin
-// user. On failure it writes the appropriate HTTP response and returns (nil, false).
+// or editor user. On failure it writes the appropriate HTTP response and returns (nil, false).
 func requireAdminOrRedirect(w http.ResponseWriter, r *http.Request, ss *models.SessionService, ajax bool) (*models.User, bool) {
 	user, err := utils.IsUserLoggedIn(r, ss)
 	if err != nil || user == nil {
@@ -236,7 +236,7 @@ func requireAdminOrRedirect(w http.ResponseWriter, r *http.Request, ss *models.S
 		}
 		return nil, false
 	}
-	if !models.IsAdmin(user.Role) {
+	if !models.CanViewAdminPanel(user.Role) {
 		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return nil, false
 	}

@@ -63,6 +63,7 @@ type UserPermissions struct {
 	CanComment          bool
 	CanViewUnpublished  bool
 	CanEditPosts        bool
+	CanEditSlides       bool
 	CanManageAllPosts   bool
 	CanManageUsers      bool
 	CanViewAdmin        bool
@@ -76,6 +77,7 @@ func GetPermissions(roleID int) UserPermissions {
 			CanComment:          true,
 			CanViewUnpublished:  false,
 			CanEditPosts:        false,
+			CanEditSlides:       false,
 			CanManageAllPosts:   false,
 			CanManageUsers:      false,
 			CanViewAdmin:        false,
@@ -85,6 +87,7 @@ func GetPermissions(roleID int) UserPermissions {
 			CanComment:          true,
 			CanViewUnpublished:  true,
 			CanEditPosts:        true,
+			CanEditSlides:       true,
 			CanManageAllPosts:   true,
 			CanManageUsers:      true,
 			CanViewAdmin:        true,
@@ -94,15 +97,17 @@ func GetPermissions(roleID int) UserPermissions {
 			CanComment:          true,
 			CanViewUnpublished:  true,
 			CanEditPosts:        true,
+			CanEditSlides:       true,
 			CanManageAllPosts:   false,
 			CanManageUsers:      false,
-			CanViewAdmin:        false,
+			CanViewAdmin:        true,
 		}
 	case RoleViewer:
 		return UserPermissions{
 			CanComment:          true,
 			CanViewUnpublished:  true,
 			CanEditPosts:        false,
+			CanEditSlides:       false,
 			CanManageAllPosts:   false,
 			CanManageUsers:      false,
 			CanViewAdmin:        false,
@@ -122,6 +127,18 @@ func IsAdmin(roleID int) bool {
 func CanEditPosts(roleID int) bool {
 	permissions := GetPermissions(roleID)
 	return permissions.CanEditPosts
+}
+
+// CanEditSlides checks if a role can edit slides
+func CanEditSlides(roleID int) bool {
+	permissions := GetPermissions(roleID)
+	return permissions.CanEditSlides
+}
+
+// CanViewAdmin checks if a role can view the admin panel
+func CanViewAdminPanel(roleID int) bool {
+	permissions := GetPermissions(roleID)
+	return permissions.CanViewAdmin
 }
 
 // CanViewUnpublished checks if a role can view unpublished posts

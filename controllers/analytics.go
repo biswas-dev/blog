@@ -25,14 +25,14 @@ type Analytics struct {
 	}
 }
 
-// requireAdmin checks session and admin role; returns false and writes error if not admin.
+// requireAdmin checks session and admin/editor role; returns false and writes error if not authorized.
 func (a *Analytics) requireAdmin(w http.ResponseWriter, r *http.Request) (*models.User, bool) {
 	user, err := utils.IsUserLoggedIn(r, a.SessionService)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return nil, false
 	}
-	if !models.IsAdmin(user.Role) {
+	if !models.CanViewAdminPanel(user.Role) {
 		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return nil, false
 	}
@@ -46,7 +46,7 @@ func (a *Analytics) Dashboard(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/signin", http.StatusFound)
 		return
 	}
-	if !models.IsAdmin(user.Role) {
+	if !models.CanViewAdminPanel(user.Role) {
 		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
@@ -73,7 +73,7 @@ func (a *Analytics) Dashboard(w http.ResponseWriter, r *http.Request) {
 		Email:           user.Email,
 		LoggedIn:        true,
 		Username:        user.Username,
-		IsAdmin:         true,
+		IsAdmin:         models.IsAdmin(user.Role),
 		SignupDisabled:  true,
 		Description:     "Analytics - Anshuman Biswas Blog",
 		CurrentPage:     "admin-analytics",

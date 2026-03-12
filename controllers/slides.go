@@ -33,7 +33,7 @@ func (s Slides) AdminSlides(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !models.IsAdmin(user.Role) {
+	if !models.CanEditSlides(user.Role) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -53,23 +53,25 @@ func (s Slides) AdminSlides(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		LoggedIn       bool
-		Username       string
-		IsAdmin        bool
-		SignupDisabled bool
-		Description    string
-		CurrentPage    string
-		Slides         *models.SlidesList
-		Categories     []models.Category
+		LoggedIn        bool
+		Username        string
+		IsAdmin         bool
+		SignupDisabled  bool
+		Description     string
+		CurrentPage     string
+		Slides          *models.SlidesList
+		Categories      []models.Category
+		UserPermissions models.UserPermissions
 	}{
-		LoggedIn:       true,
-		Username:       user.Username,
-		IsAdmin:        models.IsAdmin(user.Role),
-		SignupDisabled: true,
-		Description:    "Manage Slides - Anshuman Biswas Blog",
-		CurrentPage:    "admin-slides",
-		Slides:         slides,
-		Categories:     categories,
+		LoggedIn:        true,
+		Username:        user.Username,
+		IsAdmin:         models.IsAdmin(user.Role),
+		SignupDisabled:  true,
+		Description:     "Manage Slides - Anshuman Biswas Blog",
+		CurrentPage:     "admin-slides",
+		Slides:          slides,
+		Categories:      categories,
+		UserPermissions: models.GetPermissions(user.Role),
 	}
 
 	s.Templates.AdminSlides.Execute(w, r, data)
@@ -83,7 +85,7 @@ func (s Slides) NewSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !models.IsAdmin(user.Role) {
+	if !models.CanEditSlides(user.Role) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -96,25 +98,27 @@ func (s Slides) NewSlide(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		LoggedIn       bool
-		Username       string
-		IsAdmin        bool
-		SignupDisabled bool
-		Description    string
-		CurrentPage    string
-		Categories     []models.Category
-		Slide          *models.Slide
-		IsEdit         bool
+		LoggedIn        bool
+		Username        string
+		IsAdmin         bool
+		SignupDisabled  bool
+		Description     string
+		CurrentPage     string
+		Categories      []models.Category
+		Slide           *models.Slide
+		IsEdit          bool
+		UserPermissions models.UserPermissions
 	}{
-		LoggedIn:       true,
-		Username:       user.Username,
-		IsAdmin:        models.IsAdmin(user.Role),
-		SignupDisabled: true,
-		Description:    "Create New Slide - Anshuman Biswas Blog",
-		CurrentPage:    "admin-slides",
-		Categories:     categories,
-		Slide:         &models.Slide{},
-		IsEdit:        false,
+		LoggedIn:        true,
+		Username:        user.Username,
+		IsAdmin:         models.IsAdmin(user.Role),
+		SignupDisabled:  true,
+		Description:     "Create New Slide - Anshuman Biswas Blog",
+		CurrentPage:     "admin-slides",
+		Categories:      categories,
+		Slide:           &models.Slide{},
+		IsEdit:          false,
+		UserPermissions: models.GetPermissions(user.Role),
 	}
 
 	s.Templates.SlideEditor.Execute(w, r, data)
@@ -128,7 +132,7 @@ func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !models.IsAdmin(user.Role) {
+	if !models.CanEditSlides(user.Role) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -180,7 +184,7 @@ func (s Slides) EditSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !models.IsAdmin(user.Role) {
+	if !models.CanEditSlides(user.Role) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -207,25 +211,27 @@ func (s Slides) EditSlide(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		LoggedIn       bool
-		Username       string
-		IsAdmin        bool
-		SignupDisabled bool
-		Description    string
-		CurrentPage    string
-		Categories     []models.Category
-		Slide          *models.Slide
-		IsEdit         bool
+		LoggedIn        bool
+		Username        string
+		IsAdmin         bool
+		SignupDisabled  bool
+		Description     string
+		CurrentPage     string
+		Categories      []models.Category
+		Slide           *models.Slide
+		IsEdit          bool
+		UserPermissions models.UserPermissions
 	}{
-		LoggedIn:       true,
-		Username:       user.Username,
-		IsAdmin:        models.IsAdmin(user.Role),
-		SignupDisabled: true,
-		Description:    "Edit Slide - Anshuman Biswas Blog",
-		CurrentPage:    "admin-slides",
-		Categories:     categories,
-		Slide:          slide,
-		IsEdit:         true,
+		LoggedIn:        true,
+		Username:        user.Username,
+		IsAdmin:         models.IsAdmin(user.Role),
+		SignupDisabled:  true,
+		Description:     "Edit Slide - Anshuman Biswas Blog",
+		CurrentPage:     "admin-slides",
+		Categories:      categories,
+		Slide:           slide,
+		IsEdit:          true,
+		UserPermissions: models.GetPermissions(user.Role),
 	}
 
 	s.Templates.SlideEditor.Execute(w, r, data)
@@ -239,7 +245,7 @@ func (s Slides) UpdateSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !models.IsAdmin(user.Role) {
+	if !models.CanEditSlides(user.Role) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -298,7 +304,7 @@ func (s Slides) DeleteSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !models.IsAdmin(user.Role) {
+	if !models.CanEditSlides(user.Role) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -336,22 +342,29 @@ func (s Slides) PublicSlidesList(w http.ResponseWriter, r *http.Request) {
 		slides.Slides[i].RelativeTime = utils.FormatRelativeTime(slides.Slides[i].CreatedAt)
 	}
 
+	userPerms := models.GetPermissions(models.RoleCommenter)
+	if user != nil {
+		userPerms = models.GetPermissions(user.Role)
+	}
+
 	data := struct {
-		LoggedIn       bool
-		Username       string
-		IsAdmin        bool
-		SignupDisabled bool
-		Description    string
-		CurrentPage    string
-		Slides         *models.SlidesList
+		LoggedIn        bool
+		Username        string
+		IsAdmin         bool
+		SignupDisabled  bool
+		Description     string
+		CurrentPage     string
+		Slides          *models.SlidesList
+		UserPermissions models.UserPermissions
 	}{
-		LoggedIn:       user != nil,
-		Username:       getUsername(user),
-		IsAdmin:        user != nil && models.IsAdmin(user.Role),
-		SignupDisabled: true, // Default for public pages
-		Description:    "Interactive presentations and talks - Anshuman Biswas Blog",
-		CurrentPage:    "slides",
-		Slides:         slides,
+		LoggedIn:        user != nil,
+		Username:        getUsername(user),
+		IsAdmin:         user != nil && models.IsAdmin(user.Role),
+		SignupDisabled:  true, // Default for public pages
+		Description:     "Interactive presentations and talks - Anshuman Biswas Blog",
+		CurrentPage:     "slides",
+		Slides:          slides,
+		UserPermissions: userPerms,
 	}
 
 	s.Templates.SlidesList.Execute(w, r, data)
@@ -369,28 +382,35 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if slide is published (unless user is admin)
-	if !slide.IsPublished && (user == nil || !models.IsAdmin(user.Role)) {
+	// Check if slide is published (unless user can edit slides)
+	if !slide.IsPublished && (user == nil || !models.CanEditSlides(user.Role)) {
 		http.Error(w, "Slide not found", http.StatusNotFound)
 		return
 	}
 
+	userPerms := models.GetPermissions(models.RoleCommenter)
+	if user != nil {
+		userPerms = models.GetPermissions(user.Role)
+	}
+
 	data := struct {
-		LoggedIn       bool
-		Username       string
-		IsAdmin        bool
-		SignupDisabled bool
-		Description    string
-		CurrentPage    string
-		Slide          *models.Slide
+		LoggedIn        bool
+		Username        string
+		IsAdmin         bool
+		SignupDisabled  bool
+		Description     string
+		CurrentPage     string
+		Slide           *models.Slide
+		UserPermissions models.UserPermissions
 	}{
-		LoggedIn:       user != nil,
-		Username:       getUsername(user),
-		IsAdmin:        user != nil && models.IsAdmin(user.Role),
-		SignupDisabled: true, // Default for public pages
-		Description:    slide.Title + " - Interactive presentation - Anshuman Biswas Blog",
-		CurrentPage:    "slides",
-		Slide:          slide,
+		LoggedIn:        user != nil,
+		Username:        getUsername(user),
+		IsAdmin:         user != nil && models.IsAdmin(user.Role),
+		SignupDisabled:  true, // Default for public pages
+		Description:     slide.Title + " - Interactive presentation - Anshuman Biswas Blog",
+		CurrentPage:     "slides",
+		Slide:           slide,
+		UserPermissions: userPerms,
 	}
 
 	s.Templates.SlidePresentation.Execute(w, r, data)
@@ -404,7 +424,7 @@ func (s Slides) PreviewSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !models.IsAdmin(user.Role) {
+	if !models.CanEditSlides(user.Role) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

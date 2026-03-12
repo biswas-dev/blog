@@ -152,6 +152,12 @@ func main() {
 	// Page view tracking middleware (records after response, zero latency)
 	r.Use(authmw.TrackingMiddleware(analyticsService, &sessionService))
 
+	// Version endpoint (no auth required — for build verification)
+	r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(version.Info())
+	})
+
 	r.Get("/about", controllers.StaticHandler(
 		views.Must(views.ParseFS(templates.FS, "about.gohtml", "tailwind.gohtml")), &sessionService))
 
