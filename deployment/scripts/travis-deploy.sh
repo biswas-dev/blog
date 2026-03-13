@@ -1,6 +1,9 @@
 #!/bin/bash
 # Travis CI deployment script for Blog (anshumanbiswas.com)
 # Usage: bash deployment/scripts/travis-deploy.sh <environment>
+#
+# Staging: deploys the digest from the build stage
+# UAT/Production: promotes the previous environment's digest, then deploys
 
 set -euo pipefail
 
@@ -18,6 +21,7 @@ case "$ENV" in
     APP_URL="https://staging.anshumanbiswas.com"
     ENCRYPTION_KEY_VAR="STAGING_ENCRYPTION_KEY"
     DD_PROFILING="true"
+    PROMOTE_FROM=""
     ;;
   uat)
     SSH_KEY_VAR="UAT_SSH_KEY_BASE64"
@@ -30,6 +34,7 @@ case "$ENV" in
     APP_URL="https://uat.anshumanbiswas.com"
     ENCRYPTION_KEY_VAR="UAT_ENCRYPTION_KEY"
     DD_PROFILING="false"
+    PROMOTE_FROM="staging"
     ;;
   production)
     SSH_KEY_VAR="PRODUCTION_SSH_KEY_BASE64"
@@ -42,6 +47,7 @@ case "$ENV" in
     APP_URL="https://anshumanbiswas.com"
     ENCRYPTION_KEY_VAR="PRODUCTION_ENCRYPTION_KEY"
     DD_PROFILING="true"
+    PROMOTE_FROM="uat"
     ;;
   *)
     echo "ERROR: Unknown environment: $ENV"
@@ -56,10 +62,33 @@ GIT_COMMIT=$(git rev-parse HEAD)
 BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
 
+# Determine image digest
+if [ -n "$PROMOTE_FROM" ]; then
+  # UAT/Production: promote from previous environment
+  echo "=== Promoting blog image: $PROMOTE_FROM -> $ENV ==="
+  IMAGE_DIGEST=$(bash deployment/scripts/harbor-promote.sh biswas blog "$PROMOTE_FROM" "$ENV")
+else
+  # Staging: use digest from build stage (shared via Travis workspace)
+  if [ -f .image-digest.txt ]; then
+    IMAGE_DIGEST=$(cat .image-digest.txt)
+  else
+    # Fallback: look up staging-latest from Harbor API
+    IMAGE_DIGEST=$(curl -sf -u "$HARBOR_USERNAME:$HARBOR_PASSWORD" \
+      "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3Dstaging-latest" \
+      | jq -r '.[0].digest')
+  fi
+fi
+
+if [ -z "$IMAGE_DIGEST" ] || [ "$IMAGE_DIGEST" = "null" ]; then
+  echo "ERROR: Could not determine image digest for $ENV deployment"
+  exit 1
+fi
+
 echo "=== Blog Travis CI Deploy ==="
 echo "Environment: $ENV"
 echo "Server:      $SERVER_USER@$SERVER_IP"
 echo "Version:     $VERSION"
+echo "Digest:      $IMAGE_DIGEST"
 echo ""
 
 # SSH setup
@@ -93,8 +122,8 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
     git checkout $GIT_COMMIT
   fi
 
-  # Login to Docker Hub
-  echo '${DOCKERHUB_TOKEN}' | docker login -u '${DOCKERHUB_USERNAME}' --password-stdin || true
+  # Login to Harbor
+  echo '${HARBOR_PASSWORD}' | docker login harbor.biswas.me -u '${HARBOR_USERNAME}' --password-stdin || true
 
   # Ensure Docker volume exists
   docker volume inspect blog-postgres-data >/dev/null 2>&1 || docker volume create blog-postgres-data
@@ -129,6 +158,9 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
   export DD_PROFILING_ENABLED='$DD_PROFILING'
   export DD_AGENT_HOST='dd-agent'
 
+  # Image digest for docker-compose overlay
+  export IMAGE_DIGEST='$IMAGE_DIGEST'
+
   # Stop existing containers
   docker compose down --remove-orphans || true
   docker rm -f blog-postgres blog-app blog-dd-agent blog-otel-collector 2>/dev/null || true
@@ -140,8 +172,7 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
     docker image prune -f || true
   fi
 
-  # Pull pre-built images from Docker Hub
-  export IMAGE_TAG='$(git rev-parse --short HEAD)'
+  # Pull pre-built image from Harbor by digest
   docker compose -f docker-compose.yml -f docker-compose.hub.yml pull app
 
   # Final cleanup before start
