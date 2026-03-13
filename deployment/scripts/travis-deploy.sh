@@ -108,23 +108,21 @@ chmod 600 ~/.ssh/deploy_key
 ssh-keyscan "$SERVER_IP" >> ~/.ssh/known_hosts 2>/dev/null
 
 SSH_CMD="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_IP"
+SCP_CMD="scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
+
+# Create deploy directory and subdirectories on remote server
+$SSH_CMD "mkdir -p $DEPLOY_DIR/scripts $DEPLOY_DIR/migrations"
+
+# SCP compose files, otel config, nginx script, and migrations to the server
+$SCP_CMD docker-compose.yml docker-compose.hub.yml otel-config.yaml "$SERVER_USER@$SERVER_IP:$DEPLOY_DIR/"
+$SCP_CMD "$NGINX_SCRIPT" "$SERVER_USER@$SERVER_IP:$DEPLOY_DIR/$NGINX_SCRIPT"
+$SCP_CMD migrations/*.up.sql "$SERVER_USER@$SERVER_IP:$DEPLOY_DIR/migrations/" 2>/dev/null || true
 
 $SSH_CMD "bash -s" <<REMOTE_EOF
   set -e
-  ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null || true
 
-  mkdir -p $DEPLOY_DIR
   cd $DEPLOY_DIR
-
-  # Clone or pull latest code
-  if [ -d ".git" ]; then
-    git remote set-url origin git@github.com:anchoo2kewl/blog.git
-    git fetch origin
-    git reset --hard $GIT_COMMIT
-  else
-    git clone git@github.com:anchoo2kewl/blog.git .
-    git checkout $GIT_COMMIT
-  fi
+  rm -rf .git controllers models views templates middleware 2>/dev/null || true
 
   # Login to Harbor
   echo '${HARBOR_PASSWORD}' | docker login harbor.biswas.me -u '${HARBOR_USERNAME}' --password-stdin || true
