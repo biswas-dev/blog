@@ -5,7 +5,7 @@
 # Captures and persists the image digest for deploy-staging to consume
 #
 # Required Travis CI env vars:
-#   HARBOR_USERNAME, HARBOR_PASSWORD
+#   HARBOR_AUTH (base64-encoded "username:password" — avoids $ shell expansion)
 
 set -euo pipefail
 
@@ -16,6 +16,10 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
 TAG="git-${GIT_COMMIT}"
+
+# Decode Harbor credentials (base64 avoids Travis $ expansion issues)
+HARBOR_USERNAME=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
+HARBOR_PASSWORD=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
 
 echo "=== Building Blog Image ==="
 echo "Image:   $IMAGE_NAME"

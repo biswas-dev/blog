@@ -6,9 +6,15 @@
 # Finds the digest tagged as <source-env>-latest, adds <target-env>-latest tag.
 # Outputs the digest for use in deployment.
 #
-# Required env vars: HARBOR_USERNAME, HARBOR_PASSWORD
+# Required env vars: HARBOR_USERNAME, HARBOR_PASSWORD (or HARBOR_AUTH base64)
 
 set -euo pipefail
+
+# Decode Harbor credentials if using base64 format
+if [ -n "${HARBOR_AUTH:-}" ]; then
+  HARBOR_USERNAME=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
+  HARBOR_PASSWORD=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
+fi
 
 PROJECT="${1:?Usage: harbor-promote.sh <project> <repo> <source-env> <target-env>}"
 REPO="$2"

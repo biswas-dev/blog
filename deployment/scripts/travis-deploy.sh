@@ -62,6 +62,10 @@ GIT_COMMIT=$(git rev-parse HEAD)
 BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
 
+# Decode Harbor credentials (base64 avoids Travis $ expansion issues)
+HARBOR_USERNAME=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
+HARBOR_PASSWORD=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
+
 # Determine image digest
 if [ -n "$PROMOTE_FROM" ]; then
   # UAT/Production: promote from previous environment
