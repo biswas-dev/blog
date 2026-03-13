@@ -152,6 +152,16 @@ func main() {
 	// Page view tracking middleware (records after response, zero latency)
 	r.Use(authmw.TrackingMiddleware(analyticsService, &sessionService))
 
+	// Health check endpoint (no auth required — for deployment verification)
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		if err := DB.Ping(); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("unhealthy"))
+			return
+		}
+		w.Write([]byte("ok"))
+	})
+
 	// Version endpoint (no auth required — for build verification)
 	r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
