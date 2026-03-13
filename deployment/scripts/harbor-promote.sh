@@ -37,7 +37,9 @@ fi
 
 echo "Found digest: $DIGEST" >&2
 
-# Tag for target environment
+# Tag for target environment (delete old tag first — immutable tags enabled)
+curl -sf -u "$HARBOR_USERNAME:$HARBOR_PASSWORD" \
+  -X DELETE "$HARBOR_URL/api/v2.0/projects/$PROJECT/repositories/$REPO/artifacts/${TARGET_ENV}-latest/tags/${TARGET_ENV}-latest" 2>/dev/null || true
 curl -sf -u "$HARBOR_USERNAME:$HARBOR_PASSWORD" \
   -X POST "$HARBOR_URL/api/v2.0/projects/$PROJECT/repositories/$REPO/artifacts/$DIGEST/tags" \
   -H "Content-Type: application/json" \

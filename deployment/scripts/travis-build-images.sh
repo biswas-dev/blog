@@ -59,7 +59,9 @@ fi
 echo ""
 echo "Digest: $DIGEST"
 
-# Tag as staging-latest via Harbor API
+# Tag as staging-latest via Harbor API (delete old tag first — immutable tags enabled)
+curl -sf -u "$HARBOR_USERNAME:$HARBOR_PASSWORD" \
+  -X DELETE "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts/staging-latest/tags/staging-latest" 2>/dev/null || true
 curl -sf -u "$HARBOR_USERNAME:$HARBOR_PASSWORD" \
   -X POST "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts/$DIGEST/tags" \
   -H "Content-Type: application/json" \
