@@ -771,15 +771,30 @@ func drawAuthMiddleware(ss *models.SessionService, next http.Handler) http.Handl
 			}
 		}
 
-		// For the list page, hide the "+ New Drawing" button for non-editors.
-		if path == "" || path == "/" {
-			canEdit := false
-			if user, err := utils.IsUserLoggedIn(r, ss); err == nil && user != nil {
-				canEdit = models.IsAdmin(user.Role) || models.CanEditPosts(user.Role)
+		// Check if the current user can edit drawings.
+		canEdit := false
+		if user, err := utils.IsUserLoggedIn(r, ss); err == nil && user != nil {
+			canEdit = models.IsAdmin(user.Role) || models.CanEditPosts(user.Role)
+		}
+
+		// For the list page, hide "+", "Edit", "Delete" buttons for non-editors.
+		if !canEdit && (path == "" || path == "/") {
+			w = &drawHideButtonsWriter{
+				ResponseWriter: w,
+				css:            `.new-btn,.btn-edit,.btn-del{display:none!important}`,
 			}
-			if !canEdit {
-				// Wrap the response to inject CSS hiding the new-drawing and edit buttons.
-				w = &drawListResponseWriter{ResponseWriter: w, hideButtons: true}
+		}
+
+		// For viewer pages (/draw/{id}), hide the "+" new-canvas button
+		// rendered by canvas.js inside the iframe.
+		if !canEdit && !writeOp && path != "" && path != "/" &&
+			!strings.HasPrefix(path, "static/") &&
+			!strings.HasPrefix(path, "uploads/") &&
+			!strings.HasPrefix(path, "api/") &&
+			!strings.HasSuffix(path, "/data") {
+			w = &drawHideButtonsWriter{
+				ResponseWriter: w,
+				css:            `#btn-new-canvas{display:none!important}`,
 			}
 		}
 
@@ -787,20 +802,19 @@ func drawAuthMiddleware(ss *models.SessionService, next http.Handler) http.Handl
 	})
 }
 
-// drawListResponseWriter wraps http.ResponseWriter to inject CSS that hides
-// the "+ New Drawing" and "Edit" buttons on the go-draw list page.
-type drawListResponseWriter struct {
+// drawHideButtonsWriter wraps http.ResponseWriter to inject a <style> tag
+// that hides specific buttons in go-draw HTML responses.
+type drawHideButtonsWriter struct {
 	http.ResponseWriter
-	hideButtons bool
-	injected    bool
+	css      string
+	injected bool
 }
 
-func (rw *drawListResponseWriter) Write(data []byte) (int, error) {
-	if rw.hideButtons && !rw.injected {
+func (rw *drawHideButtonsWriter) Write(data []byte) (int, error) {
+	if !rw.injected {
 		s := string(data)
 		if idx := strings.Index(s, "</head>"); idx != -1 {
-			inject := `<style>.new-btn,.btn-edit,.btn-del{display:none!important}</style>`
-			s = s[:idx] + inject + s[idx:]
+			s = s[:idx] + "<style>" + rw.css + "</style>" + s[idx:]
 			rw.injected = true
 			return rw.ResponseWriter.Write([]byte(s))
 		}
