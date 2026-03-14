@@ -664,7 +664,11 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not initialize go-draw")
 	}
-	r.Handle("/draw/*", drawHandler.Handler())
+
+	// Wrap go-draw handler with auth: only admin/editor can create, edit,
+	// save, delete, rename, or upload drawings. Everyone else gets read-only.
+	drawAuth := drawAuthMiddleware(&sessionService, drawHandler.Handler())
+	r.Handle("/draw/*", drawAuth)
 
 	// Define a custom 404 handler
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
@@ -722,6 +726,86 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// drawAuthMiddleware wraps the go-draw handler to enforce role-based access.
+// Write operations (create, edit, save, delete, rename, upload) require
+// admin or editor role. Read operations (view, data, static, list) are open
+// to everyone. The list page injects CSS to hide the "+ New Drawing" button
+// for users who are not admin/editor.
+func drawAuthMiddleware(ss *models.SessionService, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/draw")
+		path = strings.TrimPrefix(path, "/")
+
+		// Check if this is a write operation that requires editor/admin role.
+		writeOp := false
+		switch {
+		case path == "new":
+			writeOp = true
+		case path == "api/new":
+			writeOp = true
+		case path == "api/upload":
+			writeOp = true
+		case strings.HasSuffix(path, "/edit"):
+			writeOp = true
+		case strings.HasSuffix(path, "/save"):
+			writeOp = true
+		case strings.HasSuffix(path, "/delete"):
+			writeOp = true
+		case strings.Contains(path, "api/") && strings.HasSuffix(path, "/rename"):
+			writeOp = true
+		case strings.Contains(path, "api/") && strings.HasSuffix(path, "/delete"):
+			writeOp = true
+		}
+
+		if writeOp {
+			user, err := utils.IsUserLoggedIn(r, ss)
+			if err != nil || user == nil {
+				http.Error(w, "Unauthorized: sign in required", http.StatusUnauthorized)
+				return
+			}
+			if !models.IsAdmin(user.Role) && !models.CanEditPosts(user.Role) {
+				http.Error(w, "Forbidden: editor or admin role required", http.StatusForbidden)
+				return
+			}
+		}
+
+		// For the list page, hide the "+ New Drawing" button for non-editors.
+		if path == "" || path == "/" {
+			canEdit := false
+			if user, err := utils.IsUserLoggedIn(r, ss); err == nil && user != nil {
+				canEdit = models.IsAdmin(user.Role) || models.CanEditPosts(user.Role)
+			}
+			if !canEdit {
+				// Wrap the response to inject CSS hiding the new-drawing and edit buttons.
+				w = &drawListResponseWriter{ResponseWriter: w, hideButtons: true}
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// drawListResponseWriter wraps http.ResponseWriter to inject CSS that hides
+// the "+ New Drawing" and "Edit" buttons on the go-draw list page.
+type drawListResponseWriter struct {
+	http.ResponseWriter
+	hideButtons bool
+	injected    bool
+}
+
+func (rw *drawListResponseWriter) Write(data []byte) (int, error) {
+	if rw.hideButtons && !rw.injected {
+		s := string(data)
+		if idx := strings.Index(s, "</head>"); idx != -1 {
+			inject := `<style>.new-btn,.btn-edit,.btn-del{display:none!important}</style>`
+			s = s[:idx] + inject + s[idx:]
+			rw.injected = true
+			return rw.ResponseWriter.Write([]byte(s))
+		}
+	}
+	return rw.ResponseWriter.Write(data)
 }
 
 func getAllPosts(w http.ResponseWriter, r *http.Request) {
