@@ -614,6 +614,8 @@ func main() {
 		r.Get("/{postID}", getPostByID)
 		r.Post("/", createPost)
 		r.Post("/from-file", usersC.CreatePostFromFile)
+		r.Put("/{postID}", updatePost(&postService, postVersionService, &categoryService))
+		r.Delete("/{postID}", deletePost(&postService))
 	})
 
 	r.Route("/api/categories", func(r chi.Router) {
@@ -623,6 +625,34 @@ func main() {
 		r.Get("/{id}", categoriesC.GetCategory)
 		r.Put("/{id}", categoriesC.UpdateCategory)
 		r.Delete("/{id}", categoriesC.DeleteCategory)
+	})
+
+	r.Route("/api/slides", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listSlides(&slideService))
+		r.Get("/{slideID}", getSlide(&slideService))
+		r.Post("/", createSlide(&slideService))
+		r.Put("/{slideID}", updateSlide(&slideService))
+		r.Delete("/{slideID}", deleteSlide(&slideService))
+	})
+
+	// Wiki API
+	wikiPageService := &models.WikiPageService{DB: DB}
+	wikiC := controllers.Wiki{WikiPageService: wikiPageService}
+	r.Route("/api/wiki", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/pages", wikiC.ListPages)
+		r.Post("/pages", wikiC.CreatePage)
+		r.Get("/pages/{pageID}", wikiC.GetPage)
+		r.Put("/pages/{pageID}", wikiC.UpdatePage)
+		r.Delete("/pages/{pageID}", wikiC.DeletePage)
+		r.Get("/pages/{pageID}/content", wikiC.GetPageContent)
+		r.Put("/pages/{pageID}/content", wikiC.UpdatePageContent)
+		r.Get("/pages/{pageID}/versions", wikiC.ListVersions)
+		r.Get("/pages/{pageID}/versions/{versionNum}", wikiC.GetVersion)
+		r.Post("/pages/{pageID}/versions/{versionNum}/restore", wikiC.RestoreVersion)
+		r.Get("/search", wikiC.SearchPages)
+		r.Get("/autocomplete", wikiC.AutocompletePages)
 	})
 
 	// go-draw canvas editor — use /data/draw-data for persistent storage
@@ -831,6 +861,241 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, post, http.StatusCreated)
+}
+
+func updatePost(ps *models.PostService, pvs *models.PostVersionService, cs *models.CategoryService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		postIDStr := chi.URLParam(r, "postID")
+		postID, err := strconv.Atoi(postIDStr)
+		if err != nil {
+			http.Error(w, "Invalid post ID", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Title            string `json:"title"`
+			Content          string `json:"content"`
+			Slug             string `json:"slug"`
+			IsPublished      *bool  `json:"is_published"`
+			Featured         *bool  `json:"featured"`
+			FeaturedImageURL string `json:"featured_image_url"`
+			CategoryID       int    `json:"category_id"`
+			Categories       []int  `json:"categories"`
+			UserID           int    `json:"user_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			return
+		}
+
+		// Load existing post to fill in defaults for unset fields
+		existing, err := ps.GetByID(postID)
+		if err != nil {
+			http.Error(w, "Post not found", http.StatusNotFound)
+			return
+		}
+
+		title := req.Title
+		if title == "" {
+			title = existing.Title
+		}
+		content := req.Content
+		if content == "" {
+			content = existing.Content
+		}
+		slug := req.Slug
+		if slug == "" {
+			slug = existing.Slug
+		}
+		isPublished := existing.IsPublished
+		if req.IsPublished != nil {
+			isPublished = *req.IsPublished
+		}
+		featured := existing.Featured
+		if req.Featured != nil {
+			featured = *req.Featured
+		}
+		featuredImageURL := req.FeaturedImageURL
+		if featuredImageURL == "" {
+			featuredImageURL = existing.FeaturedImageURL
+		}
+		categoryID := req.CategoryID
+		if categoryID == 0 {
+			categoryID = existing.CategoryID
+		}
+
+		if err := ps.Update(postID, categoryID, title, content, isPublished, featured, featuredImageURL, slug); err != nil {
+			logger.Error().Err(err).Msg("error updating post")
+			http.Error(w, "Failed to update post", http.StatusInternalServerError)
+			return
+		}
+
+		// Create version snapshot
+		userID := req.UserID
+		if userID == 0 {
+			userID = existing.UserID
+		}
+		_ = pvs.MaybeCreateVersion(postID, userID, title, content)
+
+		// Update categories if provided
+		if len(req.Categories) > 0 {
+			_ = cs.AssignCategoriesToPost(postID, req.Categories)
+		}
+
+		updated, err := ps.GetByID(postID)
+		if err != nil {
+			http.Error(w, "Failed to fetch updated post", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, updated, http.StatusOK)
+	}
+}
+
+func deletePost(ps *models.PostService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		postIDStr := chi.URLParam(r, "postID")
+		postID, err := strconv.Atoi(postIDStr)
+		if err != nil {
+			http.Error(w, "Invalid post ID", http.StatusBadRequest)
+			return
+		}
+
+		if err := ps.Delete(postID); err != nil {
+			logger.Error().Err(err).Msg("error deleting post")
+			http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func listSlides(ss *models.SlideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slides, err := ss.GetAllSlides()
+		if err != nil {
+			http.Error(w, "Failed to fetch slides", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, slides, http.StatusOK)
+	}
+}
+
+func getSlide(ss *models.SlideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slideID, err := strconv.Atoi(chi.URLParam(r, "slideID"))
+		if err != nil {
+			http.Error(w, "Invalid slide ID", http.StatusBadRequest)
+			return
+		}
+		slide, err := ss.GetByID(slideID)
+		if err != nil {
+			http.Error(w, "Slide not found", http.StatusNotFound)
+			return
+		}
+		jsonResponse(w, slide, http.StatusOK)
+	}
+}
+
+func createSlide(ss *models.SlideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			UserID      int    `json:"user_id"`
+			Title       string `json:"title"`
+			Slug        string `json:"slug"`
+			Content     string `json:"content"`
+			IsPublished bool   `json:"is_published"`
+			Categories  []int  `json:"categories"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			return
+		}
+		if req.Title == "" {
+			http.Error(w, "Title is required", http.StatusBadRequest)
+			return
+		}
+		slide, err := ss.Create(req.UserID, req.Title, req.Slug, req.Content, req.IsPublished, req.Categories)
+		if err != nil {
+			logger.Error().Err(err).Msg("error creating slide")
+			http.Error(w, "Failed to create slide", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, slide, http.StatusCreated)
+	}
+}
+
+func updateSlide(ss *models.SlideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slideID, err := strconv.Atoi(chi.URLParam(r, "slideID"))
+		if err != nil {
+			http.Error(w, "Invalid slide ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Title       string `json:"title"`
+			Slug        string `json:"slug"`
+			Content     string `json:"content"`
+			IsPublished *bool  `json:"is_published"`
+			Categories  []int  `json:"categories"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			return
+		}
+
+		// Load existing to fill defaults
+		existing, err := ss.GetByID(slideID)
+		if err != nil {
+			http.Error(w, "Slide not found", http.StatusNotFound)
+			return
+		}
+		title := req.Title
+		if title == "" {
+			title = existing.Title
+		}
+		slug := req.Slug
+		if slug == "" {
+			slug = existing.Slug
+		}
+		content := req.Content
+		if content == "" {
+			content = string(existing.ContentHTML)
+		}
+		isPublished := existing.IsPublished
+		if req.IsPublished != nil {
+			isPublished = *req.IsPublished
+		}
+
+		if err := ss.Update(slideID, title, slug, content, isPublished, req.Categories); err != nil {
+			logger.Error().Err(err).Msg("error updating slide")
+			http.Error(w, "Failed to update slide", http.StatusInternalServerError)
+			return
+		}
+
+		updated, err := ss.GetByID(slideID)
+		if err != nil {
+			http.Error(w, "Failed to fetch updated slide", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, updated, http.StatusOK)
+	}
+}
+
+func deleteSlide(ss *models.SlideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slideID, err := strconv.Atoi(chi.URLParam(r, "slideID"))
+		if err != nil {
+			http.Error(w, "Invalid slide ID", http.StatusBadRequest)
+			return
+		}
+		if err := ss.Delete(slideID); err != nil {
+			logger.Error().Err(err).Msg("error deleting slide")
+			http.Error(w, "Failed to delete slide", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 // jsonResponse sends a JSON response with the given data and status code.
