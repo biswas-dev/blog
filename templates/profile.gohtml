@@ -8,9 +8,7 @@
 
     {{if .Message}}
     <div class="message-alert success">
-        <svg class="alert-icon" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-        </svg>
+        {{icon "check-circle" "alert-icon"}}
         <span>{{.Message}}</span>
     </div>
     {{end}}
@@ -39,9 +37,7 @@
                 <div class="info-item">
                     <label>Role</label>
                     <span class="info-value admin-badge">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 0L15.09 8.26L24 9L17 14.74L19.18 24L12 19.77L4.82 24L7 14.74L0 9L8.91 8.26L12 0Z"/>
-                        </svg>
+                        {{icon "star-filled" "w-3 h-3"}}
                         Administrator
                     </span>
                 </div>

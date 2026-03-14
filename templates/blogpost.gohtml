@@ -36,23 +36,17 @@
         <!-- Meta Information -->
         <div class="flex flex-wrap items-center gap-6 text-gray-600 dark:text-gray-400 pb-8 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
+                {{icon "calendar" "w-5 h-5"}}
                 <time datetime="{{.Post.CreatedAt}}">{{.Post.PublicationDate}}</time>
             </div>
             
             <div class="flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+                {{icon "clock" "w-5 h-5"}}
                 <span>{{if .ReadTime}}{{.ReadTime}}{{else}}5{{end}} min read</span>
             </div>
             
             <div class="flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                </svg>
+                {{icon "user" "w-5 h-5"}}
                 <a href="/users/{{.Post.Username}}" class="hover:underline">{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}</a>
             </div>
             {{if .Contributors}}
@@ -66,9 +60,7 @@
             {{if .Post.LastEditDate}}
                 {{if ne .Post.PublicationDate .Post.LastEditDate}}
                 <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                    </svg>
+                    {{icon "edit" "w-5 h-5"}}
                     <span>Updated {{.Post.LastEditDate}}</span>
                 </div>
                 {{end}}
@@ -77,9 +69,7 @@
             {{if .UserPermissions.CanEditPosts}}
             <div class="flex items-center gap-2 ml-auto">
                 <a href="/admin/posts/{{.Post.ID}}/edit" class="text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                    </svg>
+                    {{icon "edit" "w-4 h-4"}}
                     Edit
                 </a>
             </div>
@@ -98,9 +88,7 @@
         <!-- Native share (mobile) / hidden on desktop -->
         <button id="top-share-native" aria-label="Share"
           class="share-icon-btn" style="display:none;">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
-          </svg>
+          {{icon "share" "w-5 h-5"}}
         </button>
         <a id="top-share-x" href="#" target="_blank" rel="noopener noreferrer" aria-label="Share on X" class="share-icon-btn">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
@@ -109,7 +97,7 @@
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         </a>
         <button id="top-share-copy" aria-label="Copy link" class="share-icon-btn">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+          {{icon "link" "w-5 h-5"}}
         </button>
       </div>
     </div>
@@ -135,7 +123,7 @@
                 LinkedIn
             </a>
             <button id="share-copy" class="share-btn">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                {{icon "clipboard-copy" "w-4 h-4"}}
                 Copy Link
             </button>
         </div>
@@ -176,7 +164,7 @@
     <!-- Annotations Section -->
     <div id="annotation-bar" class="mt-6 flex items-center gap-3">
       <button id="toggle-annotations" class="btn btn-secondary text-sm flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+        {{icon "chat" "w-4 h-4"}}
         <span id="toggle-annotations-label">Show Annotations</span>
       </button>
       <span id="annotation-count" class="text-xs text-gray-500"></span>
@@ -200,9 +188,7 @@
         <div class="post-nav-inner">
             {{if .PrevPost}}
             <a href="/blog/{{.PrevPost.Slug}}" class="post-nav-link post-nav-prev">
-                <svg class="post-nav-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
+                {{icon "chevron-left" "post-nav-arrow"}}
                 <div>
                     <div class="post-nav-label">Previous</div>
                     <div class="post-nav-title">{{if gt (len .PrevPost.Title) 50}}{{slice .PrevPost.Title 0 50}}...{{else}}{{.PrevPost.Title}}{{end}}</div>
@@ -215,9 +201,7 @@
                     <div class="post-nav-label">Next</div>
                     <div class="post-nav-title">{{if gt (len .NextPost.Title) 50}}{{slice .NextPost.Title 0 50}}...{{else}}{{.NextPost.Title}}{{end}}</div>
                 </div>
-                <svg class="post-nav-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
+                {{icon "chevron-right" "post-nav-arrow"}}
             </a>
             {{else}}<div></div>{{end}}
         </div>
@@ -231,9 +215,7 @@
     class="back-to-top"
     aria-label="Back to top"
 >
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-    </svg>
+    {{icon "arrow-up" "w-5 h-5"}}
 </button>
 
 <!-- Syntax Highlighting -->
@@ -500,7 +482,7 @@
         if (copyEl) copyEl.addEventListener('click', function() {
             navigator.clipboard.writeText(pageURL);
             const origHTML = this.innerHTML;
-            this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+            this.innerHTML = '{{icon "check" "w-4 h-4"}}';
             setTimeout(() => { this.innerHTML = origHTML; }, 2000);
         });
         if (nativeEl) {
