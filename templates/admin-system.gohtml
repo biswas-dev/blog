@@ -423,7 +423,7 @@
                 <p>Application and infrastructure dashboard</p>
             </div>
             <a href="/admin/posts" class="sys-back-btn">
-                {{icon "chevron-left" ""}}
+                {{icon "chevron-left" "w-4 h-4"}}
                 Back to Posts
             </a>
         </div>
@@ -444,7 +444,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-teal">
-                        {{icon "server" ""}}
+                        {{icon "server" "w-4 h-4"}}
                     </div>
                     <h3>Application</h3>
                 </div>
@@ -476,7 +476,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-green">
-                        {{icon "database" ""}}
+                        {{icon "database" "w-4 h-4"}}
                     </div>
                     <h3>Database</h3>
                 </div>
@@ -526,7 +526,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-amber">
-                        {{icon "question-circle" ""}}
+                        {{icon "question-circle" "w-4 h-4"}}
                     </div>
                     <h3>Environment</h3>
                 </div>
@@ -550,7 +550,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-blue">
-                        {{icon "archive" ""}}
+                        {{icon "archive" "w-4 h-4"}}
                     </div>
                     <h3>Deployment</h3>
                 </div>
@@ -576,7 +576,7 @@
             <div class="sys-section-header">
                 <div class="sys-section-header-left">
                     <div class="sys-icon sys-icon-red">
-                        {{icon "check-sm" ""}}
+                        {{icon "check-sm" "w-4 h-4"}}
                     </div>
                     <div>
                         <h3>Database Backup & Restore</h3>
@@ -591,7 +591,7 @@
                         <h4 style="font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">Export Database</h4>
                         <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 12px;">Download a complete SQL dump.</p>
                         <button onclick="exportDatabase()" id="export-btn" class="sys-btn-primary">
-                            {{icon "arrow-up" ""}}
+                            {{icon "arrow-up" "w-4 h-4"}}
                             <svg id="export-spinner" class="hidden animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -611,7 +611,7 @@
                                    accept=".sql"
                                    style="font-size: 0.8125rem; color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; background: var(--bg-tertiary);">
                             <button type="submit" id="import-btn" class="sys-btn-danger">
-                                {{icon "arrow-up" ""}}
+                                {{icon "arrow-up" "w-4 h-4"}}
                                 <svg id="import-spinner" class="hidden animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -632,7 +632,7 @@
             <div class="sys-section-header">
                 <div class="sys-section-header-left">
                     <div class="sys-icon sys-icon-teal">
-                        {{icon "users" ""}}
+                        {{icon "users" "w-4 h-4"}}
                     </div>
                     <div>
                         <h3>External Blog Systems</h3>
@@ -640,7 +640,7 @@
                     </div>
                 </div>
                 <button onclick="openAddSystemModal()" class="sys-btn-primary">
-                    {{icon "plus" ""}}
+                    {{icon "plus" "w-4 h-4"}}
                     Add System
                 </button>
             </div>
@@ -659,7 +659,7 @@
             <div class="sys-section-header">
                 <div class="sys-section-header-left">
                     <div class="sys-icon sys-icon-teal">
-                        {{icon "cloud" ""}}
+                        {{icon "cloud" "w-4 h-4"}}
                     </div>
                     <div>
                         <h3>Cloudinary Image Storage</h3>
@@ -667,7 +667,7 @@
                     </div>
                 </div>
                 <button onclick="openCloudinaryModal()" class="sys-btn-outline">
-                    {{icon "settings" ""}}
+                    {{icon "settings" "w-4 h-4"}}
                     Configure
                 </button>
             </div>
@@ -681,7 +681,7 @@
             <div class="sys-section-header">
                 <div class="sys-section-header-left">
                     <div class="sys-icon sys-icon-blue">
-                        {{icon "email" ""}}
+                        {{icon "email" "w-4 h-4"}}
                     </div>
                     <div>
                         <h3>Brevo Email Service</h3>
@@ -689,7 +689,7 @@
                     </div>
                 </div>
                 <button onclick="openBrevoModal()" class="sys-btn-outline">
-                    {{icon "settings" ""}}
+                    {{icon "settings" "w-4 h-4"}}
                     Configure
                 </button>
             </div>

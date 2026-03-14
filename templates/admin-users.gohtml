@@ -226,12 +226,12 @@
         <div class="sys-card-header" style="justify-content:space-between;">
             <div style="display:flex;align-items:center;gap:12px;">
                 <div class="sys-icon sys-icon-blue">
-                    {{icon "users" ""}}
+                    {{icon "users" "w-4 h-4"}}
                 </div>
                 <h3>All Users</h3>
             </div>
             <button class="btn-primary" onclick="showCreateUserModal()" style="display:inline-flex;align-items:center;gap:6px;font-size:0.8125rem;padding:6px 14px;">
-                {{icon "plus" ""}}
+                {{icon "plus" "w-4 h-4"}}
                 Add User
             </button>
         </div>
@@ -274,11 +274,11 @@
                         <td>
                             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                                 <button class="action-btn" onclick="showEditUserModal({{.UserID}},'{{.Username}}','{{.FullName}}','{{.Email}}',{{.Role}})">
-                                    {{icon "edit" ""}}
+                                    {{icon "edit" "w-4 h-4"}}
                                     Edit
                                 </button>
                                 <button class="action-btn" onclick="showActivity({{.UserID}},'{{.Username}}')">
-                                    {{icon "clipboard" ""}}
+                                    {{icon "clipboard" "w-4 h-4"}}
                                     Logins
                                 </button>
                             </div>

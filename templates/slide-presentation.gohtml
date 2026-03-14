@@ -313,17 +313,17 @@
         {{if .LoggedIn}}
             {{if .UserPermissions.CanEditSlides}}
                 <a href="/admin/slides/{{.Slide.ID}}/edit" class="nav-btn" title="Edit Slide">
-                    {{icon "edit" ""}}
+                    {{icon "edit" "w-4 h-4"}}
                     Edit
                 </a>
             {{end}}
         {{end}}
         <a href="/slides" class="nav-btn" title="Back to Slides">
-            {{icon "chevron-left" ""}}
+            {{icon "chevron-left" "w-4 h-4"}}
             Back
         </a>
         <button id="fullscreen-btn" class="nav-btn" title="Toggle Fullscreen">
-            {{icon "fullscreen" ""}}
+            {{icon "fullscreen" "w-4 h-4"}}
             Fullscreen
         </button>
     </div>

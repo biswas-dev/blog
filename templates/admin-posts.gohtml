@@ -114,13 +114,13 @@
             <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex-wrap">
                 <!-- Search — inline styles to guarantee icon alignment regardless of global CSS -->
                 <div style="position:relative;flex:1;min-width:160px;">
-                    {{icon "search" ""}}
+                    {{icon "search" "w-4 h-4"}}
                     <input id="searchInput" type="search" placeholder="Search by title, slug, author…" style="width:100%;padding:0.45rem 0.75rem 0.45rem 2rem;font-size:0.875rem;" class="rounded-lg bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                 </div>
                 <!-- Column visibility picker -->
                 <div style="position:relative;" id="colPickerWrapper">
                     <button onclick="toggleColPicker()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors" style="border:1px solid #e5e7eb !important; white-space:nowrap;">
-                        {{icon "columns" ""}}
+                        {{icon "columns" "w-4 h-4"}}
                         Columns
                     </button>
                     <div id="colPickerMenu" class="hidden" style="position:absolute;right:0;top:calc(100% + 0.5rem);z-index:30;background:white;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:0.75rem;min-width:160px;">
@@ -134,7 +134,7 @@
                 </div>
                 <!-- Bulk delete (hidden until selection) -->
                 <button id="bulkDeleteBtn" class="hidden items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors" onclick="confirmBulkDelete()" style="border:none !important; white-space:nowrap;">
-                    {{icon "trash" ""}}
+                    {{icon "trash" "w-4 h-4"}}
                     Delete selected
                 </button>
             </div>
@@ -171,7 +171,7 @@
                                 {{range .Contributors}}
                                     {{if ne .UserID $authorID}}
                                     <div class="inline-flex items-center gap-1 mt-1 text-xs text-indigo-600 dark:text-indigo-400">
-                                        {{icon "edit" ""}}
+                                        {{icon "edit" "w-3 h-3"}}
                                         {{.FullName}}
                                     </div>
                                     {{end}}
