@@ -296,7 +296,7 @@ func (s Slides) UpdateSlide(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/admin/slides/%d/edit", slideID), http.StatusFound)
 }
 
-// DeleteSlide handles slide deletion
+// DeleteSlide handles slide deletion (admin-only)
 func (s Slides) DeleteSlide(w http.ResponseWriter, r *http.Request) {
 	user, err := s.isUserLoggedIn(r)
 	if err != nil {
@@ -304,7 +304,7 @@ func (s Slides) DeleteSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !models.CanEditSlides(user.Role) {
+	if !models.IsAdmin(user.Role) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

@@ -83,6 +83,40 @@ func (pv *PostVersions) HandleGetVersion(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// HandleDeleteVersion DELETE /api/posts/{postID}/versions/{versionNum}
+func (pv *PostVersions) HandleDeleteVersion(w http.ResponseWriter, r *http.Request) {
+	user, err := utils.IsUserLoggedIn(r, pv.SessionService)
+	if err != nil || user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	postID, err := strconv.Atoi(chi.URLParam(r, "postID"))
+	if err != nil {
+		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+		return
+	}
+	versionNum, err := strconv.Atoi(chi.URLParam(r, "versionNum"))
+	if err != nil {
+		http.Error(w, "Invalid version number", http.StatusBadRequest)
+		return
+	}
+
+	if err := pv.PostVersionService.DeleteVersion(postID, versionNum); err != nil {
+		http.Error(w, "Version not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "deleted"}); err != nil {
+		log.Printf("delete version encode: %v", err)
+	}
+}
+
 // HandleRestoreVersion POST /api/posts/{postID}/versions/{versionNum}/restore
 func (pv *PostVersions) HandleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	user, ok := pv.requireEditor(w, r)

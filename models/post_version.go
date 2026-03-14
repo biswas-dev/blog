@@ -147,6 +147,19 @@ func (pvs *PostVersionService) GetVersion(postID, versionNumber int) (*PostVersi
 	return &v, nil
 }
 
+// DeleteVersion deletes a specific version of a post. Returns error if not found.
+func (pvs *PostVersionService) DeleteVersion(postID, versionNumber int) error {
+	result, err := pvs.DB.Exec(`DELETE FROM post_versions WHERE post_id = $1 AND version_number = $2`, postID, versionNumber)
+	if err != nil {
+		return fmt.Errorf("delete post version: %w", err)
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("version not found")
+	}
+	return nil
+}
+
 // GetContributors returns all users recorded in post_contributors for the given post.
 // Callers are responsible for filtering out the original author if desired.
 func (pvs *PostVersionService) GetContributors(postID int) ([]User, error) {

@@ -590,6 +590,7 @@ func main() {
 	r.Get("/api/posts/{postID}/versions", postVersionsC.HandleListVersions)
 	r.Get("/api/posts/{postID}/versions/{versionNum}", postVersionsC.HandleGetVersion)
 	r.Post("/api/posts/{postID}/versions/{versionNum}/restore", postVersionsC.HandleRestoreVersion)
+	r.Delete("/api/posts/{postID}/versions/{versionNum}", postVersionsC.HandleDeleteVersion)
 
 	// Public API for lazy loading posts
 	r.Get("/api/posts/load-more", usersC.LoadMorePosts)
@@ -651,6 +652,7 @@ func main() {
 		r.Get("/pages/{pageID}/versions", wikiC.ListVersions)
 		r.Get("/pages/{pageID}/versions/{versionNum}", wikiC.GetVersion)
 		r.Post("/pages/{pageID}/versions/{versionNum}/restore", wikiC.RestoreVersion)
+		r.Delete("/pages/{pageID}/versions/{versionNum}", wikiC.DeleteVersionHandler)
 		r.Get("/search", wikiC.SearchPages)
 		r.Get("/autocomplete", wikiC.AutocompletePages)
 	})

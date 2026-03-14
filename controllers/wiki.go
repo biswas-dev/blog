@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"anshumanbiswas.com/blog/models"
+	authmw "anshumanbiswas.com/blog/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -239,6 +240,32 @@ func (wc *Wiki) RestoreVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wc.jsonOK(w, map[string]string{"status": "restored"})
+}
+
+// DeleteVersionHandler DELETE /api/wiki/pages/{pageID}/versions/{versionNum}
+func (wc *Wiki) DeleteVersionHandler(w http.ResponseWriter, r *http.Request) {
+	user := authmw.GetUserFromContext(r.Context())
+	if user == nil || !models.IsAdmin(user.Role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	id, ok := wc.parsePageID(w, r)
+	if !ok {
+		return
+	}
+	versionNum, err := strconv.Atoi(chi.URLParam(r, "versionNum"))
+	if err != nil {
+		http.Error(w, "Invalid version number", http.StatusBadRequest)
+		return
+	}
+
+	if err := wc.WikiPageService.DeleteVersion(id, versionNum); err != nil {
+		http.Error(w, "Version not found", http.StatusNotFound)
+		return
+	}
+
+	wc.jsonOK(w, map[string]string{"status": "deleted"})
 }
 
 // SearchPages GET /api/wiki/search?q=...

@@ -313,6 +313,19 @@ func (ws *WikiPageService) MaybeCreateVersion(pageID, userID int, content string
 	return err
 }
 
+// DeleteVersion deletes a specific version of a wiki page. Returns error if not found.
+func (ws *WikiPageService) DeleteVersion(pageID, versionNumber int) error {
+	result, err := ws.DB.Exec(`DELETE FROM wiki_page_versions WHERE page_id = $1 AND version_number = $2`, pageID, versionNumber)
+	if err != nil {
+		return fmt.Errorf("delete wiki version: %w", err)
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("wiki version not found")
+	}
+	return nil
+}
+
 // GetVersions returns version list for a page (no content).
 func (ws *WikiPageService) GetVersions(pageID int) ([]WikiPageVersion, error) {
 	rows, err := ws.DB.Query(`
