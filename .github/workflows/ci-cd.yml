@@ -53,7 +53,7 @@ jobs:
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: blog
         ports:
-          - 5433:5432
+          - 5434:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -62,7 +62,7 @@ jobs:
 
     env:
       PG_HOST: 127.0.0.1
-      PG_PORT: 5433
+      PG_PORT: 5434
       PG_USER: blog
       PG_PASSWORD: testpass
       PG_DB: blog
@@ -83,7 +83,7 @@ jobs:
           curl -sL "https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-${MIGRATE_ARCH}.tar.gz" | tar xz
           chmod +x migrate
           ./migrate -source file://migrations \
-            -database "postgresql://blog:testpass@127.0.0.1:5433/blog?sslmode=disable" up
+            -database "postgresql://blog:testpass@127.0.0.1:5434/blog?sslmode=disable" up
 
       - run: go vet ./...
 
