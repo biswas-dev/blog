@@ -173,23 +173,19 @@ jobs:
 
       - name: Deploy to staging
         env:
-          # SSH key: convert raw PEM to base64 (travis-deploy.sh expects base64)
-          _SSH_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          # Pass raw PEM key — travis-deploy.sh auto-detects PEM vs base64
+          STAGING_SSH_KEY_BASE64: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
           HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
           BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
           BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
           BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
-          # Per-env encryption key, fallback to shared ENCRYPTION_KEY
-          _ENCRYPTION_KEY: ${{ secrets.STAGING_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          STAGING_ENCRYPTION_KEY: ${{ secrets.STAGING_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
           GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
           GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
           OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
         run: |
-          # Bridge GitHub secret names → Travis script env vars
-          export STAGING_SSH_KEY_BASE64=$(printf '%s' "$_SSH_KEY" | base64 | tr -d '\n')
-          export STAGING_ENCRYPTION_KEY="$_ENCRYPTION_KEY"
           echo "${{ needs.build-images.outputs.digest }}" > .image-digest.txt
           bash deployment/scripts/travis-deploy.sh staging
 
@@ -207,21 +203,18 @@ jobs:
 
       - name: Promote and deploy
         env:
-          _SSH_KEY: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
+          UAT_SSH_KEY_BASE64: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
           HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
           BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
           BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
           BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
-          _ENCRYPTION_KEY: ${{ secrets.UAT_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          UAT_ENCRYPTION_KEY: ${{ secrets.UAT_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
           GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
           GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
           OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
-        run: |
-          export UAT_SSH_KEY_BASE64=$(printf '%s' "$_SSH_KEY" | base64 | tr -d '\n')
-          export UAT_ENCRYPTION_KEY="$_ENCRYPTION_KEY"
-          bash deployment/scripts/travis-deploy.sh uat
+        run: bash deployment/scripts/travis-deploy.sh uat
 
   # ── Promote & Deploy Production ────────────────────────────────────────
   promote-deploy-production:
@@ -237,18 +230,15 @@ jobs:
 
       - name: Promote and deploy
         env:
-          _SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          PRODUCTION_SSH_KEY_BASE64: ${{ secrets.SSH_PRIVATE_KEY }}
           HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
           BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
           BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
           BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
-          _ENCRYPTION_KEY: ${{ secrets.PRODUCTION_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          PRODUCTION_ENCRYPTION_KEY: ${{ secrets.PRODUCTION_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
           GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
           GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
           OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
-        run: |
-          export PRODUCTION_SSH_KEY_BASE64=$(printf '%s' "$_SSH_KEY" | base64 | tr -d '\n')
-          export PRODUCTION_ENCRYPTION_KEY="$_ENCRYPTION_KEY"
-          bash deployment/scripts/travis-deploy.sh production
+        run: bash deployment/scripts/travis-deploy.sh production
