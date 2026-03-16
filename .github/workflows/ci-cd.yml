@@ -185,6 +185,7 @@ jobs:
           OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
+          VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
         run: |
           echo "${{ needs.build-images.outputs.digest }}" > .image-digest.txt
           bash deployment/scripts/travis-deploy.sh staging
@@ -214,6 +215,7 @@ jobs:
           OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
+          VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
         run: bash deployment/scripts/travis-deploy.sh uat
 
   # ── Promote & Deploy Production ────────────────────────────────────────
@@ -241,4 +243,5 @@ jobs:
           OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
+          VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
         run: bash deployment/scripts/travis-deploy.sh production
