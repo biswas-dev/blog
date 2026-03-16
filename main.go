@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -152,6 +153,9 @@ func main() {
 	// Page view tracking middleware (records after response, zero latency)
 	r.Use(authmw.TrackingMiddleware(analyticsService, &sessionService))
 
+	// Initialize SystemService (before version endpoint which uses it)
+	systemService := models.NewSystemService(DB, "migrations", startTime)
+
 	// Health check endpoint (no auth required — for deployment verification)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		if err := DB.Ping(); err != nil {
@@ -162,10 +166,91 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	// Version endpoint (no auth required — for build verification)
+	// Version endpoint — token-protected, rich response matching pingrly format
 	r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
+		tok := os.Getenv("VERSION_TOKEN")
+		if tok == "" {
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"error": "version endpoint disabled"})
+			return
+		}
+		if r.Header.Get("X-Version-Token") != tok {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid or missing version token"})
+			return
+		}
+
+		hostname, _ := os.Hostname()
+		env := os.Getenv("APP_ENV")
+		if env == "" {
+			env = "development"
+		}
+
+		// Backend info
+		backend := map[string]string{
+			"version":    version.Version,
+			"git_commit": version.GitCommit,
+			"build_time": version.BuildTime,
+			"go_version": version.GoVersion,
+			"platform":   fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		}
+
+		// Runtime info
+		runtimeInfo := map[string]interface{}{
+			"hostname":       hostname,
+			"port":           getAppPort(),
+			"environment":    env,
+			"pid":            os.Getpid(),
+			"uptime_seconds": int64(time.Since(startTime).Seconds()),
+			"started_at":     startTime.UTC().Format(time.RFC3339),
+		}
+
+		// Database info
+		dbInfo := map[string]interface{}{
+			"type": "postgresql",
+		}
+		var pgVersion string
+		if err := DB.QueryRow("SELECT version()").Scan(&pgVersion); err == nil {
+			if parts := strings.SplitN(pgVersion, ",", 2); len(parts) > 0 {
+				if fields := strings.Fields(parts[0]); len(fields) >= 2 {
+					dbInfo["server_version"] = fields[0] + " " + fields[1]
+				}
+			}
+		}
+		migrationVersion, dirty := systemService.GetMigrationState()
+		totalMigrations := systemService.CountMigrationFiles()
+		dbInfo["current_version"] = migrationVersion
+		dbInfo["total_migrations"] = totalMigrations
+		dbInfo["up_to_date"] = migrationVersion >= totalMigrations
+		dbInfo["dirty"] = dirty
+
+		// Resource metrics
+		var memStats runtime.MemStats
+		runtime.ReadMemStats(&memStats)
+		resources := map[string]interface{}{
+			"memory_alloc_mb":   float64(memStats.Alloc) / 1024 / 1024,
+			"heap_inuse_mb":     float64(memStats.HeapInuse) / 1024 / 1024,
+			"stack_inuse_mb":    float64(memStats.StackInuse) / 1024 / 1024,
+			"goroutines":        runtime.NumGoroutine(),
+			"num_gc":            memStats.NumGC,
+			"gc_pause_total_ms": float64(memStats.PauseTotalNs) / 1e6,
+			"gc_last_pause_ms":  float64(memStats.PauseNs[(memStats.NumGC+255)%256]) / 1e6,
+		}
+
+		resp := map[string]interface{}{
+			"backend":   backend,
+			"runtime":   runtimeInfo,
+			"database":  dbInfo,
+			"resources": resources,
+		}
+
+		// Container metrics (cgroup)
+		if cm := version.ReadContainerMetrics(); cm != nil {
+			resp["container"] = cm
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(version.Info())
+		json.NewEncoder(w).Encode(resp)
 	})
 
 	r.Get("/about", controllers.StaticHandler(
@@ -204,9 +289,6 @@ func main() {
 		DB: DB,
 	}
 	searchService.BackfillSlideContent()
-
-	// Initialize SystemService
-	systemService := models.NewSystemService(DB, "migrations", startTime)
 
 	// Initialize DatabaseBackupService
 	databaseBackupService := models.NewDatabaseBackupService(DB)

@@ -132,10 +132,10 @@ func (s *SystemService) getDatabaseInfo() DatabaseInfo {
 	}
 
 	// Count total migrations (*.up.sql files)
-	info.TotalMigrations = s.countMigrationFiles()
+	info.TotalMigrations = s.CountMigrationFiles()
 
 	// Get current migration version and dirty state from schema_migrations
-	info.CurrentVersion, info.Dirty = s.getMigrationState()
+	info.CurrentVersion, info.Dirty = s.GetMigrationState()
 	info.AppliedMigrations = info.CurrentVersion
 
 	// Calculate pending migrations
@@ -195,8 +195,8 @@ func (s *SystemService) getDeploymentInfo() DeploymentInfo {
 	}
 }
 
-// countMigrationFiles counts .up.sql files in the migrations directory
-func (s *SystemService) countMigrationFiles() int {
+// CountMigrationFiles counts .up.sql files in the migrations directory.
+func (s *SystemService) CountMigrationFiles() int {
 	count := 0
 
 	if s.migrationsPath == "" {
@@ -220,9 +220,9 @@ func (s *SystemService) countMigrationFiles() int {
 	return count
 }
 
-// getMigrationState reads the current version and dirty flag from schema_migrations.
+// GetMigrationState reads the current version and dirty flag from schema_migrations.
 // golang-migrate stores exactly one row: (version bigint, dirty boolean).
-func (s *SystemService) getMigrationState() (version int, dirty bool) {
+func (s *SystemService) GetMigrationState() (version int, dirty bool) {
 	err := s.db.QueryRow("SELECT version, dirty FROM schema_migrations LIMIT 1").Scan(&version, &dirty)
 	if err != nil {
 		// Table might not exist yet

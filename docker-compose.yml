@@ -128,6 +128,8 @@ services:
       - GH_CLIENT_SECRET=${GH_CLIENT_SECRET:-}
       - OAUTH_STATE_SECRET=${OAUTH_STATE_SECRET:-}
       - APP_URL=${APP_URL:-http://localhost:22222}
+      # Version endpoint protection
+      - VERSION_TOKEN=${VERSION_TOKEN:-}
       # APM — set APM_ENABLED=true to activate tracing.
       # Change OTEL_EXPORTER_OTLP_ENDPOINT to switch providers (no code changes).
       - APM_ENABLED=${APM_ENABLED:-false}

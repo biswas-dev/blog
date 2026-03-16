@@ -158,6 +158,9 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
   export GO_VERSION='go$GO_VERSION'
   export APP_ENV='$ENV'
 
+  # Version endpoint protection
+  export VERSION_TOKEN='${VERSION_TOKEN:-}'
+
   # Datadog APM
   export DD_API_KEY='${DD_API_KEY:-}'
   export DD_SITE='${DD_SITE:-datadoghq.com}'
