@@ -1,0 +1,254 @@
+# CI/CD Pipeline for Blog (anshumanbiswas.com)
+#
+# Supports multiple runner backends, controlled via GitHub repo variables:
+#   CI_RUNNER  — 'self-hosted' (default) or 'ubuntu-latest'
+#   CI_ENABLED — 'true' (default) or 'false' to disable GitHub Actions entirely
+#
+# When using Travis CI instead, set CI_ENABLED=false and enable Travis from its dashboard.
+# BuildMe can toggle these via GitHub API:
+#   gh variable set CI_RUNNER  --body "self-hosted"    -R anchoo2kewl/blog
+#   gh variable set CI_ENABLED --body "true"           -R anchoo2kewl/blog
+#
+# Flow:
+#   main push       → test → sonarqube → build image → push Harbor → deploy staging
+#   uat push        → promote staging digest → deploy UAT
+#   production push → promote UAT digest → deploy production
+#
+# Required secrets:
+#   HARBOR_AUTH                   — base64("username:password") for Harbor registry
+#   STAGING_SSH_PRIVATE_KEY       — raw PEM SSH key for staging server
+#   UAT_SSH_PRIVATE_KEY           — raw PEM SSH key for UAT server
+#   SSH_PRIVATE_KEY               — raw PEM SSH key for production server
+#   BLOG_PG_PASSWORD, BLOG_SESSION_SECRET, BLOG_API_TOKEN
+#   ENCRYPTION_KEY (or per-env: STAGING_ENCRYPTION_KEY, UAT_ENCRYPTION_KEY, PRODUCTION_ENCRYPTION_KEY)
+#   GH_CLIENT_ID, GH_CLIENT_SECRET, OAUTH_STATE_SECRET
+#   SONAR_TOKEN, DD_API_KEY, DD_SITE
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, uat, production]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ── Go Tests ───────────────────────────────────────────────────────────
+  test:
+    name: "Blog Tests (Go)"
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    if: |
+      (vars.CI_ENABLED || 'true') == 'true' &&
+      (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: blog
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: blog
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PG_HOST: 127.0.0.1
+      PG_PORT: 5433
+      PG_USER: blog
+      PG_PASSWORD: testpass
+      PG_DB: blog
+      GOTOOLCHAIN: local
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Run database migrations
+        run: |
+          ARCH=$(uname -m)
+          [ "$ARCH" = "aarch64" ] && MIGRATE_ARCH="arm64" || MIGRATE_ARCH="amd64"
+          curl -sL "https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-${MIGRATE_ARCH}.tar.gz" | tar xz
+          chmod +x migrate
+          ./migrate -source file://migrations \
+            -database "postgresql://blog:testpass@127.0.0.1:5433/blog?sslmode=disable" up
+
+      - run: go vet ./...
+
+      - name: Run tests
+        run: go test -v -coverprofile=coverage.out -covermode=atomic ./...
+        timeout-minutes: 10
+
+      - run: go tool cover -func=coverage.out | tail -1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          retention-days: 30
+
+  # ── SonarQube (allowed to fail) ────────────────────────────────────────
+  sonarqube:
+    name: "SonarQube Analysis"
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+        continue-on-error: true
+
+      - name: Run SonarQube
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          ARCH=$(uname -m)
+          SONAR_SCANNER_VERSION=5.0.1.3006
+          if [ "$ARCH" = "aarch64" ]; then
+            SONAR_ZIP="sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-aarch64.zip"
+          else
+            SONAR_ZIP="sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip"
+          fi
+          curl -sSLo sonar-scanner.zip \
+            "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/$SONAR_ZIP"
+          unzip -q sonar-scanner.zip
+          SCANNER_DIR=$(ls -d sonar-scanner-*)
+          "$SCANNER_DIR/bin/sonar-scanner" \
+            -Dsonar.host.url="https://sonar.taskai.cc" \
+            -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.projectVersion="$(git describe --tags --always 2>/dev/null || echo dev)"
+
+  # ── Build & Push Docker Images (main only) ─────────────────────────────
+  build-images:
+    name: "Build & Push Docker Images"
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU for multi-arch builds
+        run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes 2>/dev/null || true
+
+      - name: Build and push
+        id: build
+        env:
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+        run: |
+          bash deployment/scripts/travis-build-images.sh
+          echo "digest=$(cat .image-digest.txt)" >> "$GITHUB_OUTPUT"
+
+  # ── Deploy Staging ─────────────────────────────────────────────────────
+  deploy-staging:
+    name: "Deploy to Staging"
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    needs: build-images
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        env:
+          # SSH key: convert raw PEM to base64 (travis-deploy.sh expects base64)
+          _SSH_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+          BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
+          BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
+          # Per-env encryption key, fallback to shared ENCRYPTION_KEY
+          _ENCRYPTION_KEY: ${{ secrets.STAGING_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
+        run: |
+          # Bridge GitHub secret names → Travis script env vars
+          export STAGING_SSH_KEY_BASE64=$(printf '%s' "$_SSH_KEY" | base64 | tr -d '\n')
+          export STAGING_ENCRYPTION_KEY="$_ENCRYPTION_KEY"
+          echo "${{ needs.build-images.outputs.digest }}" > .image-digest.txt
+          bash deployment/scripts/travis-deploy.sh staging
+
+  # ── Promote & Deploy UAT ───────────────────────────────────────────────
+  promote-deploy-uat:
+    name: "Promote & Deploy to UAT"
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    if: |
+      (vars.CI_ENABLED || 'true') == 'true' &&
+      github.ref == 'refs/heads/uat' && github.event_name == 'push'
+    environment: uat
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Promote and deploy
+        env:
+          _SSH_KEY: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+          BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
+          BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
+          _ENCRYPTION_KEY: ${{ secrets.UAT_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
+        run: |
+          export UAT_SSH_KEY_BASE64=$(printf '%s' "$_SSH_KEY" | base64 | tr -d '\n')
+          export UAT_ENCRYPTION_KEY="$_ENCRYPTION_KEY"
+          bash deployment/scripts/travis-deploy.sh uat
+
+  # ── Promote & Deploy Production ────────────────────────────────────────
+  promote-deploy-production:
+    name: "Promote & Deploy to Production"
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    if: |
+      (vars.CI_ENABLED || 'true') == 'true' &&
+      github.ref == 'refs/heads/production' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Promote and deploy
+        env:
+          _SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+          BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
+          BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
+          _ENCRYPTION_KEY: ${{ secrets.PRODUCTION_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
+        run: |
+          export PRODUCTION_SSH_KEY_BASE64=$(printf '%s' "$_SSH_KEY" | base64 | tr -d '\n')
+          export PRODUCTION_ENCRYPTION_KEY="$_ENCRYPTION_KEY"
+          bash deployment/scripts/travis-deploy.sh production
