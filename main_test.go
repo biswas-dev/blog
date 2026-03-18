@@ -395,12 +395,12 @@ func TestStaticCacheMiddleware(t *testing.T) {
 	}{
 		{"css file", "/styles.css", "public, max-age=31536000, immutable", ""},
 		{"js file", "/app.js", "public, max-age=31536000, immutable", ""},
-		{"svg file", "/icon.svg", "public, max-age=86400", mimeSVG},
-		{"png file", "/photo.png", "public, max-age=604800", ""},
-		{"jpg file", "/photo.jpg", "public, max-age=604800", ""},
-		{"webp file", "/photo.webp", "public, max-age=604800", ""},
-		{"gif file", "/anim.gif", "public, max-age=604800", ""},
-		{"ico file", "/favicon.ico", "public, max-age=604800", ""},
+		{"svg file", "/icon.svg", "public, max-age=604800, stale-while-revalidate=2592000", mimeSVG},
+		{"png file", "/photo.png", "public, max-age=604800, stale-while-revalidate=2592000", ""},
+		{"jpg file", "/photo.jpg", "public, max-age=604800, stale-while-revalidate=2592000", ""},
+		{"webp file", "/photo.webp", "public, max-age=604800, stale-while-revalidate=2592000", ""},
+		{"gif file", "/anim.gif", "public, max-age=604800, stale-while-revalidate=2592000", ""},
+		{"ico file", "/favicon.ico", "public, max-age=604800, stale-while-revalidate=2592000", ""},
 		{"other file", "/data.json", "", ""},
 	}
 
