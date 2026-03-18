@@ -180,21 +180,21 @@
   </div>
 
   <!-- Stats -->
-  {{$nPosts := len .AuthoredPosts}}{{$nContribs := len .ContributedPosts}}
-  {{if or $nPosts $nContribs}}
+  {{$nPosts := len .AuthoredPosts}}{{$nContribs := len .ContributedPosts}}{{$nComments := len .UserComments}}
   <div class="profile-stats">
     <div class="stat-item">
       <span class="stat-value">{{$nPosts}}</span>
       <span class="stat-label">Posts</span>
     </div>
-    {{if $nContribs}}
     <div class="stat-item">
       <span class="stat-value">{{$nContribs}}</span>
       <span class="stat-label">Contributions</span>
     </div>
-    {{end}}
+    <div class="stat-item">
+      <span class="stat-value">{{$nComments}}</span>
+      <span class="stat-label">Comments</span>
+    </div>
   </div>
-  {{end}}
 
   <!-- Authored posts -->
   <section>
@@ -247,6 +247,30 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </div>
         <span class="contribution-title">{{.Title}}</span>
+        <svg class="contribution-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      {{end}}
+    </div>
+  </section>
+  {{end}}
+
+  <!-- Comments -->
+  {{if .UserComments}}
+  <section>
+    <div class="section-header">
+      <h2 class="section-title">Comments</h2>
+      <span class="section-count">{{$nComments}}</span>
+    </div>
+    <div class="contribution-list">
+      {{range .UserComments}}
+      <a href="/blog/{{.PostSlug}}#comment-{{.CommentID}}" class="contribution-item">
+        <div class="contribution-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="contribution-title">{{.PostTitle}}</div>
+          <div style="font-size:0.8125rem;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:0.1rem;">{{.Content}}</div>
+        </div>
         <svg class="contribution-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
       {{end}}

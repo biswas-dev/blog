@@ -1760,18 +1760,36 @@ func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
 		contributedPosts, _ = u.PostVersionService.GetContributedPosts(profileUser.UserID)
 	}
 
+	var userComments []UserComment
+	commentRows, err := u.DB.QueryContext(r.Context(), `
+		SELECT c.comment_id, p.title, p.slug, c.content, c.comment_date
+		FROM Comments c
+		JOIN Posts p ON p.post_id = c.post_id
+		WHERE c.user_id = $1
+		ORDER BY c.comment_date DESC`, profileUser.UserID)
+	if err == nil {
+		defer commentRows.Close()
+		for commentRows.Next() {
+			var uc UserComment
+			if err := commentRows.Scan(&uc.CommentID, &uc.PostTitle, &uc.PostSlug, &uc.Content, &uc.CommentDate); err == nil {
+				userComments = append(userComments, uc)
+			}
+		}
+	}
+
 	var data struct {
-		LoggedIn        bool
-		Email           string
-		Username        string
-		IsAdmin         bool
-		SignupDisabled  bool
-		Description     string
-		CurrentPage     string
-		UserPermissions models.UserPermissions
-		ProfileUser     *models.User
-		AuthoredPosts   []models.Post
+		LoggedIn         bool
+		Email            string
+		Username         string
+		IsAdmin          bool
+		SignupDisabled   bool
+		Description      string
+		CurrentPage      string
+		UserPermissions  models.UserPermissions
+		ProfileUser      *models.User
+		AuthoredPosts    []models.Post
 		ContributedPosts []models.Post
+		UserComments     []UserComment
 	}
 
 	data.Description = profileUser.DisplayName() + " - Anshuman Biswas Blog"
@@ -1779,6 +1797,7 @@ func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
 	data.ProfileUser = profileUser
 	data.AuthoredPosts = authoredPosts
 	data.ContributedPosts = contributedPosts
+	data.UserComments = userComments
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
 
 	loggedInUser, _ := u.isUserLoggedIn(r)
