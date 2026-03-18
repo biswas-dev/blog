@@ -26,6 +26,16 @@
                     <span class="info-value">{{if .FullName}}{{.FullName}}{{else}}<em class="text-gray-400">Not set — showing username</em>{{end}}</span>
                 </div>
                 <div class="info-item">
+                    <label>Profile Picture</label>
+                    <span class="info-value">
+                        {{if .AvatarURL}}
+                            <img src="{{.AvatarURL}}" alt="Avatar" class="settings-avatar-preview">
+                        {{else}}
+                            <span style="color:var(--text-tertiary);font-size:0.875rem;">Not set</span>
+                        {{end}}
+                    </span>
+                </div>
+                <div class="info-item">
                     <label>Username</label>
                     <span class="info-value">{{.Username}}</span>
                 </div>
@@ -57,6 +67,32 @@
                     <input type="text" id="full_name" name="full_name" value="{{.FullName}}" placeholder="e.g. Anshuman Biswas" maxlength="100">
                 </div>
                 <button type="submit" class="btn-primary">Update Name</button>
+            </form>
+        </div>
+
+        <!-- Profile Picture -->
+        <div class="profile-section">
+            <div class="section-header">
+                <h2>Profile Picture</h2>
+                <p>Shown on your comments and public profile. Upload a photo or provide a URL.</p>
+            </div>
+            <div class="avatar-section">
+                {{if .AvatarURL}}
+                    <img src="{{.AvatarURL}}" alt="Current avatar" class="settings-avatar-large">
+                {{else}}
+                    <div class="settings-avatar-init">{{initial .Username}}</div>
+                {{end}}
+            </div>
+            <form class="profile-form" method="POST" action="/users/avatar" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="avatar">Upload photo</label>
+                    <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif">
+                </div>
+                <div class="form-group">
+                    <label for="avatar_url">Or paste an image URL</label>
+                    <input type="url" id="avatar_url" name="avatar_url" placeholder="https://example.com/photo.jpg" value="{{.AvatarURL}}">
+                </div>
+                <button type="submit" class="btn-primary">Update Picture</button>
             </form>
         </div>
 
@@ -138,6 +174,11 @@
 .profile-section .btn-primary:hover { background: var(--accent-hover); }
 
 .admin-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; background: #d97706; color: white; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
+
+.settings-avatar-preview { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; vertical-align: middle; }
+.avatar-section { margin-bottom: 1.5rem; }
+.settings-avatar-large { width: 5rem; height: 5rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-light); }
+.settings-avatar-init { width: 5rem; height: 5rem; border-radius: 50%; background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: #fff; }
 
 @media (max-width: 768px) {
     .profile-container { padding: 1rem; }

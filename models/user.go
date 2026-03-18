@@ -19,6 +19,7 @@ type User struct {
 	PasswordHash     string
 	RegistrationDate string
 	Role             int
+	AvatarURL        string
 }
 
 // DisplayName returns FullName if set, otherwise Username.
@@ -68,8 +69,8 @@ func (us UserService) Authenticate(email, password string) (*User, error) {
 		Email: email,
 	}
 
-	row := us.DB.QueryRow(`SELECT user_id, username, full_name, password, role_id FROM users WHERE email=$1`, email)
-	err := row.Scan(&user.UserID, &user.Username, &user.FullName, &user.PasswordHash, &user.Role)
+	row := us.DB.QueryRow(`SELECT user_id, username, full_name, password, role_id, COALESCE(profile_picture_url, '') FROM users WHERE email=$1`, email)
+	err := row.Scan(&user.UserID, &user.Username, &user.FullName, &user.PasswordHash, &user.Role, &user.AvatarURL)
 	if err != nil {
 		return nil, fmt.Errorf("authenticate: %w", err)
 	}
@@ -155,9 +156,9 @@ func (us *UserService) GetByEmail(email string) (*User, error) {
 	email = strings.ToLower(email)
 	var u User
 	err := us.DB.QueryRow(
-		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id FROM Users WHERE email = $1`,
+		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id, COALESCE(profile_picture_url, '') FROM Users WHERE email = $1`,
 		email,
-	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role)
+	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role, &u.AvatarURL)
 	if err != nil {
 		return nil, fmt.Errorf("get user by email: %w", err)
 	}
@@ -168,14 +169,22 @@ func (us *UserService) GetByUsername(username string) (*User, error) {
 	var u User
 	var regDate time.Time
 	err := us.DB.QueryRow(
-		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id, COALESCE(registration_date, NOW()) FROM Users WHERE username = $1`,
+		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id, COALESCE(registration_date, NOW()), COALESCE(profile_picture_url, '') FROM Users WHERE username = $1`,
 		username,
-	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role, &regDate)
+	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role, &regDate, &u.AvatarURL)
 	if err != nil {
 		return nil, fmt.Errorf("get user by username: %w", err)
 	}
 	u.RegistrationDate = regDate.Format("January 2006")
 	return &u, nil
+}
+
+func (us *UserService) UpdateAvatarURL(userID int, avatarURL string) error {
+	_, err := us.DB.Exec("UPDATE Users SET profile_picture_url = $1 WHERE user_id = $2", avatarURL, userID)
+	if err != nil {
+		return fmt.Errorf("update avatar url: %w", err)
+	}
+	return nil
 }
 
 // CreateOAuthUser creates a user for OAuth sign-in (no usable password).

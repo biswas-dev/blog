@@ -24,6 +24,13 @@
   letter-spacing: -0.02em;
   box-shadow: 0 4px 16px rgba(13,148,136,0.25);
 }
+.profile-avatar-img {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(13,148,136,0.25);
+}
 .profile-name {
   font-size: 1.625rem; font-weight: 700;
   color: var(--text-primary); letter-spacing: -0.03em;
@@ -154,7 +161,7 @@
 
   <!-- Hero -->
   <div class="profile-hero">
-    <div class="profile-avatar">{{initial .ProfileUser.DisplayName}}</div>
+    {{if .ProfileUser.AvatarURL}}<img src="{{.ProfileUser.AvatarURL}}" alt="{{.ProfileUser.DisplayName}}" class="profile-avatar-img">{{else}}<div class="profile-avatar">{{initial .ProfileUser.DisplayName}}</div>{{end}}
     <div class="profile-meta" style="min-width:0;">
       <h1 class="profile-name">{{.ProfileUser.DisplayName}}</h1>
       {{if .ProfileUser.FullName}}<p class="profile-handle">@{{.ProfileUser.Username}}</p>{{end}}

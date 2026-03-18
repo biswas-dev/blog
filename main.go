@@ -614,6 +614,7 @@ func main() {
 	r.Post("/users/password", usersC.UpdatePassword)
 	r.Post("/users/email", usersC.UpdateEmail)
 	r.Post("/users/name", usersC.UpdateName)
+	r.Post("/users/avatar", usersC.UploadAvatar)
 	r.Post("/users/api-tokens", usersC.CreateAPIToken)
 	r.Post("/users/api-tokens/revoke", usersC.RevokeAPIToken)
 	r.Post("/users/api-tokens/delete", usersC.DeleteAPIToken)

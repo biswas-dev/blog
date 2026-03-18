@@ -19,12 +19,13 @@ type CommentsController struct {
 }
 
 type commentResponse struct {
-	CommentID       int              `json:"comment_id"`
-	UserID          int              `json:"user_id"`
-	Username        string           `json:"username"`
-	ParentCommentID *int             `json:"parent_comment_id,omitempty"`
-	Content         string           `json:"content"`
-	CommentDate     string           `json:"comment_date"`
+	CommentID       int               `json:"comment_id"`
+	UserID          int               `json:"user_id"`
+	Username        string            `json:"username"`
+	AvatarURL       string            `json:"avatar_url,omitempty"`
+	ParentCommentID *int              `json:"parent_comment_id,omitempty"`
+	Content         string            `json:"content"`
+	CommentDate     string            `json:"comment_date"`
 	Replies         []commentResponse `json:"replies,omitempty"`
 }
 
@@ -40,7 +41,7 @@ func (cc *CommentsController) HandleListComments(w http.ResponseWriter, r *http.
 	}
 
 	rows, err := cc.DB.QueryContext(r.Context(), `
-		SELECT c.comment_id, c.user_id, COALESCE(NULLIF(u.full_name, ''), u.username), c.parent_comment_id, c.content, c.comment_date
+		SELECT c.comment_id, c.user_id, COALESCE(NULLIF(u.full_name, ''), u.username), COALESCE(u.profile_picture_url, ''), c.parent_comment_id, c.content, c.comment_date
 		FROM Comments c
 		JOIN Users u ON u.user_id = c.user_id
 		WHERE c.post_id = $1
@@ -56,7 +57,7 @@ func (cc *CommentsController) HandleListComments(w http.ResponseWriter, r *http.
 		var c commentResponse
 		var parentID sql.NullInt64
 		var commentDate time.Time
-		if err := rows.Scan(&c.CommentID, &c.UserID, &c.Username, &parentID, &c.Content, &commentDate); err != nil {
+		if err := rows.Scan(&c.CommentID, &c.UserID, &c.Username, &c.AvatarURL, &parentID, &c.Content, &commentDate); err != nil {
 			http.Error(w, "Failed to scan comment", http.StatusInternalServerError)
 			return
 		}
@@ -166,6 +167,7 @@ func (cc *CommentsController) HandleCreateComment(w http.ResponseWriter, r *http
 		CommentID:       commentID,
 		UserID:          user.UserID,
 		Username:        user.DisplayName(),
+		AvatarURL:       user.AvatarURL,
 		ParentCommentID: body.ParentCommentID,
 		Content:         body.Content,
 		CommentDate:     commentDate.Format(time.RFC3339),

@@ -144,7 +144,7 @@ func (oc *OAuthController) HandleGitHubCallback(w http.ResponseWriter, r *http.R
 	email = strings.ToLower(email)
 
 	// --- Find or create user ---
-	user, err := oc.findOrCreateUser(email, ghUser.Login, ghUser.Name, ghUser.ID)
+	user, err := oc.findOrCreateUser(email, ghUser.Login, ghUser.Name, ghUser.ID, ghUser.AvatarURL)
 	if err != nil {
 		http.Error(w, "Failed to sign in with GitHub", http.StatusInternalServerError)
 		return
@@ -210,20 +210,22 @@ func (oc *OAuthController) exchangeCode(ctx context.Context, code string) (strin
 }
 
 type gitHubUser struct {
-	ID    string `json:"id"`
-	Login string `json:"login"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID        string `json:"id"`
+	Login     string `json:"login"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 // UnmarshalJSON handles GitHub's id field which can be int or string.
 func (u *gitHubUser) UnmarshalJSON(data []byte) error {
 	type Alias gitHubUser
 	var raw struct {
-		ID    interface{} `json:"id"`
-		Login string      `json:"login"`
-		Name  string      `json:"name"`
-		Email string      `json:"email"`
+		ID        interface{} `json:"id"`
+		Login     string      `json:"login"`
+		Name      string      `json:"name"`
+		Email     string      `json:"email"`
+		AvatarURL string      `json:"avatar_url"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -231,6 +233,7 @@ func (u *gitHubUser) UnmarshalJSON(data []byte) error {
 	u.Login = raw.Login
 	u.Name = raw.Name
 	u.Email = raw.Email
+	u.AvatarURL = raw.AvatarURL
 	u.ID = fmt.Sprintf("%v", raw.ID)
 	return nil
 }
@@ -294,7 +297,8 @@ func (oc *OAuthController) fetchPrimaryEmail(ctx context.Context, token string) 
 }
 
 // findOrCreateUser looks up a user by GitHub provider ID or email, creating one if needed.
-func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubName, githubID string) (*models.User, error) {
+// avatarURL from GitHub is stored/updated on every login.
+func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubName, githubID, avatarURL string) (*models.User, error) {
 	// 1. Find by provider ID.
 	var userID int
 	err := oc.DB.QueryRow(
@@ -302,17 +306,20 @@ func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubName, gith
 		githubID,
 	).Scan(&userID)
 	if err == nil {
-		// Found by provider ID — return the user.
+		// Found by provider ID — update avatar and return the user.
+		if avatarURL != "" {
+			_, _ = oc.DB.Exec(`UPDATE Users SET profile_picture_url = $1 WHERE user_id = $2 AND (profile_picture_url IS NULL OR profile_picture_url = '')`, avatarURL, userID)
+		}
 		return oc.userByID(userID)
 	}
 
 	// 2. Find by email.
 	var user models.User
 	row := oc.DB.QueryRow(
-		`SELECT user_id, username, full_name, email, role_id FROM Users WHERE email = $1`,
+		`SELECT user_id, username, full_name, email, role_id, COALESCE(profile_picture_url, '') FROM Users WHERE email = $1`,
 		email,
 	)
-	err = row.Scan(&user.UserID, &user.Username, &user.FullName, &user.Email, &user.Role)
+	err = row.Scan(&user.UserID, &user.Username, &user.FullName, &user.Email, &user.Role, &user.AvatarURL)
 	if err == nil {
 		// Upsert oauth_providers row so future logins use provider_id path.
 		_, _ = oc.DB.Exec(
@@ -320,6 +327,11 @@ func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubName, gith
              ON CONFLICT (provider, provider_user_id) DO NOTHING`,
 			user.UserID, githubID,
 		)
+		// Store avatar if not already set.
+		if avatarURL != "" && user.AvatarURL == "" {
+			_, _ = oc.DB.Exec(`UPDATE Users SET profile_picture_url = $1 WHERE user_id = $2`, avatarURL, user.UserID)
+			user.AvatarURL = avatarURL
+		}
 		return &user, nil
 	}
 
@@ -327,6 +339,10 @@ func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubName, gith
 	newUser, err := oc.UserService.CreateOAuthUser(email, githubLogin, githubName, models.RoleCommenter)
 	if err != nil {
 		return nil, fmt.Errorf("create oauth user: %w", err)
+	}
+	if avatarURL != "" {
+		_, _ = oc.DB.Exec(`UPDATE Users SET profile_picture_url = $1 WHERE user_id = $2`, avatarURL, newUser.UserID)
+		newUser.AvatarURL = avatarURL
 	}
 	_, err = oc.DB.Exec(
 		`INSERT INTO oauth_providers (user_id, provider, provider_user_id) VALUES ($1, 'github', $2)`,
@@ -341,8 +357,8 @@ func (oc *OAuthController) findOrCreateUser(email, githubLogin, githubName, gith
 func (oc *OAuthController) userByID(userID int) (*models.User, error) {
 	var u models.User
 	err := oc.DB.QueryRow(
-		`SELECT user_id, username, full_name, email, role_id FROM Users WHERE user_id = $1`, userID,
-	).Scan(&u.UserID, &u.Username, &u.FullName, &u.Email, &u.Role)
+		`SELECT user_id, username, full_name, email, role_id, COALESCE(profile_picture_url, '') FROM Users WHERE user_id = $1`, userID,
+	).Scan(&u.UserID, &u.Username, &u.FullName, &u.Email, &u.Role, &u.AvatarURL)
 	if err != nil {
 		return nil, fmt.Errorf("user by id: %w", err)
 	}

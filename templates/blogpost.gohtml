@@ -137,19 +137,31 @@
     <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700" id="comments-section">
       <h2 class="text-2xl font-bold mb-6">Comments</h2>
 
-      <div id="comments-list" class="space-y-6 mb-8">
+      <div id="comments-list" class="mb-8">
         <p class="text-gray-500 dark:text-gray-400 text-sm" id="comments-loading">Loading comments...</p>
       </div>
 
       {{if .LoggedIn}}
         {{if .UserPermissions.CanComment}}
-        <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
-          <h3 class="font-semibold mb-3">Leave a comment</h3>
+        <div class="comment-compose-box" id="comment-compose">
+          <div id="reply-banner" class="reply-banner" style="display:none;">
+            <span id="reply-banner-text"></span>
+            <button type="button" id="cancel-reply" class="cancel-reply-btn">✕ Cancel</button>
+          </div>
+          <div class="comment-toolbar">
+            <button type="button" class="fmt-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+            <button type="button" class="fmt-btn fmt-italic" data-cmd="italic" title="Italic"><i>I</i></button>
+            <button type="button" class="fmt-btn" data-cmd="code" title="Inline code">`</button>
+            <button type="button" class="fmt-btn" data-cmd="codeblock" title="Code block">{ }</button>
+            <button type="button" class="fmt-btn" data-cmd="link" title="Link">🔗</button>
+            <span class="toolbar-sep"></span>
+            <span class="toolbar-hint">Markdown supported</span>
+          </div>
           <textarea id="new-comment-content" rows="4" maxlength="5000"
-            class="form-input w-full resize-y"
-            placeholder="Write your comment here..."></textarea>
-          <div class="flex justify-between items-center mt-3">
-            <span id="comment-char-count" class="text-xs text-gray-400">0 / 5000</span>
+            class="comment-textarea"
+            placeholder="Write a comment… Markdown supported"></textarea>
+          <div class="comment-compose-footer">
+            <span id="comment-char-count" class="comment-char-count">0 / 5000</span>
             <button id="submit-comment" class="btn btn-primary">Post Comment</button>
           </div>
         </div>
@@ -318,6 +330,48 @@
   background: var(--bg-secondary, rgba(127,127,127,0.08));
   border-color: var(--text-tertiary, #9ca3af);
 }
+
+/* ── Comment system ── */
+.comment-item { padding: 1rem 0; border-bottom: 1px solid var(--border-light, rgba(127,127,127,0.12)); }
+.comment-item:last-child { border-bottom: none; }
+.comment-item.reply { margin-left: 2.5rem; padding-left: 1rem; border-left: 2px solid var(--border-light, rgba(127,127,127,0.2)); border-bottom: none; margin-top: 0.75rem; }
+.comment-header { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 0.5rem; }
+.comment-avatar { flex-shrink: 0; width: 2rem; height: 2rem; border-radius: 50%; overflow: hidden; }
+.comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.comment-avatar-init { width: 2rem; height: 2rem; border-radius: 50%; background: linear-gradient(135deg, var(--accent, #0d9488) 0%, #6366f1 100%); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.comment-meta { flex: 1; min-width: 0; }
+.comment-author { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); }
+.comment-date { font-size: 0.75rem; color: var(--text-tertiary, #9ca3af); margin-left: 0.375rem; }
+.comment-actions { display: flex; align-items: center; gap: 0.25rem; margin-left: auto; }
+.comment-action-btn { font-size: 0.75rem; font-weight: 500; padding: 0.125rem 0.5rem; border-radius: 0.25rem; border: none; cursor: pointer; background: transparent; color: var(--text-tertiary, #9ca3af); transition: background 0.1s, color 0.1s; }
+.comment-action-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.comment-action-btn.del-btn:hover { color: #ef4444; }
+.comment-action-btn.reply-btn:hover { color: var(--accent, #0d9488); }
+.comment-body { font-size: 0.9375rem; line-height: 1.65; color: var(--text-primary); padding-left: 2.625rem; }
+.comment-body p { margin: 0 0 0.5em; }
+.comment-body p:last-child { margin-bottom: 0; }
+.comment-body code { font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size: 0.825em; background: var(--bg-tertiary, rgba(127,127,127,0.1)); padding: 0.15em 0.35em; border-radius: 0.25em; }
+.comment-body pre { background: var(--bg-tertiary, rgba(0,0,0,0.05)); border-radius: 0.5rem; padding: 1rem; overflow-x: auto; margin: 0.5em 0; }
+.comment-body pre code { background: none; padding: 0; font-size: 0.875em; }
+.comment-body a { color: var(--accent, #0d9488); text-decoration: underline; }
+.comment-body blockquote { border-left: 3px solid var(--border, rgba(127,127,127,0.3)); padding-left: 0.75rem; margin: 0.5em 0; color: var(--text-secondary); font-style: italic; }
+.comment-body strong { font-weight: 600; }
+.comment-body ul, .comment-body ol { padding-left: 1.5rem; margin: 0.25em 0; }
+.dark .comment-body pre { background: rgba(255,255,255,0.05); }
+/* Compose box */
+.comment-compose-box { background: var(--bg-secondary); border: 1px solid var(--border-light, rgba(127,127,127,0.2)); border-radius: 0.875rem; overflow: hidden; }
+.reply-banner { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.875rem; background: rgba(13,148,136,0.08); font-size: 0.8125rem; color: var(--accent, #0d9488); font-weight: 500; }
+.cancel-reply-btn { font-size: 0.75rem; background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 0 0.25rem; }
+.cancel-reply-btn:hover { color: var(--text-primary); }
+.comment-toolbar { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border-light, rgba(127,127,127,0.15)); flex-wrap: wrap; }
+.fmt-btn { font-size: 0.8125rem; padding: 0.2rem 0.5rem; border-radius: 0.25rem; border: 1px solid var(--border-light, rgba(127,127,127,0.2)); background: transparent; color: var(--text-secondary); cursor: pointer; transition: background 0.1s, color 0.1s; }
+.fmt-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.fmt-italic { font-style: italic; }
+.toolbar-sep { width: 1px; height: 1rem; background: var(--border-light, rgba(127,127,127,0.2)); margin: 0 0.25rem; }
+.toolbar-hint { font-size: 0.75rem; color: var(--text-tertiary); margin-left: auto; }
+.comment-textarea { width: 100%; padding: 0.75rem; border: none; background: transparent; color: var(--text-primary); font-size: 0.9375rem; line-height: 1.6; resize: vertical; min-height: 100px; font-family: inherit; outline: none; }
+.comment-compose-footer { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; border-top: 1px solid var(--border-light, rgba(127,127,127,0.15)); }
+.comment-char-count { font-size: 0.75rem; color: var(--text-tertiary); }
 
 /* Annotation comment thread indentation */
 .ann-comment-thread {
@@ -539,35 +593,84 @@
 
   // ---- Comments ----
   const commentsList = document.getElementById('comments-list');
+  const isAdmin = {{if .IsAdmin}}true{{else}}false{{end}};
+  let replyToID = null;
+
+  // Dynamically load markdown libs once and cache the promise.
+  let mdReady = null;
+  function ensureMd() {
+    if (mdReady) return mdReady;
+    if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') return (mdReady = Promise.resolve());
+    mdReady = new Promise(resolve => {
+      const dp = document.createElement('script');
+      dp.src = 'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js';
+      dp.onload = () => {
+        const m = document.createElement('script');
+        m.src = 'https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js';
+        m.onload = () => {
+          marked.setOptions({ gfm: true, breaks: true });
+          resolve();
+        };
+        document.head.appendChild(m);
+      };
+      document.head.appendChild(dp);
+    });
+    return mdReady;
+  }
+
+  function renderMarkdown(text) {
+    if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+      return DOMPurify.sanitize(marked.parse(text), {
+        ALLOWED_TAGS: ['p','strong','em','code','pre','a','ul','ol','li','blockquote','br','h3','h4','h5'],
+        ALLOWED_ATTR: ['href', 'target', 'rel'],
+        FORCE_BODY: false,
+      });
+    }
+    return escapeHTML(text).replace(/\n/g, '<br>');
+  }
+
+  function avatarHTML(c) {
+    if (c.avatar_url) {
+      return `<div class="comment-avatar"><img src="${escapeHTML(c.avatar_url)}" alt="${escapeHTML(c.username)}" loading="lazy"></div>`;
+    }
+    const init = (c.username || '?').charAt(0).toUpperCase();
+    return `<div class="comment-avatar-init">${init}</div>`;
+  }
 
   function renderComment(c, depth) {
     depth = depth || 0;
-    const indent = depth > 0 ? 'ml-8 pl-4 border-l border-gray-200 dark:border-gray-700' : '';
+    const cls = depth > 0 ? 'comment-item reply' : 'comment-item';
     const date = new Date(c.comment_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
     let repliesHTML = '';
     if (c.replies && c.replies.length) {
       repliesHTML = c.replies.map(r => renderComment(r, depth + 1)).join('');
     }
-    const deleteBtn = (currentUserID > 0 && currentUserID === c.user_id)
-      ? `<button class="text-xs text-red-500 hover:underline ml-2 delete-comment" data-id="${c.comment_id}">Delete</button>`
-      : '';
-    return `<div class="comment-item ${indent}" data-id="${c.comment_id}">
-      <div class="flex items-center gap-2 mb-1">
-        <span class="font-semibold text-sm">${escapeHTML(c.username)}</span>
-        <span class="text-xs text-gray-400">${date}</span>
-        ${deleteBtn}
+    const canDel = currentUserID > 0 && (currentUserID === c.user_id || isAdmin);
+    const delBtn = canDel
+      ? `<button class="comment-action-btn del-btn delete-comment" data-id="${c.comment_id}">Delete</button>` : '';
+    const replyBtn = currentUserID > 0
+      ? `<button class="comment-action-btn reply-btn do-reply" data-id="${c.comment_id}" data-username="${escapeHTML(c.username)}">Reply</button>` : '';
+    return `<div class="${cls}" id="comment-${c.comment_id}" data-id="${c.comment_id}">
+      <div class="comment-header">
+        ${avatarHTML(c)}
+        <div class="comment-meta">
+          <span class="comment-author">${escapeHTML(c.username)}</span>
+          <span class="comment-date">${date}</span>
+        </div>
+        <div class="comment-actions">${replyBtn}${delBtn}</div>
       </div>
-      <p class="text-sm leading-relaxed">${escapeHTML(c.content)}</p>
+      <div class="comment-body">${renderMarkdown(c.content)}</div>
       ${repliesHTML}
     </div>`;
   }
 
   async function loadComments() {
+    await ensureMd();
     try {
       const res = await fetch('/blog/' + postSlug + '/comments');
       const comments = await res.json();
       if (!comments || comments.length === 0) {
-        commentsList.innerHTML = '<p class="text-sm text-gray-500">No comments yet. Be the first!</p>';
+        commentsList.innerHTML = '<p class="text-sm text-gray-500 py-4">No comments yet. Be the first!</p>';
       } else {
         commentsList.innerHTML = comments.map(c => renderComment(c, 0)).join('');
         commentsList.querySelectorAll('.delete-comment').forEach(btn => {
@@ -578,6 +681,28 @@
             if (r.ok) loadComments();
           });
         });
+        commentsList.querySelectorAll('.do-reply').forEach(btn => {
+          btn.addEventListener('click', () => {
+            replyToID = parseInt(btn.dataset.id, 10);
+            const username = btn.dataset.username;
+            const banner = document.getElementById('reply-banner');
+            const bannerText = document.getElementById('reply-banner-text');
+            if (banner && bannerText) {
+              bannerText.textContent = 'Replying to @' + username;
+              banner.style.display = 'flex';
+            }
+            const compose = document.getElementById('comment-compose');
+            if (compose) { compose.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+            const input = document.getElementById('new-comment-content');
+            if (input) input.focus();
+          });
+        });
+        // Scroll to anchor comment if URL has #comment-N
+        const hash = window.location.hash;
+        if (hash && hash.startsWith('#comment-')) {
+          const el = document.getElementById(hash.slice(1));
+          if (el) el.scrollIntoView({behavior:'smooth', block:'center'});
+        }
       }
     } catch(e) {
       commentsList.innerHTML = '<p class="text-sm text-red-500">Failed to load comments.</p>';
@@ -585,8 +710,52 @@
   }
   loadComments();
 
-  const submitBtn = document.getElementById('submit-comment');
+  // Reply cancel
+  const cancelReply = document.getElementById('cancel-reply');
+  if (cancelReply) {
+    cancelReply.addEventListener('click', () => {
+      replyToID = null;
+      const banner = document.getElementById('reply-banner');
+      if (banner) banner.style.display = 'none';
+    });
+  }
+
+  // Formatting toolbar
   const commentInput = document.getElementById('new-comment-content');
+  document.querySelectorAll('.fmt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!commentInput) return;
+      const cmd = btn.dataset.cmd;
+      const start = commentInput.selectionStart;
+      const end = commentInput.selectionEnd;
+      const sel = commentInput.value.slice(start, end);
+      let before = '', after = '', placeholder = '';
+      switch (cmd) {
+        case 'bold':      before = '**'; after = '**'; placeholder = 'bold text'; break;
+        case 'italic':    before = '_';  after = '_';  placeholder = 'italic text'; break;
+        case 'code':      before = '`';  after = '`';  placeholder = 'code'; break;
+        case 'codeblock': before = '```\n'; after = '\n```'; placeholder = 'code here'; break;
+        case 'link': {
+          const url = prompt('Enter URL:');
+          if (!url) return;
+          const text = sel || 'link text';
+          const ins = `[${text}](${url})`;
+          commentInput.value = commentInput.value.slice(0, start) + ins + commentInput.value.slice(end);
+          commentInput.focus();
+          return;
+        }
+      }
+      const insert = before + (sel || placeholder) + after;
+      commentInput.value = commentInput.value.slice(0, start) + insert + commentInput.value.slice(end);
+      const newPos = sel ? start + insert.length : start + before.length;
+      const newEnd = sel ? newPos : newPos + (placeholder.length);
+      commentInput.setSelectionRange(newPos - (sel ? 0 : (placeholder.length + after.length)), newEnd - (sel ? 0 : after.length));
+      commentInput.focus();
+      charCount.textContent = commentInput.value.length + ' / 5000';
+    });
+  });
+
+  const submitBtn = document.getElementById('submit-comment');
   const charCount = document.getElementById('comment-char-count');
   if (commentInput && charCount) {
     commentInput.addEventListener('input', () => {
@@ -599,14 +768,19 @@
       if (!content) return;
       submitBtn.disabled = true;
       try {
+        const body = {content};
+        if (replyToID) body.parent_comment_id = replyToID;
         const res = await fetch('/blog/' + postSlug + '/comments', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({content})
+          body: JSON.stringify(body)
         });
         if (res.ok) {
           commentInput.value = '';
           if (charCount) charCount.textContent = '0 / 5000';
+          replyToID = null;
+          const banner = document.getElementById('reply-banner');
+          if (banner) banner.style.display = 'none';
           await loadComments();
         } else {
           const text = await res.text();

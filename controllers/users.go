@@ -164,6 +164,8 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		if slug != "" {
 			base = filepath.Join(base, slug)
 		}
+	} else if uploadType == "avatar" {
+		base = filepath.Join(base, "avatars")
 	} else if slug != "" {
 		base = filepath.Join(base, "post", slug)
 	}
@@ -186,6 +188,8 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		if slug != "" {
 			urlBase += "/" + slug
 		}
+	} else if uploadType == "avatar" {
+		urlBase += "/avatars"
 	} else if slug != "" {
 		urlBase += "/post/" + slug
 	}
@@ -726,6 +730,7 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 		LoggedIn        bool
 		Username        string
 		FullName        string
+		AvatarURL       string
 		IsAdmin         bool
 		SignupDisabled  bool
 		Description     string
@@ -737,6 +742,7 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	data.Email = user.Email
 	data.Username = user.Username
 	data.FullName = user.FullName
+	data.AvatarURL = user.AvatarURL
 	data.LoggedIn = true
 	data.IsAdmin = models.IsAdmin(user.Role)
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
@@ -862,6 +868,51 @@ func (u Users) UpdateEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateName updates the user's display name.
+// UploadAvatar updates the user's profile picture via file upload or URL.
+func (u Users) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+
+	var avatarURL string
+
+	// Try file upload first.
+	r.Body = http.MaxBytesReader(w, r.Body, 5<<20) // 5 MB
+	if err := r.ParseMultipartForm(5 << 20); err == nil {
+		file, header, ferr := r.FormFile("avatar")
+		if ferr == nil {
+			defer file.Close()
+			url, serr := saveUploadedFile(file, header.Filename, "avatar", fmt.Sprintf("%d", user.UserID))
+			if serr != nil {
+				http.Redirect(w, r, "/users/me?message=Failed to save image", http.StatusFound)
+				return
+			}
+			avatarURL = url
+		}
+	}
+
+	// Fall back to URL field.
+	if avatarURL == "" {
+		raw := strings.TrimSpace(r.FormValue("avatar_url"))
+		if raw != "" && (strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://")) {
+			avatarURL = raw
+		}
+	}
+
+	if avatarURL == "" {
+		http.Redirect(w, r, "/users/me?message=No image provided", http.StatusFound)
+		return
+	}
+
+	if err := u.UserService.UpdateAvatarURL(user.UserID, avatarURL); err != nil {
+		http.Redirect(w, r, "/users/me?message=Failed to update avatar", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/users/me?message=Profile picture updated", http.StatusFound)
+}
+
 func (u Users) UpdateName(w http.ResponseWriter, r *http.Request) {
 	user, err := u.isUserLoggedIn(r)
 	if err != nil {
