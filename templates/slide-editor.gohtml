@@ -144,6 +144,7 @@
       <button class="tb-btn" data-cmd="blockquote" title="Blockquote">&ldquo;</button>
       <button class="tb-btn" data-cmd="table" title="Insert Table">Table</button>
       <button class="tb-btn" data-cmd="mermaid" title="Insert Mermaid Diagram">Mermaid</button>
+      <button class="tb-btn" data-cmd="drawing" title="Insert Drawing (go-draw)">Draw</button>
       <div class="tb-sep"></div>
 
       <!-- Layout -->
@@ -333,6 +334,25 @@
     <div class="flex justify-end gap-2 mt-4">
       <button id="image-cancel" class="tb-btn">Cancel</button>
       <button id="image-insert" class="tb-btn" style="background:#6366f1;color:#fff">Insert</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drawing (go-draw) Modal -->
+<div id="drawing-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-4xl" style="height:80vh;display:flex;flex-direction:column">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Insert Drawing</h3>
+      <div class="flex gap-2">
+        <button id="drawing-insert" class="tb-btn" style="background:#6366f1;color:#fff">Insert Selected</button>
+        <button id="drawing-cancel" class="tb-btn">Cancel</button>
+      </div>
+    </div>
+    <div style="flex:1;overflow:hidden">
+      <iframe id="drawing-iframe" src="" style="width:100%;height:100%;border:none"></iframe>
+    </div>
+    <div class="px-6 py-3 border-t border-gray-200 dark:border-slate-700 text-xs text-gray-500 dark:text-gray-400">
+      Click a drawing to select it, or create a new one. Then click "Insert Selected".
     </div>
   </div>
 </div>
@@ -615,6 +635,7 @@
         case 'blockquote': editor.chain().focus().toggleBlockquote().run(); break;
         case 'image': document.getElementById('image-modal').style.display = 'flex'; break;
         case 'mermaid': document.getElementById('mermaid-modal').style.display = 'flex'; break;
+        case 'drawing': openDrawingPicker(); break;
         case 'table': editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); break;
       }
     });
@@ -707,6 +728,69 @@
     }
     document.getElementById('mermaid-modal').style.display = 'none';
     document.getElementById('mermaid-input').value = '';
+  });
+
+  // Drawing (go-draw) picker
+  let selectedDrawingId = null;
+
+  function openDrawingPicker() {
+    selectedDrawingId = null;
+    const iframe = document.getElementById('drawing-iframe');
+    iframe.src = '/draw/';
+    document.getElementById('drawing-modal').style.display = 'flex';
+
+    // Listen for clicks inside the iframe to detect drawing selection
+    iframe.onload = () => {
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        // Watch for navigation to a specific drawing (URL changes to /draw/{id})
+        const checkUrl = () => {
+          try {
+            const path = iframe.contentWindow.location.pathname;
+            const match = path.match(/^\/draw\/([a-zA-Z0-9_-]+)\/?$/);
+            if (match && match[1] !== '') {
+              selectedDrawingId = match[1];
+              document.getElementById('drawing-insert').style.opacity = '1';
+            }
+          } catch(e) { /* cross-origin, ignore */ }
+        };
+        // Poll for URL changes (iframe navigation doesn't trigger parent events)
+        const urlPoll = setInterval(checkUrl, 500);
+        iframe.dataset.pollId = urlPoll;
+      } catch(e) { /* cross-origin iframe, ignore */ }
+    };
+  }
+
+  document.getElementById('drawing-cancel').addEventListener('click', () => {
+    const iframe = document.getElementById('drawing-iframe');
+    clearInterval(parseInt(iframe.dataset.pollId));
+    iframe.src = '';
+    document.getElementById('drawing-modal').style.display = 'none';
+  });
+
+  document.getElementById('drawing-insert').addEventListener('click', () => {
+    const iframe = document.getElementById('drawing-iframe');
+    // Try to get the current drawing ID from the iframe URL
+    try {
+      const path = iframe.contentWindow.location.pathname;
+      const match = path.match(/^\/draw\/([a-zA-Z0-9_-]+)/);
+      if (match) {
+        selectedDrawingId = match[1];
+      }
+    } catch(e) { /* cross-origin */ }
+
+    if (selectedDrawingId) {
+      // Insert go-draw embed div (view-only for presentations)
+      const embedHtml = `<div class="godraw-embed" data-src="/draw/${selectedDrawingId}" style="width:100%;min-height:300px"></div><p></p>`;
+      editor.chain().focus().insertContent(embedHtml).run();
+    } else {
+      alert('Please select or create a drawing first. Navigate to a drawing in the picker.');
+      return;
+    }
+
+    clearInterval(parseInt(iframe.dataset.pollId));
+    iframe.src = '';
+    document.getElementById('drawing-modal').style.display = 'none';
   });
 
   // Build final HTML content
