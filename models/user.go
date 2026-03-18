@@ -166,13 +166,15 @@ func (us *UserService) GetByEmail(email string) (*User, error) {
 
 func (us *UserService) GetByUsername(username string) (*User, error) {
 	var u User
+	var regDate time.Time
 	err := us.DB.QueryRow(
-		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id FROM Users WHERE username = $1`,
+		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id, COALESCE(registration_date, NOW()) FROM Users WHERE username = $1`,
 		username,
-	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role)
+	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role, &regDate)
 	if err != nil {
 		return nil, fmt.Errorf("get user by username: %w", err)
 	}
+	u.RegistrationDate = regDate.Format("January 2006")
 	return &u, nil
 }
 

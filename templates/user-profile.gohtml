@@ -1,41 +1,259 @@
 {{template "modern-header" .}}
 
-<div class="max-w-3xl mx-auto px-4 py-10">
-  <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-50">{{.ProfileUser.DisplayName}}</h1>
-    {{if .ProfileUser.FullName}}
-    <p class="text-gray-500 dark:text-gray-400 mt-1">@{{.ProfileUser.Username}}</p>
-    {{end}}
+<style>
+.profile-page { max-width: 860px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+
+/* ── Hero ── */
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  margin-bottom: 1.25rem;
+}
+.profile-avatar {
+  flex-shrink: 0;
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.875rem; font-weight: 700; color: #fff;
+  letter-spacing: -0.02em;
+  box-shadow: 0 4px 16px rgba(13,148,136,0.25);
+}
+.profile-name {
+  font-size: 1.625rem; font-weight: 700;
+  color: var(--text-primary); letter-spacing: -0.03em;
+  margin: 0 0 0.2rem;
+}
+.profile-handle { font-size: 0.875rem; color: var(--text-tertiary); margin: 0 0 0.625rem; }
+.profile-badges { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.badge {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.2rem 0.625rem; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
+}
+.badge-admin  { background: rgba(99,102,241,0.12); color: #6366f1; }
+.badge-editor { background: rgba(13,148,136,0.12); color: var(--accent); }
+.badge-member { background: var(--bg-tertiary); color: var(--text-secondary); }
+.badge-since  { background: none; color: var(--text-tertiary); font-weight: 400; padding: 0; font-size: 0.8125rem; }
+
+/* ── Stats ── */
+.profile-stats {
+  display: flex; gap: 0; margin-bottom: 2.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.stat-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 1rem; gap: 0.15rem;
+  border-right: 1px solid var(--border-light);
+}
+.stat-item:last-child { border-right: none; }
+.stat-value { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.04em; line-height: 1; }
+.stat-label { font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ── Section header ── */
+.section-header {
+  display: flex; align-items: center; gap: 0.625rem;
+  margin-bottom: 1rem;
+}
+.section-title { font-size: 1.0625rem; font-weight: 600; color: var(--text-primary); margin: 0; }
+.section-count {
+  font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary);
+  background: var(--bg-tertiary); border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+
+/* ── Post cards grid ── */
+.post-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem; margin-bottom: 2.5rem;
+}
+.post-card {
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden; text-decoration: none; color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.post-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+.post-card-img { width: 100%; height: 148px; object-fit: cover; display: block; background: var(--bg-tertiary); }
+.post-card-img-placeholder {
+  width: 100%; height: 80px;
+  background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+  display: flex; align-items: center; justify-content: center;
+}
+.post-card-img-placeholder svg { opacity: 0.25; }
+.post-card-body { padding: 0.875rem 1rem 1rem; flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+.post-card-top { display: flex; align-items: center; gap: 0.5rem; min-height: 1.25rem; }
+.post-card-featured {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  font-size: 0.6875rem; font-weight: 700; color: #f59e0b;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.post-card-title {
+  font-size: 0.9375rem; font-weight: 600; color: var(--text-primary);
+  line-height: 1.45; letter-spacing: -0.01em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.post-card-meta { font-size: 0.75rem; color: var(--text-tertiary); margin-top: auto; padding-top: 0.375rem; }
+
+/* ── Contributions list ── */
+.contribution-list { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 2.5rem; }
+.contribution-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  text-decoration: none; color: inherit;
+  transition: border-color 0.12s, background 0.12s;
+}
+.contribution-item:hover { border-color: var(--accent); background: var(--bg-tertiary); }
+.contribution-icon {
+  flex-shrink: 0; width: 2rem; height: 2rem;
+  background: rgba(13,148,136,0.1); border-radius: 0.375rem;
+  display: flex; align-items: center; justify-content: center; color: var(--accent);
+}
+.contribution-title {
+  flex: 1; min-width: 0; font-size: 0.9375rem; font-weight: 500; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.contribution-arrow { flex-shrink: 0; color: var(--text-tertiary); transition: transform 0.12s, color 0.12s; }
+.contribution-item:hover .contribution-arrow { transform: translateX(3px); color: var(--accent); }
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center; padding: 2.5rem 1rem;
+  color: var(--text-tertiary); font-size: 0.9375rem;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 2.5rem;
+}
+
+@media (max-width: 600px) {
+  .profile-hero { flex-direction: column; text-align: center; align-items: center; }
+  .profile-badges { justify-content: center; }
+  .post-cards { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="profile-page">
+
+  <!-- Hero -->
+  <div class="profile-hero">
+    <div class="profile-avatar">{{initial .ProfileUser.DisplayName}}</div>
+    <div class="profile-meta" style="min-width:0;">
+      <h1 class="profile-name">{{.ProfileUser.DisplayName}}</h1>
+      {{if .ProfileUser.FullName}}<p class="profile-handle">@{{.ProfileUser.Username}}</p>{{end}}
+      <div class="profile-badges">
+        {{if eq .ProfileUser.Role 2}}
+          <span class="badge badge-admin">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            Administrator
+          </span>
+        {{else if eq .ProfileUser.Role 1}}
+          <span class="badge badge-editor">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Editor
+          </span>
+        {{else}}
+          <span class="badge badge-member">Member</span>
+        {{end}}
+        {{if .ProfileUser.RegistrationDate}}
+          <span class="badge badge-since">Since {{.ProfileUser.RegistrationDate}}</span>
+        {{end}}
+      </div>
+    </div>
   </div>
 
-  <section class="mb-10">
-    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Posts by {{.ProfileUser.DisplayName}}</h2>
+  <!-- Stats -->
+  {{$nPosts := len .AuthoredPosts}}{{$nContribs := len .ContributedPosts}}
+  {{if or $nPosts $nContribs}}
+  <div class="profile-stats">
+    <div class="stat-item">
+      <span class="stat-value">{{$nPosts}}</span>
+      <span class="stat-label">Posts</span>
+    </div>
+    {{if $nContribs}}
+    <div class="stat-item">
+      <span class="stat-value">{{$nContribs}}</span>
+      <span class="stat-label">Contributions</span>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+
+  <!-- Authored posts -->
+  <section>
+    <div class="section-header">
+      <h2 class="section-title">Posts</h2>
+      {{if $nPosts}}<span class="section-count">{{$nPosts}}</span>{{end}}
+    </div>
     {{if .AuthoredPosts}}
-    <ul class="space-y-3">
+    <div class="post-cards">
       {{range .AuthoredPosts}}
-      <li class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-400 transition-colors">
-        <a href="/blog/{{.Slug}}" class="text-blue-600 dark:text-blue-400 font-medium hover:underline">{{.Title}}</a>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{.PublicationDate}}</p>
-      </li>
+      <a href="/blog/{{.Slug}}" class="post-card">
+        {{if .FeaturedImageURL}}
+          <img src="{{.FeaturedImageURL}}" alt="{{.Title}}" class="post-card-img" loading="lazy" />
+        {{else}}
+          <div class="post-card-img-placeholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 9 5-5 4 4 3-3 6 6"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>
+          </div>
+        {{end}}
+        <div class="post-card-body">
+          <div class="post-card-top">
+            {{if .Featured}}
+            <span class="post-card-featured">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              Featured
+            </span>
+            {{end}}
+          </div>
+          <div class="post-card-title">{{.Title}}</div>
+          <div class="post-card-meta">{{.PublicationDate}}</div>
+        </div>
+      </a>
       {{end}}
-    </ul>
+    </div>
     {{else}}
-    <p class="text-gray-500 dark:text-gray-400">No published posts yet.</p>
+    <div class="empty-state">No published posts yet.</div>
     {{end}}
   </section>
 
+  <!-- Contributions -->
   {{if .ContributedPosts}}
-  <section class="mb-10">
-    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Contributions by {{.ProfileUser.DisplayName}}</h2>
-    <ul class="space-y-3">
+  <section>
+    <div class="section-header">
+      <h2 class="section-title">Contributions</h2>
+      <span class="section-count">{{$nContribs}}</span>
+    </div>
+    <div class="contribution-list">
       {{range .ContributedPosts}}
-      <li class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-400 transition-colors">
-        <a href="/blog/{{.Slug}}" class="text-blue-600 dark:text-blue-400 font-medium hover:underline">{{.Title}}</a>
-      </li>
+      <a href="/blog/{{.Slug}}" class="contribution-item">
+        <div class="contribution-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <span class="contribution-title">{{.Title}}</span>
+        <svg class="contribution-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
       {{end}}
-    </ul>
+    </div>
   </section>
   {{end}}
+
 </div>
 
 {{template "modern-footer" .}}
