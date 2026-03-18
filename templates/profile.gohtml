@@ -70,6 +70,21 @@
             </form>
         </div>
 
+        <!-- Bio / About -->
+        <div class="profile-section">
+            <div class="section-header">
+                <h2>About You</h2>
+                <p>A short bio shown at the end of articles you write or contribute to. Max 500 characters.</p>
+            </div>
+            <form class="profile-form" method="POST" action="/users/bio">
+                <div class="form-group">
+                    <label for="bio">Bio</label>
+                    <textarea id="bio" name="bio" rows="3" maxlength="500" placeholder="e.g. Software engineer passionate about cloud security and distributed systems.">{{.Bio}}</textarea>
+                </div>
+                <button type="submit" class="btn-primary">Update Bio</button>
+            </form>
+        </div>
+
         <!-- Profile Picture -->
         <div class="profile-section">
             <div class="section-header">

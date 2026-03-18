@@ -27,7 +27,7 @@ func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 
 	const query = `
 		SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
-		       COALESCE(u.profile_picture_url, ''),
+		       COALESCE(u.profile_picture_url, ''), COALESCE(u.bio, ''),
 		       p.category_id, p.title, p.content, p.slug, p.publication_date,
 		       p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured
 		FROM Posts p
@@ -40,6 +40,7 @@ func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 		&post.Username,
 		&post.AuthorDisplayName,
 		&post.AuthorAvatarURL,
+		&post.AuthorBio,
 		&post.CategoryID,
 		&post.Title,
 		&post.Content,

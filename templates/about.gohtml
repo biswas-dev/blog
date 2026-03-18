@@ -2,101 +2,121 @@
 
 <div class="max-w-4xl mx-auto px-6 py-16">
   <!-- Hero Section -->
-  <div class="text-center mb-16">
-    <h1 class="text-4xl font-bold mb-6" style="color: var(--text-primary);">
-      About Me
-    </h1>
-    <p class="text-xl max-w-3xl mx-auto leading-relaxed" style="color: var(--text-secondary);">
-      Engineering leader and software architect specializing in B2B enterprise systems and cloud infrastructure solutions.
+  <div class="flex flex-col md:flex-row items-center gap-8 mb-16">
+    <div class="flex-shrink-0">
+      <div class="w-32 h-32 rounded-2xl overflow-hidden shadow-lg" style="background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);">
+        <img src="/static/uploads/avatars/c25316b4c6d7b680eb5b0c0e83f0647d.jpg" alt="Anshuman Biswas" class="w-full h-full object-cover" onerror="this.style.display='none'">
+      </div>
+    </div>
+    <div>
+      <h1 class="text-4xl font-bold mb-3" style="color: var(--text-primary);">
+        About This Blog
+      </h1>
+      <p class="text-xl leading-relaxed" style="color: var(--text-secondary);">
+        A collaborative space for engineers to share ideas, dissect real-world problems, and learn from each other.
+        Founded by <strong>Anshuman Biswas</strong> and open to contributions from anyone with something worth sharing.
+      </p>
+    </div>
+  </div>
+
+  <!-- Philosophy -->
+  <div class="rounded-2xl p-8 mb-10 border" style="background: var(--surface); border-color: var(--border-light);">
+    <h2 class="text-2xl font-bold mb-4" style="color: var(--text-primary);">Why This Exists</h2>
+    <p class="text-lg leading-relaxed mb-4" style="color: var(--text-secondary);">
+      Most engineering knowledge lives in Slack threads, meeting notes, and people's heads. This blog is a place
+      to surface those ideas — write them down, refine them through discussion, and make them accessible. Articles
+      here are versioned, commentable, and open to collaborative editing.
+    </p>
+    <p class="text-lg leading-relaxed" style="color: var(--text-secondary);">
+      Whether it's a deep dive on threat detection pipelines, a war story about scaling under load, or a tutorial
+      on a tool you just discovered — if it helps another engineer, it belongs here.
     </p>
   </div>
 
-  <!-- Content Cards -->
-  <div class="grid gap-12 mb-16">
-    <!-- Background Card -->
+  <!-- About Anshuman -->
+  <div class="grid md:grid-cols-2 gap-8 mb-10">
     <div class="rounded-2xl p-8 border" style="background: var(--surface); border-color: var(--border-light);">
-      <div class="flex items-center mb-6">
-        <div class="w-12 h-12 rounded-lg flex items-center justify-center mr-4" style="background: var(--accent);">
-          {{icon "user" "w-6 h-6 text-white"}}
+      <div class="flex items-center mb-4">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background: var(--accent);">
+          {{icon "lock-closed" "w-5 h-5 text-white"}}
         </div>
-        <h2 class="text-2xl font-bold" style="color: var(--text-primary);">Background</h2>
+        <h3 class="text-lg font-bold" style="color: var(--text-primary);">Security & Threat Detection</h3>
       </div>
-      <p class="text-lg leading-relaxed" style="color: var(--text-secondary);">
-        I'm Anshuman Biswas, a software engineering leader with extensive experience in cloud architecture,
-        distributed systems, and modern development practices. I specialize in building robust B2B enterprise
-        software solutions and leading engineering teams in complex technical environments.
+      <p style="color: var(--text-secondary);">
+        My core background is in threat detection, security engineering, and building detection systems that operate
+        at scale. From SIEM pipelines to runtime enforcement, security is the lens through which I approach most problems.
       </p>
     </div>
 
-    <!-- Expertise Card -->
     <div class="rounded-2xl p-8 border" style="background: var(--surface); border-color: var(--border-light);">
-      <div class="flex items-center mb-6">
-        <div class="w-12 h-12 rounded-lg flex items-center justify-center mr-4" style="background: var(--accent);">
-          {{icon "lightbulb" "w-6 h-6 text-white"}}
+      <div class="flex items-center mb-4">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background: var(--accent);">
+          {{icon "lightbulb" "w-5 h-5 text-white"}}
         </div>
-        <h2 class="text-2xl font-bold" style="color: var(--text-primary);">Expertise</h2>
+        <h3 class="text-lg font-bold" style="color: var(--text-primary);">B2B Enterprise & Scale</h3>
       </div>
-      <div class="grid md:grid-cols-2 gap-4">
-        <div class="flex items-center space-x-3">
-          <div class="w-2 h-2 rounded-full" style="background: var(--accent);"></div>
-          <span style="color: var(--text-secondary);">Cloud Architecture & Infrastructure</span>
-        </div>
-        <div class="flex items-center space-x-3">
-          <div class="w-2 h-2 rounded-full" style="background: var(--accent);"></div>
-          <span style="color: var(--text-secondary);">Distributed Systems Design</span>
-        </div>
-        <div class="flex items-center space-x-3">
-          <div class="w-2 h-2 rounded-full" style="background: var(--accent);"></div>
-          <span style="color: var(--text-secondary);">Microservices & API Development</span>
-        </div>
-        <div class="flex items-center space-x-3">
-          <div class="w-2 h-2 rounded-full" style="background: var(--accent);"></div>
-          <span style="color: var(--text-secondary);">Performance Optimization</span>
-        </div>
-        <div class="flex items-center space-x-3">
-          <div class="w-2 h-2 rounded-full" style="background: var(--accent);"></div>
-          <span style="color: var(--text-secondary);">Engineering Leadership</span>
-        </div>
-        <div class="flex items-center space-x-3">
-          <div class="w-2 h-2 rounded-full" style="background: var(--accent);"></div>
-          <span style="color: var(--text-secondary);">System Architecture</span>
-        </div>
+      <p style="color: var(--text-secondary);">
+        Over a decade of building B2B enterprise platforms — distributed systems, cloud infrastructure,
+        performance at scale, and the hard lessons that come from operating services relied on by large organizations.
+      </p>
+    </div>
+  </div>
+
+  <!-- Expertise grid -->
+  <div class="rounded-2xl p-8 mb-10 border" style="background: var(--surface); border-color: var(--border-light);">
+    <h2 class="text-xl font-bold mb-5" style="color: var(--text-primary);">Areas of Focus</h2>
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+      {{range $topic := (slice "Threat Detection & Response" "Security Engineering" "Cloud Architecture" "Distributed Systems" "Performance & Scale" "B2B Enterprise Software" "Detection Pipelines" "Microservices & APIs" "Engineering Leadership")}}
+      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background: var(--bg-secondary); color: var(--text-secondary);">
+        <div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background: var(--accent);"></div>
+        {{$topic}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+
+  <!-- Collaborate -->
+  <div class="rounded-2xl p-8 mb-10 border-2 border-dashed" style="border-color: var(--accent); background: var(--bg-secondary);">
+    <div class="text-center">
+      <h2 class="text-2xl font-bold mb-3" style="color: var(--text-primary);">Want to Contribute?</h2>
+      <p class="text-lg mb-6 max-w-2xl mx-auto" style="color: var(--text-secondary);">
+        This blog supports multiple authors and collaborative editing. If you have an idea for a post, want to co-author
+        something, or just want to improve an existing article — sign in with GitHub and start writing.
+        Every contribution is tracked and credited.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="/auth/github" class="btn btn-primary">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd"></path></svg>
+          Sign in with GitHub
+        </a>
+        <a href="/slides" class="btn btn-secondary">
+          {{icon "columns" "w-5 h-5"}}
+          Browse Presentations
+        </a>
       </div>
     </div>
   </div>
 
-  <!-- Contact Section -->
-  <div class="text-center">
-    <div class="rounded-2xl p-8 border" style="background: var(--bg-secondary); border-color: var(--border-light);">
-      <h2 class="text-2xl font-bold mb-6" style="color: var(--text-primary);">Let's Connect</h2>
-      <p class="mb-8 text-lg" style="color: var(--text-secondary);">
-        Interested in discussing technology, architecture, or potential collaborations?
-      </p>
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a href="https://biswas.me" target="_blank" rel="noopener noreferrer"
-           class="btn btn-primary">
-          {{icon "globe" "w-5 h-5"}}
-          Visit Website
-        </a>
-        <a href="mailto:anshuman@biswas.me" class="btn btn-primary">
-          {{icon "email" "w-5 h-5"}}
-          Email Me
-        </a>
-        <a href="https://linkedin.com/in/anshuman-biswas-phd-613b0145" target="_blank" rel="noopener noreferrer"
-           class="btn btn-secondary">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M16.338 16.338H13.67V12.16c0-.995-.017-2.277-1.387-2.277-1.39 0-1.601 1.086-1.601 2.207v4.248H8.014v-8.59h2.559v1.174h.037c.356-.675 1.227-1.387 2.526-1.387 2.703 0 3.203 1.778 3.203 4.092v4.711zM5.005 6.575a1.548 1.548 0 11-.003-3.096 1.548 1.548 0 01.003 3.096zm-1.337 9.763H6.34v-8.59H3.667v8.59zM17.668 1H2.328C1.595 1 1 1.581 1 2.298v15.403C1 18.418 1.595 19 2.328 19h15.34c.734 0 1.332-.582 1.332-1.299V2.298C19 1.581 18.402 1 17.668 1z" clip-rule="evenodd"></path>
-          </svg>
-          LinkedIn
-        </a>
-        <a href="https://github.com/anchoo2kewl" target="_blank" rel="noopener noreferrer"
-           class="btn btn-secondary">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd"></path>
-          </svg>
-          GitHub
-        </a>
-      </div>
+  <!-- Connect -->
+  <div class="rounded-2xl p-8 border" style="background: var(--surface); border-color: var(--border-light);">
+    <h2 class="text-xl font-bold mb-5" style="color: var(--text-primary);">Connect</h2>
+    <div class="flex flex-col sm:flex-row gap-3">
+      <a href="https://biswas.me" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+        {{icon "globe" "w-5 h-5"}}
+        biswas.me
+      </a>
+      <a href="mailto:anshuman@biswas.me" class="btn btn-primary">
+        {{icon "email" "w-5 h-5"}}
+        Email
+      </a>
+      <a href="https://linkedin.com/in/anshuman-biswas-phd-613b0145" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.338 16.338H13.67V12.16c0-.995-.017-2.277-1.387-2.277-1.39 0-1.601 1.086-1.601 2.207v4.248H8.014v-8.59h2.559v1.174h.037c.356-.675 1.227-1.387 2.526-1.387 2.703 0 3.203 1.778 3.203 4.092v4.711zM5.005 6.575a1.548 1.548 0 11-.003-3.096 1.548 1.548 0 01.003 3.096zm-1.337 9.763H6.34v-8.59H3.667v8.59zM17.668 1H2.328C1.595 1 1 1.581 1 2.298v15.403C1 18.418 1.595 19 2.328 19h15.34c.734 0 1.332-.582 1.332-1.299V2.298C19 1.581 18.402 1 17.668 1z" clip-rule="evenodd"></path></svg>
+        LinkedIn
+      </a>
+      <a href="https://github.com/anchoo2kewl" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd"></path></svg>
+        GitHub
+      </a>
     </div>
   </div>
 </div>

@@ -137,6 +137,48 @@
         </div>
     </div>
     
+    <!-- About the Author(s) -->
+    <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+      <!-- Primary author -->
+      <div class="flex gap-4 items-start mb-6">
+        <a href="/users/{{.Post.Username}}" class="flex-shrink-0">
+          {{if .Post.AuthorAvatarURL}}
+          <img src="{{thumbURL .Post.AuthorAvatarURL}}" alt="{{.Post.AuthorDisplayName}}" width="56" height="56" class="rounded-full object-cover" style="width:56px;height:56px">
+          {{else}}
+          <span class="flex items-center justify-center rounded-full text-white font-bold text-lg" style="width:56px;height:56px;background:linear-gradient(135deg,var(--accent,#0d9488),#6366f1)">{{initial .Post.AuthorDisplayName}}</span>
+          {{end}}
+        </a>
+        <div class="min-w-0">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:var(--accent)">Written by</div>
+          <a href="/users/{{.Post.Username}}" class="text-lg font-bold hover:underline" style="color:var(--text-primary)">{{.Post.AuthorDisplayName}}</a>
+          {{if .Post.AuthorBio}}
+          <p class="mt-1 text-sm leading-relaxed" style="color:var(--text-secondary)">{{.Post.AuthorBio}}</p>
+          {{end}}
+        </div>
+      </div>
+      <!-- Contributors -->
+      {{if .Contributors}}
+      {{range .Contributors}}
+      <div class="flex gap-4 items-start mb-4 pl-4 ml-4 border-l-2" style="border-color:var(--border-light)">
+        <a href="/users/{{.Username}}" class="flex-shrink-0">
+          {{if .AvatarURL}}
+          <img src="{{thumbURL .AvatarURL}}" alt="{{.DisplayName}}" width="40" height="40" class="rounded-full object-cover" style="width:40px;height:40px">
+          {{else}}
+          <span class="flex items-center justify-center rounded-full text-white font-bold text-sm" style="width:40px;height:40px;background:linear-gradient(135deg,var(--accent,#0d9488),#6366f1)">{{initial .DisplayName}}</span>
+          {{end}}
+        </a>
+        <div class="min-w-0">
+          <div class="text-xs font-medium" style="color:var(--text-tertiary)">Contributor</div>
+          <a href="/users/{{.Username}}" class="text-sm font-semibold hover:underline" style="color:var(--text-primary)">{{.DisplayName}}</a>
+          {{if .Bio}}
+          <p class="mt-0.5 text-xs leading-relaxed" style="color:var(--text-secondary)">{{.Bio}}</p>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+      {{end}}
+    </section>
+
     <!-- Comments Section -->
     <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700" id="comments-section">
       <h2 class="text-2xl font-bold mb-6">Comments</h2>

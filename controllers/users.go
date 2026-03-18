@@ -851,6 +851,7 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 		Username        string
 		FullName        string
 		AvatarURL       string
+		Bio             string
 		IsAdmin         bool
 		SignupDisabled  bool
 		Description     string
@@ -863,6 +864,7 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	data.Username = user.Username
 	data.FullName = user.FullName
 	data.AvatarURL = user.AvatarURL
+	data.Bio = user.Bio
 	data.LoggedIn = true
 	data.IsAdmin = models.IsAdmin(user.Role)
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
@@ -1050,6 +1052,25 @@ func (u Users) UpdateName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/users/me?message=Name updated successfully", http.StatusFound)
+}
+
+func (u Users) UpdateBio(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	bio := strings.TrimSpace(r.FormValue("bio"))
+	if len(bio) > 500 {
+		http.Redirect(w, r, "/users/me?message=Bio too long (max 500 characters)", http.StatusFound)
+		return
+	}
+	if err := u.UserService.UpdateBio(user.UserID, bio); err != nil {
+		http.Redirect(w, r, "/users/me?message=Failed to update bio", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/users/me?message=Bio updated successfully", http.StatusFound)
 }
 
 // AdminPosts shows all posts for admin users

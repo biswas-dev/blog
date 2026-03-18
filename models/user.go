@@ -20,6 +20,7 @@ type User struct {
 	RegistrationDate string
 	Role             int
 	AvatarURL        string
+	Bio              string
 }
 
 // DisplayName returns FullName if set, otherwise Username.
@@ -169,9 +170,9 @@ func (us *UserService) GetByUsername(username string) (*User, error) {
 	var u User
 	var regDate time.Time
 	err := us.DB.QueryRow(
-		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id, COALESCE(registration_date, NOW()), COALESCE(profile_picture_url, '') FROM Users WHERE username = $1`,
+		`SELECT user_id, email, username, COALESCE(full_name, ''), role_id, COALESCE(registration_date, NOW()), COALESCE(profile_picture_url, ''), COALESCE(bio, '') FROM Users WHERE username = $1`,
 		username,
-	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role, &regDate, &u.AvatarURL)
+	).Scan(&u.UserID, &u.Email, &u.Username, &u.FullName, &u.Role, &regDate, &u.AvatarURL, &u.Bio)
 	if err != nil {
 		return nil, fmt.Errorf("get user by username: %w", err)
 	}
@@ -183,6 +184,14 @@ func (us *UserService) UpdateAvatarURL(userID int, avatarURL string) error {
 	_, err := us.DB.Exec("UPDATE Users SET profile_picture_url = $1 WHERE user_id = $2", avatarURL, userID)
 	if err != nil {
 		return fmt.Errorf("update avatar url: %w", err)
+	}
+	return nil
+}
+
+func (us *UserService) UpdateBio(userID int, bio string) error {
+	_, err := us.DB.Exec("UPDATE Users SET bio = $1 WHERE user_id = $2", bio, userID)
+	if err != nil {
+		return fmt.Errorf("update bio: %w", err)
 	}
 	return nil
 }
