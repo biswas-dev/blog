@@ -37,12 +37,12 @@
   <!-- My background — two clean cards -->
   <div class="mb-12">
     <h2 class="text-xl font-bold mb-5" style="color: var(--text-primary);">My Background</h2>
-    <div class="grid md:grid-cols-2 gap-5">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
 
       <div class="rounded-xl p-6 border" style="background: var(--surface); border-color: var(--border-light);">
         <div class="flex items-center gap-3 mb-3">
-          <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:#dc2626">
-            {{icon "lock-closed" "w-4 h-4 text-white"}}
+          <div style="width:36px;height:36px;min-width:36px;background:#dc2626;border-radius:8px;display:flex;align-items:center;justify-content:center">
+            {{icon "shield" "w-4 h-4 text-white"}}
           </div>
           <h3 class="font-semibold" style="color: var(--text-primary);">Security &amp; Threat Detection</h3>
         </div>
@@ -55,7 +55,7 @@
 
       <div class="rounded-xl p-6 border" style="background: var(--surface); border-color: var(--border-light);">
         <div class="flex items-center gap-3 mb-3">
-          <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:#2563eb">
+          <div style="width:36px;height:36px;min-width:36px;background:#2563eb;border-radius:8px;display:flex;align-items:center;justify-content:center">
             {{icon "lightbulb" "w-4 h-4 text-white"}}
           </div>
           <h3 class="font-semibold" style="color: var(--text-primary);">B2B Enterprise &amp; Scale</h3>

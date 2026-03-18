@@ -49,13 +49,15 @@
                 <span>{{if .ReadTime}}{{.ReadTime}}{{else}}5{{end}} min read</span>
             </div>
             
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                {{if .Post.AuthorAvatarURL}}
-                <img src="{{thumbURL .Post.AuthorAvatarURL}}" alt="{{.Post.AuthorDisplayName}}" class="post-meta-avatar" width="24" height="24">
-                {{else}}
-                <span class="post-meta-avatar-init">{{initial .Post.AuthorDisplayName}}</span>
-                {{end}}
-                <a href="/users/{{.Post.Username}}" class="hover:underline">{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}</a>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <a href="/users/{{.Post.Username}}" class="inline-flex items-center hover:underline" style="gap:10px">
+                  {{if .Post.AuthorAvatarURL}}
+                  <img src="{{thumbURL .Post.AuthorAvatarURL}}" alt="{{.Post.AuthorDisplayName}}" class="post-meta-avatar" width="24" height="24">
+                  {{else}}
+                  <span class="post-meta-avatar-init">{{initial .Post.AuthorDisplayName}}</span>
+                  {{end}}
+                  {{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}
+                </a>
                 {{if .Contributors}}
                 <span class="text-sm text-gray-400 dark:text-gray-500 mx-1">with</span>
                 {{range $i, $c := .Contributors}}{{if $i}}<span class="text-gray-300 dark:text-gray-600">,</span>{{end}}<span class="inline-flex items-center gap-1">{{if $c.AvatarURL}}<img src="{{thumbURL $c.AvatarURL}}" alt="{{$c.DisplayName}}" class="post-meta-avatar-sm" width="20" height="20">{{else}}<span class="post-meta-avatar-init-sm">{{initial $c.DisplayName}}</span>{{end}}<a href="/users/{{$c.Username}}" class="text-sm hover:underline" style="color:var(--text-secondary)">{{$c.DisplayName}}</a></span>{{end}}
@@ -135,9 +137,9 @@
     </div>
     
     <!-- About the Author(s) -->
-    <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+    <section style="margin-top:3rem;padding-top:2.5rem;border-top:1px solid var(--border-light, #e5e7eb)">
       <!-- Primary author -->
-      <div class="flex gap-4 items-start mb-6">
+      <div class="flex items-start mb-6" style="gap:20px">
         <a href="/users/{{.Post.Username}}" class="flex-shrink-0">
           {{if .Post.AuthorAvatarURL}}
           <img src="{{thumbURL .Post.AuthorAvatarURL}}" alt="{{.Post.AuthorDisplayName}}" width="56" height="56" class="rounded-full object-cover" style="width:56px;height:56px">
