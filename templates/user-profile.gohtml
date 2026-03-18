@@ -161,7 +161,7 @@
 
   <!-- Hero -->
   <div class="profile-hero">
-    {{if .ProfileUser.AvatarURL}}<img src="{{.ProfileUser.AvatarURL}}" alt="{{.ProfileUser.DisplayName}}" class="profile-avatar-img">{{else}}<div class="profile-avatar">{{initial .ProfileUser.DisplayName}}</div>{{end}}
+    {{if .ProfileUser.AvatarURL}}<img src="{{thumbURL .ProfileUser.AvatarURL}}" alt="{{.ProfileUser.DisplayName}}" class="profile-avatar-img">{{else}}<div class="profile-avatar">{{initial .ProfileUser.DisplayName}}</div>{{end}}
     <div class="profile-meta" style="min-width:0;">
       <h1 class="profile-name">{{.ProfileUser.DisplayName}}</h1>
       {{if .ProfileUser.FullName}}<p class="profile-handle">@{{.ProfileUser.Username}}</p>{{end}}

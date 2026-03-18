@@ -6,6 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"log"
 	"net/http"
@@ -13,6 +16,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+
+	_ "image/gif"
+
+	"golang.org/x/image/draw"
 	"strconv"
 	"strings"
 	"time"
@@ -203,7 +210,110 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 	} else if slug != "" {
 		urlBase += "/post/" + slug
 	}
-	return urlBase + "/" + name, nil
+	url := urlBase + "/" + name
+
+	// Generate thumbnail for avatar uploads
+	if uploadType == "avatar" {
+		go createThumbnail(fpath, 96)
+	}
+
+	return url, nil
+}
+
+// ThumbURL derives the thumbnail URL from an original image URL.
+// "/static/uploads/avatars/abc123.jpg" → "/static/uploads/avatars/abc123_thumb.jpg"
+func ThumbURL(originalURL string) string {
+	if originalURL == "" {
+		return ""
+	}
+	ext := filepath.Ext(originalURL)
+	return originalURL[:len(originalURL)-len(ext)] + "_thumb" + ext
+}
+
+// createThumbnail generates a square thumbnail of the given size from the source image.
+// It writes to the same directory with _thumb inserted before the extension.
+// Runs in a goroutine — errors are logged but never block the caller.
+func createThumbnail(srcPath string, size int) {
+	ext := strings.ToLower(filepath.Ext(srcPath))
+	thumbPath := srcPath[:len(srcPath)-len(ext)] + "_thumb" + ext
+
+	src, err := os.Open(srcPath)
+	if err != nil {
+		log.Printf("thumbnail: open %s: %v", srcPath, err)
+		return
+	}
+	defer src.Close()
+
+	img, _, err := image.Decode(src)
+	if err != nil {
+		log.Printf("thumbnail: decode %s: %v", srcPath, err)
+		return
+	}
+
+	// Crop to square from center, then scale down
+	bounds := img.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	cropSize := w
+	if h < cropSize {
+		cropSize = h
+	}
+	x0 := (w - cropSize) / 2
+	y0 := (h - cropSize) / 2
+
+	// Create the thumbnail
+	thumb := image.NewRGBA(image.Rect(0, 0, size, size))
+
+	// Use SubImage for cropping, then scale
+	type subImager interface {
+		SubImage(r image.Rectangle) image.Image
+	}
+	cropped := img
+	if si, ok := img.(subImager); ok {
+		cropped = si.SubImage(image.Rect(x0+bounds.Min.X, y0+bounds.Min.Y, x0+bounds.Min.X+cropSize, y0+bounds.Min.Y+cropSize))
+	}
+
+	draw.CatmullRom.Scale(thumb, thumb.Bounds(), cropped, cropped.Bounds(), draw.Over, nil)
+
+	out, err := os.Create(thumbPath)
+	if err != nil {
+		log.Printf("thumbnail: create %s: %v", thumbPath, err)
+		return
+	}
+	defer out.Close()
+
+	switch ext {
+	case ".png":
+		err = png.Encode(out, thumb)
+	default: // .jpg, .jpeg, .gif, .webp → save as JPEG
+		err = jpeg.Encode(out, thumb, &jpeg.Options{Quality: 85})
+	}
+	if err != nil {
+		log.Printf("thumbnail: encode %s: %v", thumbPath, err)
+	}
+}
+
+// BackfillAvatarThumbnails generates thumbnails for all existing avatar images
+// that don't already have a _thumb version. Intended to run once at startup.
+func BackfillAvatarThumbnails() {
+	avatarDir := filepath.Join("static", "uploads", "avatars")
+	entries, err := os.ReadDir(avatarDir)
+	if err != nil {
+		return // no avatars dir yet
+	}
+	for _, e := range entries {
+		if e.IsDir() || strings.Contains(e.Name(), "_thumb") {
+			continue
+		}
+		ext := filepath.Ext(e.Name())
+		thumbName := e.Name()[:len(e.Name())-len(ext)] + "_thumb" + ext
+		thumbPath := filepath.Join(avatarDir, thumbName)
+		if _, err := os.Stat(thumbPath); err == nil {
+			continue // thumb already exists
+		}
+		srcPath := filepath.Join(avatarDir, e.Name())
+		createThumbnail(srcPath, 96)
+		log.Printf("thumbnail: backfilled %s", thumbName)
+	}
 }
 
 // UploadImage handles image uploads (cover or inline). Returns JSON {url}

@@ -44,6 +44,13 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 			"add": func(a, b int) int {
 				return a + b
 			},
+			"thumbURL": func(url string) string {
+				if url == "" {
+					return ""
+				}
+				ext := filepath.Ext(url)
+				return url[:len(url)-len(ext)] + "_thumb" + ext
+			},
 			"initial": func(s string) string {
 				if s == "" {
 					return ""

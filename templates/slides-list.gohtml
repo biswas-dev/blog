@@ -48,14 +48,14 @@
                         <!-- Author & Contributors -->
                         <div class="flex items-center gap-2 mb-3">
                             {{if .AuthorAvatarURL}}
-                            <img src="{{.AuthorAvatarURL}}" alt="{{.AuthorDisplayName}}" class="w-6 h-6 rounded-full object-cover">
+                            <img src="{{thumbURL .AuthorAvatarURL}}" alt="{{.AuthorDisplayName}}" class="w-6 h-6 rounded-full object-cover">
                             {{end}}
                             <span class="text-sm" style="color: var(--text-secondary);">{{.AuthorDisplayName}}</span>
                             {{if .Contributors}}
                             <div class="flex -space-x-1.5 ml-1">
                                 {{range .Contributors}}
                                 <span title="{{.FullName}}" class="inline-block w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 overflow-hidden bg-gray-200">
-                                    {{if .AvatarURL}}<img src="{{.AvatarURL}}" alt="{{.Username}}" class="w-full h-full object-cover">{{end}}
+                                    {{if .AvatarURL}}<img src="{{thumbURL .AvatarURL}}" alt="{{.Username}}" class="w-full h-full object-cover">{{end}}
                                 </span>
                                 {{end}}
                             </div>

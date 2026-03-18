@@ -299,6 +299,9 @@ func main() {
 	}
 	searchService.BackfillSlideContent()
 
+	// Backfill avatar thumbnails for existing uploads
+	go controllers.BackfillAvatarThumbnails()
+
 	// Initialize DatabaseBackupService
 	databaseBackupService := models.NewDatabaseBackupService(DB)
 
