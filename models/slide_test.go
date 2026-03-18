@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,20 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+// jsonEqual compares two JSON strings structurally (ignoring whitespace differences).
+func jsonEqual(a, b string) bool {
+	var ja, jb interface{}
+	if err := json.Unmarshal([]byte(a), &ja); err != nil {
+		return false
+	}
+	if err := json.Unmarshal([]byte(b), &jb); err != nil {
+		return false
+	}
+	na, _ := json.Marshal(ja)
+	nb, _ := json.Marshal(jb)
+	return string(na) == string(nb)
+}
 
 func TestSlideService_Create(t *testing.T) {
 	db := SetupTestDB(t)
@@ -793,7 +808,7 @@ func TestSlide_Metadata(t *testing.T) {
 		if retrieved.Description != "A test slide" {
 			t.Errorf("Expected description 'A test slide', got %q", retrieved.Description)
 		}
-		if retrieved.SlideMetadata != metadata {
+		if !jsonEqual(retrieved.SlideMetadata, metadata) {
 			t.Errorf("Expected metadata %q, got %q", metadata, retrieved.SlideMetadata)
 		}
 	})
@@ -820,7 +835,7 @@ func TestSlide_Metadata(t *testing.T) {
 		if retrieved.Description != "Updated desc" {
 			t.Errorf("Expected description 'Updated desc', got %q", retrieved.Description)
 		}
-		if retrieved.SlideMetadata != newMeta {
+		if !jsonEqual(retrieved.SlideMetadata, newMeta) {
 			t.Errorf("Expected metadata %q, got %q", newMeta, retrieved.SlideMetadata)
 		}
 	})
