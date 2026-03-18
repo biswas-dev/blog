@@ -115,6 +115,7 @@ type Users struct {
 	CloudinaryService    *models.CloudinaryService
 	ImageMetadataService *models.ImageMetadataService
 	UserActivityService  *models.UserActivityService
+	SlideService         *models.SlideService
 	BlogWiki             *gowiki.Wiki
 }
 
@@ -1969,6 +1970,11 @@ func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var authoredSlides []models.Slide
+	if u.SlideService != nil {
+		authoredSlides, _ = u.SlideService.GetPublishedSlidesByUser(profileUser.UserID)
+	}
+
 	var data struct {
 		LoggedIn         bool
 		Email            string
@@ -1981,6 +1987,7 @@ func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
 		ProfileUser      *models.User
 		AuthoredPosts    []models.Post
 		ContributedPosts []models.Post
+		AuthoredSlides   []models.Slide
 		UserComments     []UserComment
 	}
 
@@ -1989,6 +1996,7 @@ func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
 	data.ProfileUser = profileUser
 	data.AuthoredPosts = authoredPosts
 	data.ContributedPosts = contributedPosts
+	data.AuthoredSlides = authoredSlides
 	data.UserComments = userComments
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
 

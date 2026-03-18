@@ -350,6 +350,7 @@ func main() {
 		CloudinaryService:    &cloudinaryService,
 		ImageMetadataService: &imageMetadataService,
 		UserActivityService:  &userActivityService,
+		SlideService:         &slideService,
 		BlogWiki:             blogWiki,
 	}
 

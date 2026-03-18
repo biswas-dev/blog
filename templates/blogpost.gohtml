@@ -59,7 +59,7 @@
                   {{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}
                 </a>
                 {{if .Contributors}}
-                <span class="text-sm text-gray-400 dark:text-gray-500 mx-1">with</span>
+                <span class="text-sm text-gray-400 dark:text-gray-500" style="margin:0 6px">with</span>
                 {{range $i, $c := .Contributors}}{{if $i}}<span class="text-gray-300 dark:text-gray-600">,</span>{{end}}<span class="inline-flex items-center gap-1">{{if $c.AvatarURL}}<img src="{{thumbURL $c.AvatarURL}}" alt="{{$c.DisplayName}}" class="post-meta-avatar-sm" width="20" height="20">{{else}}<span class="post-meta-avatar-init-sm">{{initial $c.DisplayName}}</span>{{end}}<a href="/users/{{$c.Username}}" class="text-sm hover:underline" style="color:var(--text-secondary)">{{$c.DisplayName}}</a></span>{{end}}
                 {{end}}
             </div>
@@ -121,6 +121,10 @@
     <!-- Social Share -->
     <div class="share-section">
         <div class="share-buttons" id="share-buttons">
+            <button id="share-native" aria-label="Share" class="share-btn" style="display:none">
+                {{icon "share" "w-4 h-4"}}
+                Share
+            </button>
             <a id="share-x" href="#" target="_blank" rel="noopener noreferrer" class="share-btn" aria-label="Share on X">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                 X
@@ -607,7 +611,7 @@
         }
     }
 
-    setupShareButtons('share-x', 'share-linkedin', 'share-copy', null);
+    setupShareButtons('share-x', 'share-linkedin', 'share-copy', 'share-native');
     setupShareButtons('top-share-x', 'top-share-linkedin', 'top-share-copy', 'top-share-native');
 
     // Word count + reading time

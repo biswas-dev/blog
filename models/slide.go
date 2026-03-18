@@ -242,6 +242,28 @@ func (ss *SlideService) GetPublishedSlides() (*SlidesList, error) {
 	return &list, nil
 }
 
+// GetPublishedSlidesByUser returns published slides authored by a specific user.
+func (ss *SlideService) GetPublishedSlidesByUser(userID int) ([]Slide, error) {
+	rows, err := ss.DB.Query(`
+		SELECT s.slide_id, s.title, s.slug, s.created_at
+		FROM Slides s
+		WHERE s.user_id = $1 AND s.is_published = true
+		ORDER BY s.created_at DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var slides []Slide
+	for rows.Next() {
+		var s Slide
+		if err := rows.Scan(&s.ID, &s.Title, &s.Slug, &s.CreatedAt); err != nil {
+			return nil, err
+		}
+		slides = append(slides, s)
+	}
+	return slides, rows.Err()
+}
+
 // GetAllSlides retrieves all slides (for admin)
 func (ss *SlideService) GetAllSlides() (*SlidesList, error) {
 	list := SlidesList{}

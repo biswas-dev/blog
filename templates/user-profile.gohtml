@@ -186,13 +186,25 @@
     </div>
   </div>
 
+  {{if .ProfileUser.Bio}}
+  <div style="margin-top:1rem;padding:1rem 1.25rem;border-radius:12px;background:var(--bg-secondary);border:1px solid var(--border-light)">
+    <p style="color:var(--text-secondary);font-size:0.9375rem;line-height:1.6;margin:0">{{.ProfileUser.Bio}}</p>
+  </div>
+  {{end}}
+
   <!-- Stats -->
-  {{$nPosts := len .AuthoredPosts}}{{$nContribs := len .ContributedPosts}}{{$nComments := len .UserComments}}
+  {{$nPosts := len .AuthoredPosts}}{{$nContribs := len .ContributedPosts}}{{$nComments := len .UserComments}}{{$nSlides := len .AuthoredSlides}}
   <div class="profile-stats">
     <div class="stat-item">
       <span class="stat-value">{{$nPosts}}</span>
       <span class="stat-label">Posts</span>
     </div>
+    {{if $nSlides}}
+    <div class="stat-item">
+      <span class="stat-value">{{$nSlides}}</span>
+      <span class="stat-label">Slides</span>
+    </div>
+    {{end}}
     <div class="stat-item">
       <span class="stat-value">{{$nContribs}}</span>
       <span class="stat-label">Contributions</span>
@@ -239,6 +251,24 @@
     <div class="empty-state">No published posts yet.</div>
     {{end}}
   </section>
+
+  <!-- Slides -->
+  {{if .AuthoredSlides}}
+  <section>
+    <div class="section-header">
+      <h2 class="section-title">Presentations</h2>
+      <span class="section-count">{{$nSlides}}</span>
+    </div>
+    <div class="contribution-list">
+      {{range .AuthoredSlides}}
+      <a href="/slides/{{.Slug}}" class="contribution-item">
+        {{icon "columns" "w-4 h-4"}}
+        <span class="contribution-title">{{.Title}}</span>
+      </a>
+      {{end}}
+    </div>
+  </section>
+  {{end}}
 
   <!-- Contributions -->
   {{if .ContributedPosts}}
