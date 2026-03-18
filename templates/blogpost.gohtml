@@ -51,7 +51,7 @@
             
             <div class="flex items-center gap-2">
                 {{if .Post.AuthorAvatarURL}}
-                <img src="{{thumbURL .Post.AuthorAvatarURL}}" alt="{{.Post.AuthorDisplayName}}" class="post-meta-avatar">
+                <img src="{{thumbURL .Post.AuthorAvatarURL}}" alt="{{.Post.AuthorDisplayName}}" class="post-meta-avatar" width="24" height="24">
                 {{else}}
                 <span class="post-meta-avatar-init">{{initial .Post.AuthorDisplayName}}</span>
                 {{end}}
@@ -60,7 +60,7 @@
             {{if .Contributors}}
             <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <span>With contributions from:
-                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<span class="inline-flex items-center gap-1">{{if $c.AvatarURL}}<img src="{{thumbURL $c.AvatarURL}}" alt="{{$c.DisplayName}}" class="post-meta-avatar-sm">{{else}}<span class="post-meta-avatar-init-sm">{{initial $c.DisplayName}}</span>{{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.DisplayName}}</a></span>{{end}}
+                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<span class="inline-flex items-center gap-1">{{if $c.AvatarURL}}<img src="{{thumbURL $c.AvatarURL}}" alt="{{$c.DisplayName}}" class="post-meta-avatar-sm" width="20" height="20">{{else}}<span class="post-meta-avatar-init-sm">{{initial $c.DisplayName}}</span>{{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.DisplayName}}</a></span>{{end}}
                 </span>
             </div>
             {{end}}
@@ -646,7 +646,7 @@
 
   function avatarHTML(c) {
     if (c.avatar_url) {
-      return `<div class="comment-avatar"><img src="${escapeHTML(thumbURL(c.avatar_url))}" alt="${escapeHTML(c.username)}" loading="lazy"></div>`;
+      return `<div class="comment-avatar"><img src="${escapeHTML(thumbURL(c.avatar_url))}" alt="${escapeHTML(c.username)}" width="32" height="32" loading="lazy"></div>`;
     }
     const init = (c.username || '?').charAt(0).toUpperCase();
     return `<div class="comment-avatar-init">${init}</div>`;
