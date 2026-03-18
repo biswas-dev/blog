@@ -101,6 +101,13 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "application/json", mimeSVG))
 	r.Use(authmw.TracingMiddleware())
+	// Performance headers: tell clients/CDNs that encoding varies and opt-in to DNS prefetch
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-DNS-Prefetch-Control", "on")
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	dbUser, dbPassword, dbName, dbHost, dbPort :=
 		os.Getenv("PG_USER"),
@@ -798,15 +805,19 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch {
-		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"):
+		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"),
+			strings.HasSuffix(path, ".woff2"), strings.HasSuffix(path, ".woff"):
+			// Versioned assets: 1-year immutable cache — URL contains version query param
 			w.Header().Set(headerCacheCtrl, "public, max-age=31536000, immutable")
 		case strings.HasSuffix(path, ".svg"):
 			w.Header().Set(headerContentType, mimeSVG)
-			w.Header().Set(headerCacheCtrl, "public, max-age=86400")
+			// SVGs are stable; cache 1 week with 30-day background revalidation
+			w.Header().Set(headerCacheCtrl, "public, max-age=604800, stale-while-revalidate=2592000")
 		case strings.HasSuffix(path, ".png"), strings.HasSuffix(path, ".jpg"),
 			strings.HasSuffix(path, ".jpeg"), strings.HasSuffix(path, ".webp"),
 			strings.HasSuffix(path, ".gif"), strings.HasSuffix(path, ".ico"):
-			w.Header().Set(headerCacheCtrl, "public, max-age=604800")
+			// Images: 7-day cache with 30-day background revalidation
+			w.Header().Set(headerCacheCtrl, "public, max-age=604800, stale-while-revalidate=2592000")
 		}
 		next.ServeHTTP(w, r)
 	})

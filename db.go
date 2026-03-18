@@ -50,7 +50,7 @@ func Initialize(username, password, database string, host string, port string) (
 	db.Conn.SetMaxOpenConns(25)
 	db.Conn.SetMaxIdleConns(10)
 	db.Conn.SetConnMaxLifetime(5 * time.Minute)
-	db.Conn.SetConnMaxIdleTime(1 * time.Minute)
+	db.Conn.SetConnMaxIdleTime(5 * time.Minute)
 
 	err = db.Conn.Ping()
 	if err != nil {

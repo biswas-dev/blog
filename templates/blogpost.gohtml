@@ -1,3 +1,4 @@
+{{define "head-extra"}}{{if .Post.FeaturedImageURL}}<link rel="preload" as="image" href="{{.Post.FeaturedImageURL}}" fetchpriority="high">{{end}}{{end}}
 {{define "page-title"}}{{.Post.Title}} | Anshuman Biswas{{end}}
 {{define "meta-description"}}<meta name="description" content="{{.OGDescription}}" />{{end}}
 {{define "og-meta"}}
@@ -19,11 +20,15 @@
     <header class="mb-8">
         <!-- Featured Image -->
         {{if .Post.FeaturedImageURL}}
-        <div class="mb-8 rounded-2xl overflow-hidden mt-2">
+        <div class="mb-8 rounded-2xl overflow-hidden mt-2" style="aspect-ratio:16/9;">
             <img
                 src="{{.Post.FeaturedImageURL}}"
                 alt="{{.Post.Title}}"
                 class="w-full"
+                style="height:100%;object-fit:cover;"
+                loading="eager"
+                fetchpriority="high"
+                decoding="async"
             />
         </div>
         {{end}}
@@ -218,9 +223,13 @@
     {{icon "arrow-up" "w-5 h-5"}}
 </button>
 
-<!-- Syntax Highlighting -->
+<!-- Syntax Highlighting (async — does not block render) -->
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+</noscript>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
@@ -381,6 +390,7 @@
 
 <script>
 (function() {
+    function initArticle() {
     const content = document.getElementById('article-content');
     const backToTopBtn = document.getElementById('back-to-top');
     const dialog = document.getElementById('lightbox-dialog');
@@ -512,6 +522,12 @@
                 : mins + ' min read';
             statsEl.textContent = wordStr + ' · ' + readStr;
         }
+    }
+    } // end initArticle
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(initArticle, { timeout: 2000 });
+    } else {
+        setTimeout(initArticle, 0);
     }
 })();
 </script>

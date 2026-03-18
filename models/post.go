@@ -8,11 +8,18 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/lib/pq"
 )
+
+// renderCache caches the rendered HTML output of RenderContent keyed by content hash.
+// This avoids re-running the markdown pipeline on every request.
+// Entries are never evicted (blog posts are stable after publish); the cache
+// stays small — one entry per unique post body.
+var renderCache sync.Map // map[string]string — content → rendered HTML
 
 const friendlyDateFormat = "January 2, 2006"
 
@@ -508,8 +515,15 @@ func stripDrawEditMode(html string) string {
 
 // RenderContent converts markdown content to HTML using the default renderer.
 // Draw embeds are forced to view-only mode for published content.
+// Results are memoized in renderCache to avoid re-running the markdown
+// pipeline on repeated requests for the same content.
 func RenderContent(content string) string {
-	return stripDrawEditMode(defaultWiki.RenderContent(content))
+	if v, ok := renderCache.Load(content); ok {
+		return v.(string)
+	}
+	result := stripDrawEditMode(defaultWiki.RenderContent(content))
+	renderCache.Store(content, result)
+	return result
 }
 
 // loadCategoriesForPosts batch-loads categories for all posts in a single query,

@@ -175,8 +175,10 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		data.IsAdmin = (user.Role == 2) // Administrator role
 		data.UserPermissions = models.GetPermissions(user.Role)
 		data.CanAnnotate = data.UserPermissions.CanComment
+		w.Header().Set("Cache-Control", "private, no-store")
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600")
 	}
-	w.Header().Set("Cache-Control", "public, max-age=60")
 	b.Templates.Post.Execute(w, r, data)
 }
 

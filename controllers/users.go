@@ -504,7 +504,7 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 		data.IsAdmin = false
 		data.Email = ""
 		data.UserPermissions = models.GetPermissions(models.RoleCommenter)
-		w.Header().Set("Cache-Control", "public, max-age=30")
+		w.Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600")
 		u.Templates.Home.Execute(w, r, data)
 		return
 	}
@@ -518,7 +518,7 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 	data.Description = "Engineering Insights - Anshuman Biswas Blog"
 	data.CurrentPage = "home"
 	data.UserPermissions = models.GetPermissions(user.Role)
-	w.Header().Set("Cache-Control", "public, max-age=30")
+	w.Header().Set("Cache-Control", "private, no-store")
 	u.Templates.Home.Execute(w, r, data)
 }
 

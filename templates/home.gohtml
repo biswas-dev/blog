@@ -1,3 +1,4 @@
+{{define "head-extra"}}{{with index .Posts.Posts 0}}{{if .FeaturedImageURL}}<link rel="preload" as="image" href="{{.FeaturedImageURL}}" fetchpriority="high">{{end}}{{end}}{{end}}
 {{template "modern-header" .}}
 
 <!-- Hero Section -->
@@ -42,7 +43,7 @@
             </div>
             {{if $post.FeaturedImageURL}}
             <div class="post-item-image">
-                <img src="{{$post.FeaturedImageURL}}" alt="{{$post.Title}}" loading="{{if eq $i 0}}eager{{else}}lazy{{end}}" />
+                <img src="{{$post.FeaturedImageURL}}" alt="{{$post.Title}}" loading="{{if eq $i 0}}eager{{else}}lazy{{end}}"{{if eq $i 0}} fetchpriority="high"{{end}} />
             </div>
             {{end}}
         </div>
