@@ -164,7 +164,7 @@ func (pvs *PostVersionService) DeleteVersion(postID, versionNumber int) error {
 // Callers are responsible for filtering out the original author if desired.
 func (pvs *PostVersionService) GetContributors(postID int) ([]User, error) {
 	rows, err := pvs.DB.Query(`
-		SELECT u.user_id, u.username, COALESCE(u.full_name, '')
+		SELECT u.user_id, u.username, COALESCE(u.full_name, ''), COALESCE(u.profile_picture_url, '')
 		FROM Users u
 		JOIN post_contributors pc ON pc.user_id = u.user_id
 		WHERE pc.post_id = $1
@@ -178,7 +178,7 @@ func (pvs *PostVersionService) GetContributors(postID int) ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.UserID, &u.Username, &u.FullName); err != nil {
+		if err := rows.Scan(&u.UserID, &u.Username, &u.FullName, &u.AvatarURL); err != nil {
 			return nil, fmt.Errorf("scan contributor: %w", err)
 		}
 		users = append(users, u)

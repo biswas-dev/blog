@@ -50,13 +50,17 @@
             </div>
             
             <div class="flex items-center gap-2">
-                {{icon "user" "w-5 h-5"}}
+                {{if .Post.AuthorAvatarURL}}
+                <img src="{{.Post.AuthorAvatarURL}}" alt="{{.Post.AuthorDisplayName}}" class="post-meta-avatar">
+                {{else}}
+                <span class="post-meta-avatar-init">{{initial .Post.AuthorDisplayName}}</span>
+                {{end}}
                 <a href="/users/{{.Post.Username}}" class="hover:underline">{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}</a>
             </div>
             {{if .Contributors}}
             <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <span>With contributions from:
-                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.DisplayName}}</a>{{end}}
+                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<span class="inline-flex items-center gap-1">{{if $c.AvatarURL}}<img src="{{$c.AvatarURL}}" alt="{{$c.DisplayName}}" class="post-meta-avatar-sm">{{else}}<span class="post-meta-avatar-init-sm">{{initial $c.DisplayName}}</span>{{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.DisplayName}}</a></span>{{end}}
                 </span>
             </div>
             {{end}}
@@ -339,6 +343,10 @@
 .comment-avatar { flex-shrink: 0; width: 2rem; height: 2rem; border-radius: 50%; overflow: hidden; }
 .comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .comment-avatar-init { width: 2rem; height: 2rem; border-radius: 50%; background: linear-gradient(135deg, var(--accent, #0d9488) 0%, #6366f1 100%); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.post-meta-avatar { width: 1.5rem; height: 1.5rem; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.post-meta-avatar-init { width: 1.5rem; height: 1.5rem; border-radius: 50%; background: linear-gradient(135deg, var(--accent, #0d9488) 0%, #6366f1 100%); display: inline-flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.post-meta-avatar-sm { width: 1.25rem; height: 1.25rem; border-radius: 50%; object-fit: cover; flex-shrink: 0; vertical-align: middle; }
+.post-meta-avatar-init-sm { width: 1.25rem; height: 1.25rem; border-radius: 50%; background: linear-gradient(135deg, var(--accent, #0d9488) 0%, #6366f1 100%); display: inline-flex; align-items: center; justify-content: center; font-size: 0.5rem; font-weight: 700; color: #fff; flex-shrink: 0; vertical-align: middle; }
 .comment-meta { flex: 1; min-width: 0; }
 .comment-author { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); }
 .comment-date { font-size: 0.75rem; color: var(--text-tertiary, #9ca3af); margin-left: 0.375rem; }
