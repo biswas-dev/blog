@@ -49,21 +49,18 @@
                 <span>{{if .ReadTime}}{{.ReadTime}}{{else}}5{{end}} min read</span>
             </div>
             
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                 {{if .Post.AuthorAvatarURL}}
                 <img src="{{thumbURL .Post.AuthorAvatarURL}}" alt="{{.Post.AuthorDisplayName}}" class="post-meta-avatar" width="24" height="24">
                 {{else}}
                 <span class="post-meta-avatar-init">{{initial .Post.AuthorDisplayName}}</span>
                 {{end}}
                 <a href="/users/{{.Post.Username}}" class="hover:underline">{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}</a>
+                {{if .Contributors}}
+                <span class="text-sm text-gray-400 dark:text-gray-500 mx-1">with</span>
+                {{range $i, $c := .Contributors}}{{if $i}}<span class="text-gray-300 dark:text-gray-600">,</span>{{end}}<span class="inline-flex items-center gap-1">{{if $c.AvatarURL}}<img src="{{thumbURL $c.AvatarURL}}" alt="{{$c.DisplayName}}" class="post-meta-avatar-sm" width="20" height="20">{{else}}<span class="post-meta-avatar-init-sm">{{initial $c.DisplayName}}</span>{{end}}<a href="/users/{{$c.Username}}" class="text-sm hover:underline" style="color:var(--text-secondary)">{{$c.DisplayName}}</a></span>{{end}}
+                {{end}}
             </div>
-            {{if .Contributors}}
-            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <span>With contributions from:
-                {{range $i, $c := .Contributors}}{{if $i}}, {{end}}<span class="inline-flex items-center gap-1">{{if $c.AvatarURL}}<img src="{{thumbURL $c.AvatarURL}}" alt="{{$c.DisplayName}}" class="post-meta-avatar-sm" width="20" height="20">{{else}}<span class="post-meta-avatar-init-sm">{{initial $c.DisplayName}}</span>{{end}}<a href="/users/{{$c.Username}}" class="hover:underline">{{$c.DisplayName}}</a></span>{{end}}
-                </span>
-            </div>
-            {{end}}
             
             {{if .Post.LastEditDate}}
                 {{if ne .Post.PublicationDate .Post.LastEditDate}}

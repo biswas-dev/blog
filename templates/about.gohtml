@@ -1,114 +1,123 @@
 {{template "modern-header" .}}
 
-<div class="max-w-4xl mx-auto px-6 py-16">
-  <!-- Hero Section -->
-  <div class="flex flex-col md:flex-row items-center gap-8 mb-16">
-    <div class="flex-shrink-0">
-      <div class="w-32 h-32 rounded-2xl overflow-hidden shadow-lg" style="background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);">
-        <img src="/static/uploads/avatars/c25316b4c6d7b680eb5b0c0e83f0647d.jpg" alt="Anshuman Biswas" class="w-full h-full object-cover" onerror="this.style.display='none'">
+<div class="max-w-3xl mx-auto px-6 py-16">
+
+  <!-- Hero — text-first, small avatar -->
+  <div class="mb-14">
+    <div class="flex items-center gap-4 mb-6">
+      <img src="/static/uploads/avatars/c25316b4c6d7b680eb5b0c0e83f0647d_thumb.jpg"
+           alt="Anshuman Biswas" width="56" height="56"
+           class="rounded-full object-cover flex-shrink-0" style="width:56px;height:56px"
+           onerror="this.style.display='none'">
+      <div>
+        <h1 class="text-3xl font-bold" style="color: var(--text-primary);">About This Blog</h1>
+        <p class="text-sm mt-0.5" style="color:var(--text-tertiary)">Founded by Anshuman Biswas</p>
       </div>
     </div>
-    <div>
-      <h1 class="text-4xl font-bold mb-3" style="color: var(--text-primary);">
-        About This Blog
-      </h1>
-      <p class="text-xl leading-relaxed" style="color: var(--text-secondary);">
-        A collaborative space for engineers to share ideas, dissect real-world problems, and learn from each other.
-        Founded by <strong>Anshuman Biswas</strong> and open to contributions from anyone with something worth sharing.
-      </p>
-    </div>
-  </div>
-
-  <!-- Philosophy -->
-  <div class="rounded-2xl p-8 mb-10 border" style="background: var(--surface); border-color: var(--border-light);">
-    <h2 class="text-2xl font-bold mb-4" style="color: var(--text-primary);">Why This Exists</h2>
-    <p class="text-lg leading-relaxed mb-4" style="color: var(--text-secondary);">
-      Most engineering knowledge lives in Slack threads, meeting notes, and people's heads. This blog is a place
-      to surface those ideas — write them down, refine them through discussion, and make them accessible. Articles
-      here are versioned, commentable, and open to collaborative editing.
-    </p>
     <p class="text-lg leading-relaxed" style="color: var(--text-secondary);">
-      Whether it's a deep dive on threat detection pipelines, a war story about scaling under load, or a tutorial
-      on a tool you just discovered — if it helps another engineer, it belongs here.
+      A collaborative space for engineers to share ideas, dissect real-world problems, and learn
+      from each other. Articles are versioned, commentable, and open to collaborative editing.
     </p>
   </div>
 
-  <!-- About Anshuman -->
-  <div class="grid md:grid-cols-2 gap-8 mb-10">
-    <div class="rounded-2xl p-8 border" style="background: var(--surface); border-color: var(--border-light);">
-      <div class="flex items-center mb-4">
-        <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background: var(--accent);">
-          {{icon "lock-closed" "w-5 h-5 text-white"}}
+  <!-- Why this exists -->
+  <div class="mb-12">
+    <h2 class="text-xl font-bold mb-3" style="color: var(--text-primary);">Why This Exists</h2>
+    <p class="leading-relaxed mb-3" style="color: var(--text-secondary);">
+      Most engineering knowledge lives in Slack threads, meeting notes, and people's heads. This blog
+      is a place to surface those ideas — write them down, refine them through discussion, and make
+      them accessible.
+    </p>
+    <p class="leading-relaxed" style="color: var(--text-secondary);">
+      Whether it's a deep dive on threat detection pipelines, a war story about scaling under load,
+      or a tutorial on a tool you just discovered — if it helps another engineer, it belongs here.
+    </p>
+  </div>
+
+  <!-- My background — two clean cards -->
+  <div class="mb-12">
+    <h2 class="text-xl font-bold mb-5" style="color: var(--text-primary);">My Background</h2>
+    <div class="grid md:grid-cols-2 gap-5">
+
+      <div class="rounded-xl p-6 border" style="background: var(--surface); border-color: var(--border-light);">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:#dc2626">
+            {{icon "lock-closed" "w-4 h-4 text-white"}}
+          </div>
+          <h3 class="font-semibold" style="color: var(--text-primary);">Security &amp; Threat Detection</h3>
         </div>
-        <h3 class="text-lg font-bold" style="color: var(--text-primary);">Security & Threat Detection</h3>
+        <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">
+          Threat detection, security engineering, and building detection systems at scale.
+          From SIEM pipelines to runtime enforcement — security is the lens through which
+          I approach most problems.
+        </p>
       </div>
-      <p style="color: var(--text-secondary);">
-        My core background is in threat detection, security engineering, and building detection systems that operate
-        at scale. From SIEM pipelines to runtime enforcement, security is the lens through which I approach most problems.
-      </p>
-    </div>
 
-    <div class="rounded-2xl p-8 border" style="background: var(--surface); border-color: var(--border-light);">
-      <div class="flex items-center mb-4">
-        <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background: var(--accent);">
-          {{icon "lightbulb" "w-5 h-5 text-white"}}
+      <div class="rounded-xl p-6 border" style="background: var(--surface); border-color: var(--border-light);">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:#2563eb">
+            {{icon "lightbulb" "w-4 h-4 text-white"}}
+          </div>
+          <h3 class="font-semibold" style="color: var(--text-primary);">B2B Enterprise &amp; Scale</h3>
         </div>
-        <h3 class="text-lg font-bold" style="color: var(--text-primary);">B2B Enterprise & Scale</h3>
+        <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">
+          Over a decade building B2B enterprise platforms — distributed systems, cloud
+          infrastructure, performance at scale, and the hard lessons from operating services
+          relied on by large organizations.
+        </p>
       </div>
-      <p style="color: var(--text-secondary);">
-        Over a decade of building B2B enterprise platforms — distributed systems, cloud infrastructure,
-        performance at scale, and the hard lessons that come from operating services relied on by large organizations.
-      </p>
+
     </div>
   </div>
 
-  <!-- Expertise grid -->
-  <div class="rounded-2xl p-8 mb-10 border" style="background: var(--surface); border-color: var(--border-light);">
-    <h2 class="text-xl font-bold mb-5" style="color: var(--text-primary);">Areas of Focus</h2>
-    <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>Threat Detection &amp; Response</div>
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>Security Engineering</div>
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>Cloud Architecture</div>
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>Distributed Systems</div>
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>Performance &amp; Scale</div>
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>B2B Enterprise Software</div>
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>Detection Pipelines</div>
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>Microservices &amp; APIs</div>
-      <div class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg" style="background:var(--bg-secondary);color:var(--text-secondary)"><div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:var(--accent)"></div>Engineering Leadership</div>
+  <!-- Areas of focus — pill tags, not a dense grid -->
+  <div class="mb-12">
+    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">Areas of Focus</h2>
+    <div class="flex flex-wrap gap-2">
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">Threat Detection &amp; Response</span>
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">Security Engineering</span>
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">Cloud Architecture</span>
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">Distributed Systems</span>
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">Performance &amp; Scale</span>
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">B2B Enterprise Software</span>
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">Detection Pipelines</span>
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">Microservices &amp; APIs</span>
+      <span class="inline-block text-sm font-medium px-4 py-1.5 rounded-full border" style="border-color:var(--border-light);color:var(--text-secondary)">Engineering Leadership</span>
     </div>
   </div>
 
-  <!-- Collaborate -->
-  <div class="rounded-2xl p-8 mb-10 border-2 border-dashed" style="border-color: var(--accent); background: var(--bg-secondary);">
-    <div class="text-center">
-      <h2 class="text-2xl font-bold mb-3" style="color: var(--text-primary);">Want to Contribute?</h2>
-      <p class="text-lg mb-6 max-w-2xl mx-auto" style="color: var(--text-secondary);">
-        This blog supports multiple authors and collaborative editing. If you have an idea for a post, want to co-author
-        something, or just want to improve an existing article — sign in with GitHub and start writing.
-        Every contribution is tracked and credited.
-      </p>
-      <div class="flex flex-col sm:flex-row gap-3 justify-center">
-        <a href="/auth/github" class="btn btn-primary">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd"></path></svg>
-          Sign in with GitHub
-        </a>
-        <a href="/slides" class="btn btn-secondary">
-          {{icon "columns" "w-5 h-5"}}
-          Browse Presentations
-        </a>
-      </div>
+  <!-- Contribute -->
+  <div class="rounded-xl p-8 mb-12 border" style="border-color: var(--border-light); background: var(--bg-secondary);">
+    <h2 class="text-xl font-bold mb-3" style="color: var(--text-primary);">Want to Write Here?</h2>
+    <p class="leading-relaxed mb-2" style="color: var(--text-secondary);">
+      This blog supports multiple authors and collaborative editing. Sign in with GitHub to
+      comment and join discussions. If you'd like to become an editor and publish articles,
+      reach out to me or one of the existing editors — we'll get you set up.
+    </p>
+    <p class="leading-relaxed mb-5" style="color: var(--text-secondary);">
+      Every contribution is versioned and credited.
+    </p>
+    <div class="flex flex-wrap gap-3">
+      <a href="/auth/github" class="btn btn-primary">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd"></path></svg>
+        Sign in with GitHub
+      </a>
+      <a href="mailto:anshuman@biswas.me" class="btn btn-secondary">
+        {{icon "email" "w-5 h-5"}}
+        Get in Touch
+      </a>
     </div>
   </div>
 
-  <!-- Connect -->
-  <div class="rounded-2xl p-8 border" style="background: var(--surface); border-color: var(--border-light);">
-    <h2 class="text-xl font-bold mb-5" style="color: var(--text-primary);">Connect</h2>
-    <div class="flex flex-col sm:flex-row gap-3">
+  <!-- Connect links -->
+  <div class="mb-4">
+    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">Connect</h2>
+    <div class="flex flex-wrap gap-3">
       <a href="https://biswas.me" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
         {{icon "globe" "w-5 h-5"}}
         biswas.me
       </a>
-      <a href="mailto:anshuman@biswas.me" class="btn btn-primary">
+      <a href="mailto:anshuman@biswas.me" class="btn btn-secondary">
         {{icon "email" "w-5 h-5"}}
         Email
       </a>
@@ -122,6 +131,7 @@
       </a>
     </div>
   </div>
+
 </div>
 
 {{template "modern-footer" .}}
