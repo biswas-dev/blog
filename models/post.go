@@ -32,6 +32,7 @@ type Post struct {
 	UserID              int // Added UserID field
 	Username            string // Username of the author
 	AuthorDisplayName   string // COALESCE(full_name, username) of the author
+	AuthorAvatarURL     string // profile_picture_url of the author
 	CategoryID          int // Legacy field, kept for backward compatibility
 	Title               string
 	Content             string
