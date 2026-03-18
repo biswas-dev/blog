@@ -1199,25 +1199,24 @@ html:not(.dark) .dark\:hidden { display: block; }
 .post-item-image {
   flex-shrink: 0;
   width: 180px;
-  height: 120px;
   border-radius: var(--radius);
   overflow: hidden;
+  align-self: flex-start;
 }
 .post-item-image img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  display: block;
 }
 
 @media (max-width: 640px) {
   .post-item-inner { flex-direction: column-reverse; gap: 1rem; }
-  .post-item-image { width: 100%; height: 180px; }
+  .post-item-image { width: 100%; }
 }
 
 /* Lead post — first item, bigger type */
 .post-item.post-lead .post-item-image {
   width: 280px;
-  height: 180px;
 }
 .post-item.post-lead .post-item-title {
   font-size: 1.5rem;
@@ -1225,7 +1224,7 @@ html:not(.dark) .dark\:hidden { display: block; }
 }
 
 @media (max-width: 640px) {
-  .post-item.post-lead .post-item-image { width: 100%; height: 200px; }
+  .post-item.post-lead .post-item-image { width: 100%; }
 }
 
 /* Meta line: date, featured badge, categories */

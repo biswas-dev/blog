@@ -20,12 +20,11 @@
     <header class="mb-8">
         <!-- Featured Image -->
         {{if .Post.FeaturedImageURL}}
-        <div class="mb-8 rounded-2xl overflow-hidden mt-2" style="aspect-ratio:16/9;">
+        <div class="mb-8 rounded-2xl overflow-hidden mt-2">
             <img
                 src="{{.Post.FeaturedImageURL}}"
                 alt="{{.Post.Title}}"
                 class="w-full"
-                style="height:100%;object-fit:cover;"
                 loading="eager"
                 fetchpriority="high"
                 decoding="async"
