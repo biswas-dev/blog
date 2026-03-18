@@ -55,8 +55,14 @@ func Initialize(username, password, database string, host string, port string) (
 	db.Conn = conn
 
 	// Connection pool configuration
-	db.Conn.SetMaxOpenConns(25)
-	db.Conn.SetMaxIdleConns(10)
+	maxConns := 25
+	if os.Getenv("PG_MAX_CONNS") != "" {
+		if n, err := fmt.Sscanf(os.Getenv("PG_MAX_CONNS"), "%d", &maxConns); n != 1 || err != nil {
+			maxConns = 25
+		}
+	}
+	db.Conn.SetMaxOpenConns(maxConns)
+	db.Conn.SetMaxIdleConns(maxConns / 2)
 	db.Conn.SetConnMaxLifetime(5 * time.Minute)
 	db.Conn.SetConnMaxIdleTime(5 * time.Minute)
 

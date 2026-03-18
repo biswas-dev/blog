@@ -678,7 +678,8 @@ test.describe('Admin Slides View', () => {
     await page.goto(`${BASE}/admin/slides`);
 
     await expect(page.locator('h1')).toContainText('Slide Management');
-    await expect(page.locator('text=New Slide')).toBeVisible();
+    // Use specific selector to avoid matching nav/mobile menu "New Slide" links
+    await expect(page.locator('a.bg-indigo-600[href="/admin/slides/new"]')).toBeVisible();
     await expect(page.locator('text=Import PPTX')).toBeVisible();
   });
 
@@ -689,7 +690,7 @@ test.describe('Admin Slides View', () => {
 
   test('admin can navigate to new slide editor', async ({ page }) => {
     await page.goto(`${BASE}/admin/slides`);
-    await page.click('text=New Slide');
+    await page.locator('a.bg-indigo-600[href="/admin/slides/new"]').click();
     await page.waitForURL('**/admin/slides/new', { timeout: 5000 });
     await expect(page.locator('#slide-sidebar')).toBeVisible();
   });
