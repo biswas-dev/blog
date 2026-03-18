@@ -13,6 +13,11 @@
                     <a href="/slides" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700">
                         View Public Slides
                     </a>
+                    <label class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer">
+                        {{icon "upload" "w-4 h-4 mr-2"}}
+                        Import PPTX
+                        <input type="file" id="admin-import-pptx" accept=".pptx" style="display:none">
+                    </label>
                     <a href="/admin/slides/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
                         {{icon "plus" "w-4 h-4 mr-2"}}
                         New Slide
@@ -166,15 +171,23 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    {{if .IsPublished}}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                                            Published
-                                        </span>
-                                    {{else}}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
-                                            Draft
-                                        </span>
-                                    {{end}}
+                                    <div class="flex items-center gap-1.5">
+                                        {{if .IsPublished}}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                                                Published
+                                            </span>
+                                        {{else}}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                                                Draft
+                                            </span>
+                                        {{end}}
+                                        {{if .PasswordHash}}
+                                            <span title="Password protected" class="text-gray-400">{{icon "lock-closed" "w-3.5 h-3.5"}}</span>
+                                        {{end}}
+                                        {{if .SlideCount}}
+                                            <span class="text-xs text-gray-400">{{.SlideCount}}s</span>
+                                        {{end}}
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {{.CreatedAt}}
@@ -334,6 +347,24 @@ document.getElementById('deleteModal').addEventListener('click', function(e) {
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     updateBulkDeleteButton();
+
+    // Import PPTX handler
+    const importInput = document.getElementById('admin-import-pptx');
+    if (importInput) {
+        importInput.addEventListener('change', function() {
+            if (!this.files[0]) return;
+            const formData = new FormData();
+            formData.append('pptx', this.files[0]);
+            const csrfToken = document.querySelector('input[name="gorilla.csrf.Token"]')?.value || '';
+            fetch('/api/admin/slides/import-pptx?gorilla.csrf.Token=' + encodeURIComponent(csrfToken), {
+                method: 'POST', body: formData, headers: { 'X-CSRF-Token': csrfToken },
+            })
+            .then(r => r.json())
+            .then(data => { window.location.href = '/admin/slides/' + data.slideID + '/edit'; })
+            .catch(err => alert('Import failed: ' + err.message));
+            this.value = '';
+        });
+    }
 });
 </script>
 

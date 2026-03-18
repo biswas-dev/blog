@@ -26,10 +26,41 @@
 
                     <!-- Content -->
                     <div class="p-6">
-                        <h3 class="text-xl font-semibold mb-3">
-                            <a href="/slides/{{.Slug}}" class="transition-colors" style="color: var(--text-primary);"
-                               onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">{{.Title}}</a>
-                        </h3>
+                        <div class="flex items-start justify-between mb-2">
+                            <h3 class="text-xl font-semibold">
+                                <a href="/slides/{{.Slug}}" class="transition-colors" style="color: var(--text-primary);"
+                                   onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">{{.Title}}</a>
+                            </h3>
+                            <div class="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                                {{if .PasswordHash}}
+                                <span title="Password protected" class="text-gray-400">{{icon "lock-closed" "w-4 h-4"}}</span>
+                                {{end}}
+                                {{if .SlideCount}}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{{.SlideCount}} slides</span>
+                                {{end}}
+                            </div>
+                        </div>
+
+                        {{if .Description}}
+                        <p class="text-sm mb-3" style="color: var(--text-secondary);">{{.Description}}</p>
+                        {{end}}
+
+                        <!-- Author & Contributors -->
+                        <div class="flex items-center gap-2 mb-3">
+                            {{if .AuthorAvatarURL}}
+                            <img src="{{.AuthorAvatarURL}}" alt="{{.AuthorDisplayName}}" class="w-6 h-6 rounded-full object-cover">
+                            {{end}}
+                            <span class="text-sm" style="color: var(--text-secondary);">{{.AuthorDisplayName}}</span>
+                            {{if .Contributors}}
+                            <div class="flex -space-x-1.5 ml-1">
+                                {{range .Contributors}}
+                                <span title="{{.FullName}}" class="inline-block w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 overflow-hidden bg-gray-200">
+                                    {{if .AvatarURL}}<img src="{{.AvatarURL}}" alt="{{.Username}}" class="w-full h-full object-cover">{{end}}
+                                </span>
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
 
                         <!-- Categories -->
                         {{if .Categories}}

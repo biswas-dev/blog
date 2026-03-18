@@ -291,6 +291,8 @@ func main() {
 		DB: DB,
 	}
 
+	slideVersionService := &models.SlideVersionService{DB: DB}
+
 	// Initialize SearchService
 	searchService := &models.SearchService{
 		DB: DB,
@@ -384,9 +386,17 @@ func main() {
 
 	// Initialize Slides controller
 	slidesC := controllers.Slides{
-		SlideService:    &slideService,
-		SessionService:  &sessionService,
-		CategoryService: &categoryService,
+		SlideService:        &slideService,
+		SlideVersionService: slideVersionService,
+		SessionService:      &sessionService,
+		CategoryService:     &categoryService,
+	}
+
+	// Initialize SlideVersions controller
+	slideVersionsC := controllers.SlideVersions{
+		SlideVersionService: slideVersionService,
+		SessionService:      &sessionService,
+		SlideService:        &slideService,
 	}
 
 	// Initialize ExternalSystemService and SyncClient
@@ -476,6 +486,9 @@ func main() {
 	slidesC.Templates.SlidePresentation = views.Must(views.ParseFS(
 		templates.FS, "slide-presentation.gohtml", "tailwind.gohtml"))
 
+	slidesC.Templates.SlidePassword = views.Must(views.ParseFS(
+		templates.FS, "slide-password.gohtml", "tailwind.gohtml"))
+
 	// Initialize Analytics controller
 	analyticsC := controllers.Analytics{
 		DB:               DB,
@@ -536,7 +549,8 @@ func main() {
 	// Slides Routes
 	r.Get("/slides", slidesC.PublicSlidesList)
 	r.Get("/slides/{slug}", slidesC.ViewSlide)
-	
+	r.Post("/slides/{slug}/verify", slidesC.VerifySlidePassword)
+
 	// Admin Slides Routes
 	r.Get("/admin/slides", slidesC.AdminSlides)
 	r.Get("/admin/slides/new", slidesC.NewSlide)
@@ -545,6 +559,17 @@ func main() {
 	r.Post("/admin/slides/{slideID}", slidesC.UpdateSlide)
 	r.Post("/admin/slides/{slideID}/delete", slidesC.DeleteSlide)
 	r.Post("/admin/slides/preview", slidesC.PreviewSlide)
+	r.Post("/admin/slides/upload-image", slidesC.UploadSlideImage)
+
+	// Slide Version API Routes
+	r.Get("/api/slides/{slideID}/versions", slideVersionsC.HandleListVersions)
+	r.Get("/api/slides/{slideID}/versions/{versionNum}", slideVersionsC.HandleGetVersion)
+	r.Post("/api/slides/{slideID}/versions/{versionNum}/restore", slideVersionsC.HandleRestoreVersion)
+	r.Delete("/api/slides/{slideID}/versions/{versionNum}", slideVersionsC.HandleDeleteVersion)
+
+	// Slide Autosave & Import API
+	r.Post("/api/admin/slides/{slideID}/autosave", slidesC.AutoSave)
+	r.Post("/api/admin/slides/import-pptx", slidesC.ImportPPTX)
 
 	// System Information Routes
 	r.Get("/admin/system", systemC.Dashboard)
@@ -748,7 +773,11 @@ func main() {
 	})
 
 	// go-draw canvas editor — use /data/draw-data for persistent storage
-	drawStore, err := godrawstore.NewFileStore("/data/draw-data")
+	drawDataDir := "/data/draw-data"
+	if dir := os.Getenv("DRAW_DATA_DIR"); dir != "" {
+		drawDataDir = dir
+	}
+	drawStore, err := godrawstore.NewFileStore(drawDataDir)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not initialize go-draw store")
 	}
@@ -1209,7 +1238,7 @@ func createSlide(ss *models.SlideService) http.HandlerFunc {
 			http.Error(w, "Title is required", http.StatusBadRequest)
 			return
 		}
-		slide, err := ss.Create(req.UserID, req.Title, req.Slug, req.Content, req.IsPublished, req.Categories)
+		slide, err := ss.Create(req.UserID, req.Title, req.Slug, req.Content, req.IsPublished, req.Categories, "", "{}", "")
 		if err != nil {
 			logger.Error().Err(err).Msg("error creating slide")
 			http.Error(w, "Failed to create slide", http.StatusInternalServerError)
@@ -1261,7 +1290,7 @@ func updateSlide(ss *models.SlideService) http.HandlerFunc {
 			isPublished = *req.IsPublished
 		}
 
-		if err := ss.Update(slideID, title, slug, content, isPublished, req.Categories); err != nil {
+		if err := ss.Update(slideID, title, slug, content, isPublished, req.Categories, "", "", ""); err != nil {
 			logger.Error().Err(err).Msg("error updating slide")
 			http.Error(w, "Failed to update slide", http.StatusInternalServerError)
 			return

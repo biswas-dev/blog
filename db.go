@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/XSAM/otelsql"
@@ -31,17 +32,24 @@ func Initialize(username, password, database string, host string, port string) (
 	// SQL query. When APM is disabled the global tracer is a noop, so this is
 	// zero-overhead. In Datadog it appears as "blog-postgres" under the blog
 	// service in the Service Map and APM trace view.
-	conn, err := otelsql.Open("postgres", dsn,
-		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
-	)
+	var conn *sql.DB
+	var err error
+	if os.Getenv("DISABLE_OTELSQL") == "true" {
+		conn, err = sql.Open("postgres", dsn)
+	} else {
+		conn, err = otelsql.Open("postgres", dsn,
+			otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
+		)
+		if err == nil {
+			if _, merr := otelsql.RegisterDBStatsMetrics(conn,
+				otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
+			); merr != nil {
+				logger.Warn().Err(merr).Msg("db: failed to register otelsql stats metrics")
+			}
+		}
+	}
 	if err != nil {
 		return db, err
-	}
-
-	if _, err := otelsql.RegisterDBStatsMetrics(conn,
-		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
-	); err != nil {
-		logger.Warn().Err(err).Msg("db: failed to register otelsql stats metrics")
 	}
 
 	db.Conn = conn

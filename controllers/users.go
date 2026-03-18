@@ -166,6 +166,11 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		}
 	} else if uploadType == "avatar" {
 		base = filepath.Join(base, "avatars")
+	} else if uploadType == "slide" {
+		base = filepath.Join(base, "slide")
+		if slug != "" {
+			base = filepath.Join(base, slug)
+		}
 	} else if slug != "" {
 		base = filepath.Join(base, "post", slug)
 	}
@@ -190,6 +195,11 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		}
 	} else if uploadType == "avatar" {
 		urlBase += "/avatars"
+	} else if uploadType == "slide" {
+		urlBase += "/slide"
+		if slug != "" {
+			urlBase += "/" + slug
+		}
 	} else if slug != "" {
 		urlBase += "/post/" + slug
 	}
