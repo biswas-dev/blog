@@ -861,6 +861,9 @@ func (s Slides) ReimportPPTX(w http.ResponseWriter, r *http.Request) {
 		_ = s.SlideVersionService.MaybeCreateVersion(slideID, user.UserID, slide.Title, content)
 	}
 
+	// Ensure content file directory exists (may not exist in fresh container)
+	os.MkdirAll(filepath.Dir(slide.ContentFilePath), 0755)
+
 	// Update slide content (keep existing title, slug, published state, etc.)
 	err = s.SlideService.Update(slideID, slide.Title, slide.Slug, content, slide.IsPublished, nil, slide.Description, slide.SlideMetadata, "")
 	if err != nil {
