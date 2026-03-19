@@ -183,6 +183,7 @@
       <div class="mode-toggle">
         <button id="mode-wysiwyg" class="active">WYSIWYG</button>
         <button id="mode-code">Code</button>
+        <button id="mode-preview">Preview</button>
       </div>
     </div>
 
@@ -193,6 +194,9 @@
       </div>
       <div id="codemirror-container" style="display:none">
         <!-- CodeMirror mounts here -->
+      </div>
+      <div id="preview-container" style="display:none;width:100%;height:100%;position:relative">
+        <iframe id="preview-iframe" style="width:100%;height:100%;border:none;border-radius:8px;background:#000"></iframe>
       </div>
     </div>
 
@@ -458,32 +462,77 @@
   }
 
   // Mode toggle
-  document.getElementById('mode-wysiwyg').addEventListener('click', () => {
-    if (editorState.mode === 'wysiwyg') return;
-    editorState.mode = 'wysiwyg';
-    // Transfer code back to TipTap
-    if (cmView) {
-      const html = cmView.state.doc.toString();
-      editor.commands.setContent(html);
-      editorState.slides[editorState.currentSlideIndex].content = html;
-    }
-    document.getElementById('tiptap-container').style.display = '';
-    document.getElementById('codemirror-container').style.display = 'none';
-    document.getElementById('mode-wysiwyg').classList.add('active');
-    document.getElementById('mode-code').classList.remove('active');
-  });
+  function setEditorMode(mode) {
+    const tiptap = document.getElementById('tiptap-container');
+    const codemirror = document.getElementById('codemirror-container');
+    const preview = document.getElementById('preview-container');
+    const btnW = document.getElementById('mode-wysiwyg');
+    const btnC = document.getElementById('mode-code');
+    const btnP = document.getElementById('mode-preview');
 
-  document.getElementById('mode-code').addEventListener('click', () => {
-    if (editorState.mode === 'code') return;
-    editorState.mode = 'code';
-    const html = editor.getHTML();
-    editorState.slides[editorState.currentSlideIndex].content = html;
-    document.getElementById('tiptap-container').style.display = 'none';
-    document.getElementById('codemirror-container').style.display = '';
-    initCodeMirror(html);
-    document.getElementById('mode-code').classList.add('active');
-    document.getElementById('mode-wysiwyg').classList.remove('active');
-  });
+    // Save current content before switching
+    const currentSlide = editorState.slides[editorState.currentSlideIndex];
+    if (currentSlide && !currentSlide.pptxSlide) {
+      if (editorState.mode === 'wysiwyg') {
+        currentSlide.content = editor.getHTML();
+      } else if (editorState.mode === 'code' && cmView) {
+        currentSlide.content = cmView.state.doc.toString();
+      }
+    }
+
+    editorState.mode = mode;
+    tiptap.style.display = 'none';
+    codemirror.style.display = 'none';
+    preview.style.display = 'none';
+    btnW.classList.remove('active');
+    btnC.classList.remove('active');
+    btnP.classList.remove('active');
+
+    if (mode === 'wysiwyg') {
+      tiptap.style.display = '';
+      btnW.classList.add('active');
+      editor.commands.setContent(currentSlide.content);
+    } else if (mode === 'code') {
+      codemirror.style.display = '';
+      btnC.classList.add('active');
+      initCodeMirror(currentSlide.content);
+    } else if (mode === 'preview') {
+      preview.style.display = '';
+      btnP.classList.add('active');
+      updatePreviewIframe();
+    }
+  }
+
+  function updatePreviewIframe() {
+    const slide = editorState.slides[editorState.currentSlideIndex];
+    const bg = slide.background && slide.background !== '#ffffff' ? ` data-background-color="${slide.background}"` : '';
+    const cls = slide.pptxSlide ? ' class="pptx-slide"' : '';
+    const sectionHTML = `<section${cls}${bg}>\n${slide.content}\n</section>`;
+
+    const html = `<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/white.css">
+<style>
+html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important}
+.reveal .slides{text-align:left}
+.reveal .slides section{max-width:1100px!important;margin:0 auto!important;padding:40px!important;overflow:visible!important;box-sizing:border-box!important}
+.reveal .slides section.pptx-slide{padding:0!important;max-width:100%!important;width:100%!important;height:100%!important;overflow:hidden!important}
+.reveal .slides section.pptx-slide p,.reveal .slides section.pptx-slide h1,.reveal .slides section.pptx-slide h3,.reveal .slides section.pptx-slide li{margin:0;line-height:1.3}
+.reveal h1,.reveal h2,.reveal h3{color:#111;line-height:1.08}
+</style></head><body>
+<div class="reveal"><div class="slides">${sectionHTML}</div></div>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"><\/script>
+<script>Reveal.initialize({width:1280,height:800,margin:0.04,minScale:0.2,maxScale:1.5,controls:false,progress:false,slideNumber:false,center:false,transition:'none'});<\/script>
+</body></html>`;
+
+    const iframe = document.getElementById('preview-iframe');
+    iframe.srcdoc = html;
+  }
+
+  document.getElementById('mode-wysiwyg').addEventListener('click', () => setEditorMode('wysiwyg'));
+  document.getElementById('mode-code').addEventListener('click', () => setEditorMode('code'));
+  document.getElementById('mode-preview').addEventListener('click', () => setEditorMode('preview'));
 
   // Slide thumbnail management
   function renderThumbs() {
@@ -533,11 +582,14 @@
   }
 
   function switchToSlide(index) {
-    // Save current slide content
-    if (editorState.mode === 'wysiwyg') {
-      editorState.slides[editorState.currentSlideIndex].content = editor.getHTML();
-    } else if (cmView) {
-      editorState.slides[editorState.currentSlideIndex].content = cmView.state.doc.toString();
+    // Save current slide content (skip for pptx slides in wysiwyg mode)
+    const currentSlide = editorState.slides[editorState.currentSlideIndex];
+    if (currentSlide && !currentSlide.pptxSlide) {
+      if (editorState.mode === 'wysiwyg') {
+        currentSlide.content = editor.getHTML();
+      } else if (editorState.mode === 'code' && cmView) {
+        currentSlide.content = cmView.state.doc.toString();
+      }
     }
 
     editorState.currentSlideIndex = index;
@@ -546,8 +598,10 @@
     // Load new slide content
     if (editorState.mode === 'wysiwyg') {
       editor.commands.setContent(slide.content);
-    } else if (cmView) {
+    } else if (editorState.mode === 'code' && cmView) {
       initCodeMirror(slide.content);
+    } else if (editorState.mode === 'preview') {
+      updatePreviewIframe();
     }
 
     // Update right panel
@@ -996,6 +1050,11 @@
 
   if (isEdit) {
     loadVersions();
+  }
+
+  // Auto-switch to Preview mode if any slide is a PPTX import
+  if (editorState.slides.some(s => s.pptxSlide)) {
+    setEditorMode('preview');
   }
 
   // Export PPTX
