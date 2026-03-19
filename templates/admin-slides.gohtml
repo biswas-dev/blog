@@ -187,6 +187,9 @@
                                         {{if .SlideCount}}
                                             <span class="text-xs text-gray-400">{{.SlideCount}}s</span>
                                         {{end}}
+                                        {{if contains .SlideMetadata "pptx"}}
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">PPTX</span>
+                                        {{end}}
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">

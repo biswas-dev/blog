@@ -38,6 +38,9 @@
                                 {{if .SlideCount}}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{{.SlideCount}} slides</span>
                                 {{end}}
+                                {{if contains .SlideMetadata "pptx"}}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">PPTX Import</span>
+                                {{end}}
                             </div>
                         </div>
 

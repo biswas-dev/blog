@@ -769,7 +769,7 @@ func (s Slides) ImportPPTX(w http.ResponseWriter, r *http.Request) {
 
 	// Create the slide first to get ID and slug
 	content := strings.Join(sections, "\n")
-	slide, err := s.SlideService.Create(user.UserID, title, slug, content, false, nil, "", "{}", "")
+	slide, err := s.SlideService.Create(user.UserID, title, slug, content, false, nil, "", `{"source":"pptx"}`, "")
 	if err != nil {
 		log.Printf("Error creating imported slide: %v", err)
 		http.Error(w, "Failed to create slide", http.StatusInternalServerError)
@@ -865,7 +865,14 @@ func (s Slides) ReimportPPTX(w http.ResponseWriter, r *http.Request) {
 	os.MkdirAll(filepath.Dir(slide.ContentFilePath), 0755)
 
 	// Update slide content (keep existing title, slug, published state, etc.)
-	err = s.SlideService.Update(slideID, slide.Title, slide.Slug, content, slide.IsPublished, nil, slide.Description, slide.SlideMetadata, "")
+	// Mark as PPTX source in metadata
+	metadata := slide.SlideMetadata
+	if metadata == "" || metadata == "{}" {
+		metadata = `{"source":"pptx"}`
+	} else if !strings.Contains(metadata, `"source"`) {
+		metadata = strings.TrimSuffix(metadata, "}") + `,"source":"pptx"}`
+	}
+	err = s.SlideService.Update(slideID, slide.Title, slide.Slug, content, slide.IsPublished, nil, slide.Description, metadata, "")
 	if err != nil {
 		log.Printf("Error reimporting slide: %v", err)
 		http.Error(w, "Failed to update slide", http.StatusInternalServerError)
