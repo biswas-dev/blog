@@ -44,6 +44,29 @@ type SlideService struct {
 	DB *sql.DB
 }
 
+// MigrateFileContentToDB migrates slide content from files into the DB column.
+// Safe to call on every startup — only updates slides with empty DB content.
+func (ss *SlideService) MigrateFileContentToDB() {
+	rows, err := ss.DB.Query(`SELECT slide_id, content_file_path FROM Slides WHERE content IS NULL OR content = ''`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		var filePath string
+		if err := rows.Scan(&id, &filePath); err != nil {
+			continue
+		}
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+		ss.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, string(content), id)
+	}
+}
+
 // Create creates a new slide with the given parameters
 func (ss *SlideService) Create(userID int, title, slug, content string, isPublished bool, categoryIDs []int, description, metadata, password string) (*Slide, error) {
 	// Generate slug if empty
@@ -80,13 +103,13 @@ func (ss *SlideService) Create(userID int, title, slug, content string, isPublis
 		metadata = "{}"
 	}
 
-	// Insert slide into database
-	query := `INSERT INTO Slides (user_id, title, slug, content_file_path, is_published, description, slide_metadata, password_hash, created_at, updated_at)
-			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	// Insert slide into database (content stored in DB column)
+	query := `INSERT INTO Slides (user_id, title, slug, content_file_path, content, is_published, description, slide_metadata, password_hash, created_at, updated_at)
+			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 			  RETURNING slide_id, created_at, updated_at`
 
 	var slide Slide
-	err := ss.DB.QueryRow(query, userID, title, slug, contentPath, isPublished, description, metadata, passwordHash).Scan(
+	err := ss.DB.QueryRow(query, userID, title, slug, contentPath, content, isPublished, description, metadata, passwordHash).Scan(
 		&slide.ID, &slide.CreatedAt, &slide.UpdatedAt)
 	if err != nil {
 		// Clean up file if database insert fails
@@ -322,9 +345,10 @@ func (ss *SlideService) Update(slideID int, title, slug, content string, isPubli
 		slug = sanitizeSlug(slug)
 	}
 
-	// Update content file
-	if err := os.WriteFile(currentSlide.ContentFilePath, []byte(content), 0644); err != nil {
-		return fmt.Errorf("failed to update content file: %v", err)
+	// Write content file as backup (best-effort, may fail in containers)
+	if currentSlide.ContentFilePath != "" {
+		os.MkdirAll(filepath.Dir(currentSlide.ContentFilePath), 0755)
+		os.WriteFile(currentSlide.ContentFilePath, []byte(content), 0644)
 	}
 
 	// Handle password: empty string means remove, non-empty means set new
@@ -343,12 +367,12 @@ func (ss *SlideService) Update(slideID int, title, slug, content string, isPubli
 		metadata = currentSlide.SlideMetadata
 	}
 
-	// Update database record
-	query := `UPDATE Slides SET title = $1, slug = $2, is_published = $3, description = $4,
-	          slide_metadata = $5, password_hash = $6, updated_at = CURRENT_TIMESTAMP
-			  WHERE slide_id = $7`
+	// Update database record (content stored in DB)
+	query := `UPDATE Slides SET title = $1, slug = $2, content = $3, is_published = $4, description = $5,
+	          slide_metadata = $6, password_hash = $7, updated_at = CURRENT_TIMESTAMP
+			  WHERE slide_id = $8`
 
-	_, err = ss.DB.Exec(query, title, slug, isPublished, description, metadata, passwordHash, slideID)
+	_, err = ss.DB.Exec(query, title, slug, content, isPublished, description, metadata, passwordHash, slideID)
 	if err != nil {
 		return fmt.Errorf("failed to update slide: %v", err)
 	}
@@ -420,18 +444,27 @@ func (ss *SlideService) UpdateCategories(slideID int, categoryIDs []int) error {
 	return nil
 }
 
-// loadSlideContent loads the HTML content from file
+// loadSlideContent loads HTML content from DB. Falls back to file for migration.
 func (ss *SlideService) loadSlideContent(slide *Slide) error {
+	var dbContent string
+	err := ss.DB.QueryRow(`SELECT COALESCE(content, '') FROM Slides WHERE slide_id = $1`, slide.ID).Scan(&dbContent)
+	if err == nil && dbContent != "" {
+		slide.ContentHTML = template.HTML(dbContent)
+		return nil
+	}
+
+	// Fallback: read from file and migrate to DB
 	content, err := os.ReadFile(slide.ContentFilePath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// Content file may not exist yet (e.g. before reimport writes it)
-			slide.ContentHTML = ""
-			return nil
-		}
-		return fmt.Errorf("failed to read content file: %v", err)
+		slide.ContentHTML = ""
+		return nil
 	}
 	slide.ContentHTML = template.HTML(content)
+
+	// Migrate file content into DB
+	ss.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2 AND (content IS NULL OR content = '')`,
+		string(content), slide.ID)
+
 	return nil
 }
 

@@ -290,6 +290,7 @@ func main() {
 	slideService := models.SlideService{
 		DB: DB,
 	}
+	slideService.MigrateFileContentToDB()
 
 	slideVersionService := &models.SlideVersionService{DB: DB}
 
