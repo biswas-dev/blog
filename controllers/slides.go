@@ -897,7 +897,7 @@ func (s Slides) ReimportPPTX(w http.ResponseWriter, r *http.Request) {
 const (
 	pptxSlideWidthEMU  = 9144000.0
 	pptxSlideHeightEMU = 5143500.0
-	pptxBaseFontPt     = 30.0 // reveal.js base font size
+	pptxBaseFontPt     = 20.0 // reveal.js base font size (30px / 1.5 scale factor for readability)
 )
 
 // parsePPTX extracts slide content and media from a PPTX zip archive.
