@@ -394,12 +394,14 @@
       slides.push({ content: html, background: '#ffffff', backgroundImage: '', transition: 'slide', layout: '' });
     } else {
       sections.forEach(section => {
+        const isPptx = section.classList.contains('pptx-slide');
         slides.push({
           content: section.innerHTML.trim(),
           background: section.getAttribute('data-background-color') || '#ffffff',
           backgroundImage: section.getAttribute('data-background-image') || '',
           transition: section.getAttribute('data-transition') || 'slide',
-          layout: (section.className || '').replace('layout-', '') || '',
+          layout: (section.className || '').replace('layout-', '').replace('pptx-slide', '').trim() || '',
+          pptxSlide: isPptx,
         });
       });
     }
@@ -795,11 +797,14 @@
 
   // Build final HTML content
   function buildFinalContent() {
-    // Save current editor state
-    if (editorState.mode === 'wysiwyg') {
-      editorState.slides[editorState.currentSlideIndex].content = editor.getHTML();
-    } else if (cmView) {
-      editorState.slides[editorState.currentSlideIndex].content = cmView.state.doc.toString();
+    // Save current editor state (skip WYSIWYG for pptx slides to preserve styling)
+    const currentSlide = editorState.slides[editorState.currentSlideIndex];
+    if (currentSlide && !currentSlide.pptxSlide) {
+      if (editorState.mode === 'wysiwyg') {
+        currentSlide.content = editor.getHTML();
+      } else if (cmView) {
+        currentSlide.content = cmView.state.doc.toString();
+      }
     }
 
     return editorState.slides.map(slide => {
@@ -813,7 +818,12 @@
       if (slide.transition && slide.transition !== 'slide') {
         attrs += ` data-transition="${slide.transition}"`;
       }
-      const cls = slide.layout ? ` class="layout-${slide.layout}"` : '';
+      let cls = '';
+      if (slide.pptxSlide) {
+        cls = ' class="pptx-slide"';
+      } else if (slide.layout) {
+        cls = ` class="layout-${slide.layout}"`;
+      }
       return `<section${cls}${attrs}>\n${slide.content}\n</section>`;
     }).join('\n\n');
   }
