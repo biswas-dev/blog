@@ -574,6 +574,7 @@ func main() {
 	// Slide Autosave & Import API
 	r.Post("/api/admin/slides/{slideID}/autosave", slidesC.AutoSave)
 	r.Post("/api/admin/slides/import-pptx", slidesC.ImportPPTX)
+	r.Post("/api/admin/slides/{slideID}/reimport-pptx", slidesC.ReimportPPTX)
 
 	// System Information Routes
 	r.Get("/admin/system", systemC.Dashboard)

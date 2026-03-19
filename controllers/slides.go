@@ -802,6 +802,101 @@ func (s Slides) ImportPPTX(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ReimportPPTX handles POST /api/admin/slides/{slideID}/reimport-pptx
+// Replaces an existing slide's content with freshly parsed PPTX.
+func (s Slides) ReimportPPTX(w http.ResponseWriter, r *http.Request) {
+	user, err := s.isUserLoggedIn(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !models.CanEditSlides(user.Role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	slideIDStr := chi.URLParam(r, "slideID")
+	slideID, err := strconv.Atoi(slideIDStr)
+	if err != nil {
+		http.Error(w, "Invalid slide ID", http.StatusBadRequest)
+		return
+	}
+
+	// Verify slide exists
+	slide, err := s.SlideService.GetByID(slideID)
+	if err != nil {
+		http.Error(w, "Slide not found", http.StatusNotFound)
+		return
+	}
+
+	if err := r.ParseMultipartForm(50 << 20); err != nil {
+		http.Error(w, "File too large", http.StatusBadRequest)
+		return
+	}
+
+	file, _, err := r.FormFile("pptx")
+	if err != nil {
+		http.Error(w, "No PPTX file provided", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, file); err != nil {
+		http.Error(w, "Failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	zipReader, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		http.Error(w, "Invalid PPTX file", http.StatusBadRequest)
+		return
+	}
+
+	sections, mediaFiles := parsePPTX(zipReader)
+	content := strings.Join(sections, "\n")
+
+	// Create version snapshot before updating
+	if s.SlideVersionService != nil {
+		_ = s.SlideVersionService.MaybeCreateVersion(slideID, user.UserID, slide.Title, content)
+	}
+
+	// Update slide content (keep existing title, slug, published state, etc.)
+	err = s.SlideService.Update(slideID, slide.Title, slide.Slug, content, slide.IsPublished, nil, slide.Description, slide.SlideMetadata, "")
+	if err != nil {
+		log.Printf("Error reimporting slide: %v", err)
+		http.Error(w, "Failed to update slide", http.StatusInternalServerError)
+		return
+	}
+
+	// Save extracted media files
+	if len(mediaFiles) > 0 {
+		mediaDir := filepath.Join("static", "uploads", "slide", slide.Slug)
+		os.MkdirAll(mediaDir, 0755)
+		for name, data := range mediaFiles {
+			destPath := filepath.Join(mediaDir, name)
+			os.WriteFile(destPath, data, 0644)
+		}
+	}
+
+	// Update slide count
+	s.SlideService.UpdateSlideCount(slideID, len(sections))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"slideID":    slideID,
+		"slug":       slide.Slug,
+		"slideCount": len(sections),
+	})
+}
+
+// PPTX slide dimensions in EMU (English Metric Units)
+const (
+	pptxSlideWidthEMU  = 9144000.0
+	pptxSlideHeightEMU = 5143500.0
+	pptxBaseFontPt     = 30.0 // reveal.js base font size
+)
+
 // parsePPTX extracts slide content and media from a PPTX zip archive.
 func parsePPTX(zr *zip.Reader) (sections []string, media map[string][]byte) {
 	media = make(map[string][]byte)
@@ -841,8 +936,8 @@ func parsePPTX(zr *zip.Reader) (sections []string, media map[string][]byte) {
 	})
 
 	for _, sf := range slideFiles {
-		html := parseSlideXML(sf.file)
-		sections = append(sections, fmt.Sprintf("<section>\n%s\n</section>", html))
+		sectionAttrs, body := parseSlideXML(sf.file)
+		sections = append(sections, fmt.Sprintf("<section%s>\n%s\n</section>", sectionAttrs, body))
 	}
 
 	if len(sections) == 0 {
@@ -852,17 +947,31 @@ func parsePPTX(zr *zip.Reader) (sections []string, media map[string][]byte) {
 	return sections, media
 }
 
-// OOXML types for parsing slide content
+// OOXML types for parsing slide content with full styling support
 type pptSlide struct {
 	CSld struct {
+		Bg *struct {
+			BgPr *struct {
+				SolidFill *pptSolidFill `xml:"solidFill"`
+			} `xml:"bgPr"`
+		} `xml:"bg"`
 		SpTree struct {
 			Shapes []pptShape `xml:"sp"`
 		} `xml:"spTree"`
 	} `xml:"cSld"`
 }
 
+type pptSolidFill struct {
+	SrgbClr *struct {
+		Val string `xml:"val,attr"`
+	} `xml:"srgbClr"`
+}
+
 type pptShape struct {
 	NvSpPr struct {
+		CNvPr struct {
+			Name string `xml:"name,attr"`
+		} `xml:"cNvPr"`
 		NvPr struct {
 			Ph *struct {
 				Type string `xml:"type,attr"`
@@ -870,105 +979,354 @@ type pptShape struct {
 			} `xml:"ph"`
 		} `xml:"nvPr"`
 	} `xml:"nvSpPr"`
+	SpPr *struct {
+		Xfrm *struct {
+			Off *struct {
+				X int64 `xml:"x,attr"`
+				Y int64 `xml:"y,attr"`
+			} `xml:"off"`
+			Ext *struct {
+				Cx int64 `xml:"cx,attr"`
+				Cy int64 `xml:"cy,attr"`
+			} `xml:"ext"`
+		} `xml:"xfrm"`
+		SolidFill *pptSolidFill `xml:"solidFill"`
+		NoFill    *struct{}     `xml:"noFill"`
+	} `xml:"spPr"`
 	TxBody *struct {
+		BodyPr *struct {
+			LIns *int64 `xml:"lIns,attr"`
+			TIns *int64 `xml:"tIns,attr"`
+			RIns *int64 `xml:"rIns,attr"`
+			BIns *int64 `xml:"bIns,attr"`
+		} `xml:"bodyPr"`
 		Paragraphs []pptParagraph `xml:"p"`
 	} `xml:"txBody"`
 }
 
 type pptParagraph struct {
 	PPr *struct {
-		BuNone *struct{} `xml:"buNone"`
-		BuChar *struct {
+		Algn    string   `xml:"algn,attr"`
+		BuNone  *struct{} `xml:"buNone"`
+		BuChar  *struct {
 			Char string `xml:"char,attr"`
 		} `xml:"buChar"`
 		BuAutoNum *struct{} `xml:"buAutoNum"`
 		Lvl       int       `xml:"lvl,attr"`
+		MarL      int64     `xml:"marL,attr"`
+		Indent    int64     `xml:"indent,attr"`
 	} `xml:"pPr"`
-	Runs []pptRun `xml:"r"`
+	Runs      []pptRun `xml:"r"`
+	EndParaRPr *pptRunProps `xml:"endParaRPr"`
 }
 
 type pptRun struct {
-	RPr *struct {
-		B int `xml:"b,attr"`
-		I int `xml:"i,attr"`
-	} `xml:"rPr"`
-	Text string `xml:"t"`
+	RPr  *pptRunProps `xml:"rPr"`
+	Text string       `xml:"t"`
 }
 
-func parseSlideXML(f *zip.File) string {
+type pptRunProps struct {
+	B         int           `xml:"b,attr"`
+	I         int           `xml:"i,attr"`
+	Sz        int           `xml:"sz,attr"`
+	Spc       int           `xml:"spc,attr"`
+	SolidFill *pptSolidFill `xml:"solidFill"`
+}
+
+// parseSlideXML extracts a single slide's HTML with full styling.
+// Returns (section attributes string, inner HTML).
+func parseSlideXML(f *zip.File) (string, string) {
 	rc, err := f.Open()
 	if err != nil {
-		return "<p>Failed to parse slide</p>"
+		return "", "<p>Failed to parse slide</p>"
 	}
 	defer rc.Close()
 
 	var slide pptSlide
 	if err := xml.NewDecoder(rc).Decode(&slide); err != nil {
-		return "<p>Failed to parse slide</p>"
+		return "", "<p>Failed to parse slide</p>"
+	}
+
+	// Extract slide background color
+	var sectionAttrs string
+	if slide.CSld.Bg != nil && slide.CSld.Bg.BgPr != nil &&
+		slide.CSld.Bg.BgPr.SolidFill != nil && slide.CSld.Bg.BgPr.SolidFill.SrgbClr != nil {
+		sectionAttrs = fmt.Sprintf(` data-background-color="#%s"`, slide.CSld.Bg.BgPr.SolidFill.SrgbClr.Val)
 	}
 
 	var parts []string
+	hasPositioned := false
+
+	// Collect bounding boxes of all decorative shapes for overlap detection
+	type shapeRect struct {
+		left, top, width, height float64
+	}
+	var decoRects []shapeRect
+	for _, shape := range slide.CSld.SpTree.Shapes {
+		if pptxIsDecorativeShape(shape) && shape.SpPr != nil && shape.SpPr.Xfrm != nil &&
+			shape.SpPr.Xfrm.Off != nil && shape.SpPr.Xfrm.Ext != nil {
+			r := shapeRect{
+				left:   float64(shape.SpPr.Xfrm.Off.X) / pptxSlideWidthEMU * 100,
+				top:    float64(shape.SpPr.Xfrm.Off.Y) / pptxSlideHeightEMU * 100,
+				width:  float64(shape.SpPr.Xfrm.Ext.Cx) / pptxSlideWidthEMU * 100,
+				height: float64(shape.SpPr.Xfrm.Ext.Cy) / pptxSlideHeightEMU * 100,
+			}
+			// Only consider large decorative shapes (>5% height) as potential occluders
+			if r.height > 5 {
+				decoRects = append(decoRects, r)
+			}
+		}
+	}
 
 	for _, shape := range slide.CSld.SpTree.Shapes {
+		posStyle := pptxShapePosition(shape)
+		if posStyle != "" {
+			hasPositioned = true
+		}
+
+		// Check if this is a decorative (filled, no meaningful text) shape
+		if pptxIsDecorativeShape(shape) {
+			if html := pptxRenderDecorativeShape(shape, posStyle); html != "" {
+				parts = append(parts, html)
+			}
+			continue
+		}
+
 		if shape.TxBody == nil {
 			continue
 		}
 
-		// Determine shape type from placeholder
-		phType := ""
-		if shape.NvSpPr.NvPr.Ph != nil {
-			phType = shape.NvSpPr.NvPr.Ph.Type
-		}
+		// For text shapes, check if they overlap with a large decorative shape below.
+		// If so, shrink the text shape's height to end at the decorative shape's top edge.
+		if shape.SpPr != nil && shape.SpPr.Xfrm != nil &&
+			shape.SpPr.Xfrm.Off != nil && shape.SpPr.Xfrm.Ext != nil {
+			tLeft := float64(shape.SpPr.Xfrm.Off.X) / pptxSlideWidthEMU * 100
+			tTop := float64(shape.SpPr.Xfrm.Off.Y) / pptxSlideHeightEMU * 100
+			tWidth := float64(shape.SpPr.Xfrm.Ext.Cx) / pptxSlideWidthEMU * 100
+			tHeight := float64(shape.SpPr.Xfrm.Ext.Cy) / pptxSlideHeightEMU * 100
+			tRight := tLeft + tWidth
+			tBottom := tTop + tHeight
 
-		var paragraphs []string
-		isBulletList := false
-
-		for _, para := range shape.TxBody.Paragraphs {
-			text := extractRunText(para.Runs)
-			if text == "" {
-				continue
+			for _, dr := range decoRects {
+				drRight := dr.left + dr.width
+				// Check horizontal overlap
+				if tLeft < drRight && tRight > dr.left {
+					// Decorative shape starts within or below the text shape
+					if dr.top > tTop && dr.top < tBottom {
+						// Shrink text shape height to end above the decorative shape with a gap
+						tHeight = dr.top - tTop - 1.5
+						if tHeight < 1 {
+							tHeight = 1
+						}
+						posStyle = fmt.Sprintf("position:absolute;left:%.2f%%;top:%.2f%%;width:%.2f%%;height:%.2f%%",
+							tLeft, tTop, tWidth, tHeight)
+						break
+					}
+				}
 			}
-
-			// Check for bullet points
-			hasBullet := para.PPr != nil && para.PPr.BuChar != nil
-			hasAutoNum := para.PPr != nil && para.PPr.BuAutoNum != nil
-
-			if hasBullet || hasAutoNum {
-				isBulletList = true
-				paragraphs = append(paragraphs, fmt.Sprintf("<li>%s</li>", text))
-			} else if phType == "title" || phType == "ctrTitle" {
-				paragraphs = append(paragraphs, fmt.Sprintf("<h1>%s</h1>", text))
-			} else if phType == "subTitle" {
-				paragraphs = append(paragraphs, fmt.Sprintf("<h3>%s</h3>", text))
-			} else {
-				paragraphs = append(paragraphs, fmt.Sprintf("<p>%s</p>", text))
-			}
 		}
 
-		if isBulletList && len(paragraphs) > 0 {
-			parts = append(parts, "<ul>\n"+strings.Join(paragraphs, "\n")+"\n</ul>")
-		} else {
-			parts = append(parts, strings.Join(paragraphs, "\n"))
+		// Render text shape
+		if html := pptxRenderTextShape(shape, posStyle); html != "" {
+			parts = append(parts, html)
 		}
+	}
+
+	if hasPositioned {
+		sectionAttrs += ` class="pptx-slide"`
 	}
 
 	if len(parts) == 0 {
-		return "<p></p>"
+		return sectionAttrs, "<p></p>"
 	}
-	return strings.Join(parts, "\n")
+	return sectionAttrs, strings.Join(parts, "\n")
 }
 
-func extractRunText(runs []pptRun) string {
+// pptxShapePosition extracts absolute CSS position from shape's xfrm transform.
+func pptxShapePosition(shape pptShape) string {
+	if shape.SpPr == nil || shape.SpPr.Xfrm == nil || shape.SpPr.Xfrm.Off == nil || shape.SpPr.Xfrm.Ext == nil {
+		return ""
+	}
+	left := float64(shape.SpPr.Xfrm.Off.X) / pptxSlideWidthEMU * 100
+	top := float64(shape.SpPr.Xfrm.Off.Y) / pptxSlideHeightEMU * 100
+	width := float64(shape.SpPr.Xfrm.Ext.Cx) / pptxSlideWidthEMU * 100
+	height := float64(shape.SpPr.Xfrm.Ext.Cy) / pptxSlideHeightEMU * 100
+	return fmt.Sprintf("position:absolute;left:%.2f%%;top:%.2f%%;width:%.2f%%;height:%.2f%%", left, top, width, height)
+}
+
+// pptxIsDecorativeShape returns true if the shape is a filled rectangle with no meaningful text.
+func pptxIsDecorativeShape(shape pptShape) bool {
+	// Must have a solid fill (not noFill)
+	if shape.SpPr == nil || shape.SpPr.SolidFill == nil {
+		return false
+	}
+	// Check if there's no text, or only empty text
+	if shape.TxBody == nil {
+		return true
+	}
+	for _, p := range shape.TxBody.Paragraphs {
+		for _, r := range p.Runs {
+			if strings.TrimSpace(r.Text) != "" {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// pptxRenderDecorativeShape renders a filled decorative shape as a div.
+func pptxRenderDecorativeShape(shape pptShape, posStyle string) string {
+	if shape.SpPr == nil || shape.SpPr.SolidFill == nil || shape.SpPr.SolidFill.SrgbClr == nil {
+		return ""
+	}
+	color := shape.SpPr.SolidFill.SrgbClr.Val
+	if posStyle == "" {
+		return fmt.Sprintf(`<div style="background:#%s;width:100%%;height:4px;margin:0.5em 0"></div>`, color)
+	}
+	return fmt.Sprintf(`<div style="%s;background:#%s"></div>`, posStyle, color)
+}
+
+// pptxRenderTextShape renders a text shape with full styling.
+func pptxRenderTextShape(shape pptShape, posStyle string) string {
+	if shape.TxBody == nil {
+		return ""
+	}
+
+	var paragraphs []string
+	isBulletList := false
+
+	for _, para := range shape.TxBody.Paragraphs {
+		text := pptxExtractRunText(para.Runs)
+		if text == "" {
+			continue
+		}
+
+		// Paragraph-level alignment
+		var paraStyle string
+		if para.PPr != nil && para.PPr.Algn != "" {
+			switch para.PPr.Algn {
+			case "ctr":
+				paraStyle = ` style="text-align:center"`
+			case "r":
+				paraStyle = ` style="text-align:right"`
+			case "just":
+				paraStyle = ` style="text-align:justify"`
+			}
+		}
+
+		// Check for bullet points
+		hasBullet := para.PPr != nil && para.PPr.BuChar != nil
+		hasAutoNum := para.PPr != nil && para.PPr.BuAutoNum != nil
+
+		if hasBullet || hasAutoNum {
+			isBulletList = true
+			paragraphs = append(paragraphs, fmt.Sprintf("<li%s>%s</li>", paraStyle, text))
+		} else {
+			// Determine tag from placeholder type
+			phType := ""
+			if shape.NvSpPr.NvPr.Ph != nil {
+				phType = shape.NvSpPr.NvPr.Ph.Type
+			}
+
+			switch phType {
+			case "title", "ctrTitle":
+				paragraphs = append(paragraphs, fmt.Sprintf("<h1%s>%s</h1>", paraStyle, text))
+			case "subTitle":
+				paragraphs = append(paragraphs, fmt.Sprintf("<h3%s>%s</h3>", paraStyle, text))
+			default:
+				paragraphs = append(paragraphs, fmt.Sprintf("<p%s>%s</p>", paraStyle, text))
+			}
+		}
+	}
+
+	if len(paragraphs) == 0 {
+		return ""
+	}
+
+	var inner string
+	if isBulletList {
+		inner = "<ul>\n" + strings.Join(paragraphs, "\n") + "\n</ul>"
+	} else {
+		inner = strings.Join(paragraphs, "\n")
+	}
+
+	// Wrap in a positioned div if we have position data
+	if posStyle != "" {
+		// Compute padding from bodyPr insets (default: 91440 EMU ≈ 0.1 inch)
+		padding := pptxBodyPadding(shape)
+		return fmt.Sprintf(`<div style="%s;display:flex;align-items:center;overflow:hidden;%s">%s</div>`, posStyle, padding, inner)
+	}
+	return inner
+}
+
+// pptxBodyPadding returns a CSS padding string derived from OOXML bodyPr insets.
+// OOXML defaults: lIns=91440, tIns=45720, rIns=91440, bIns=45720 EMU.
+// When insets are explicitly 0, we still add a small minimum padding (0.4%)
+// to prevent text from touching the edge of overlapping background shapes.
+func pptxBodyPadding(shape pptShape) string {
+	const (
+		defLR   int64 = 91440  // default left/right inset EMU
+		defTB   int64 = 45720  // default top/bottom inset EMU
+		minPad        = 0.4    // minimum padding percentage
+	)
+
+	lIns, tIns, rIns, bIns := defLR, defTB, defLR, defTB
+	if shape.TxBody != nil && shape.TxBody.BodyPr != nil {
+		bp := shape.TxBody.BodyPr
+		if bp.LIns != nil {
+			lIns = *bp.LIns
+		}
+		if bp.TIns != nil {
+			tIns = *bp.TIns
+		}
+		if bp.RIns != nil {
+			rIns = *bp.RIns
+		}
+		if bp.BIns != nil {
+			bIns = *bp.BIns
+		}
+	}
+
+	// Convert EMU to percentage of slide dimensions, with minimum
+	lPct := max(float64(lIns)/pptxSlideWidthEMU*100, minPad)
+	rPct := max(float64(rIns)/pptxSlideWidthEMU*100, minPad)
+	tPct := max(float64(tIns)/pptxSlideHeightEMU*100, minPad)
+	bPct := max(float64(bIns)/pptxSlideHeightEMU*100, minPad)
+
+	return fmt.Sprintf("padding:%.2f%% %.2f%% %.2f%% %.2f%%", tPct, rPct, bPct, lPct)
+}
+
+// pptxExtractRunText converts text runs to HTML with inline styling.
+func pptxExtractRunText(runs []pptRun) string {
 	var parts []string
 	for _, run := range runs {
 		text := run.Text
-		if run.RPr != nil {
-			if run.RPr.B == 1 {
-				text = "<strong>" + text + "</strong>"
-			}
-			if run.RPr.I == 1 {
-				text = "<em>" + text + "</em>"
-			}
+		if run.RPr == nil {
+			parts = append(parts, text)
+			continue
+		}
+
+		var styles []string
+		if run.RPr.SolidFill != nil && run.RPr.SolidFill.SrgbClr != nil {
+			styles = append(styles, fmt.Sprintf("color:#%s", run.RPr.SolidFill.SrgbClr.Val))
+		}
+		if run.RPr.Sz > 0 {
+			emSize := float64(run.RPr.Sz) / 100.0 / pptxBaseFontPt
+			styles = append(styles, fmt.Sprintf("font-size:%.2fem", emSize))
+		}
+		if run.RPr.Spc != 0 {
+			spacing := float64(run.RPr.Spc) / 100.0
+			styles = append(styles, fmt.Sprintf("letter-spacing:%.1fpt", spacing))
+		}
+		if run.RPr.B == 1 {
+			styles = append(styles, "font-weight:bold")
+		}
+		if run.RPr.I == 1 {
+			styles = append(styles, "font-style:italic")
+		}
+
+		if len(styles) > 0 {
+			text = fmt.Sprintf(`<span style="%s">%s</span>`, strings.Join(styles, ";"), text)
 		}
 		parts = append(parts, text)
 	}

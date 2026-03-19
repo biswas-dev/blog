@@ -527,7 +527,9 @@ func (ss *SlideService) loadContributorsForSlides(slides []Slide) error {
 		       COALESCE(u.profile_picture_url, '')
 		FROM slide_contributors sc
 		JOIN Users u ON u.user_id = sc.user_id
+		JOIN slides s ON s.id = sc.slide_id
 		WHERE sc.slide_id = ANY($1)
+		  AND sc.user_id != s.user_id
 		ORDER BY sc.first_contributed_at ASC
 	`, pq.Array(ids))
 	if err != nil {

@@ -890,20 +890,32 @@
     });
   }
 
-  // Import PPTX
+  // Import PPTX (new slide or re-import into existing)
   document.getElementById('import-pptx-input').addEventListener('change', function() {
     if (!this.files[0]) return;
     const formData = new FormData();
     formData.append('pptx', this.files[0]);
-    formData.append('title', document.getElementById('panel-title').value || 'Imported');
-    formData.append('slug', document.getElementById('panel-slug').value || '');
 
-    fetch('/api/admin/slides/import-pptx?gorilla.csrf.Token=' + encodeURIComponent(csrfToken), {
+    let url;
+    if (isEdit && slideID > 0) {
+      // Re-import: replace current slide content with new PPTX
+      if (!confirm('This will replace all slide content with the imported PPTX. Continue?')) {
+        this.value = '';
+        return;
+      }
+      url = '/api/admin/slides/' + slideID + '/reimport-pptx';
+    } else {
+      // New import
+      formData.append('title', document.getElementById('panel-title').value || 'Imported');
+      formData.append('slug', document.getElementById('panel-slug').value || '');
+      url = '/api/admin/slides/import-pptx';
+    }
+
+    fetch(url + '?gorilla.csrf.Token=' + encodeURIComponent(csrfToken), {
       method: 'POST', body: formData, headers: { 'X-CSRF-Token': csrfToken },
     })
     .then(r => r.json())
     .then(data => {
-      // Redirect to edit the imported slide
       window.location.href = '/admin/slides/' + data.slideID + '/edit';
     })
     .catch(err => alert('Import failed: ' + err.message));
@@ -993,39 +1005,100 @@
       const parser = new DOMParser();
       const doc = parser.parseFromString('<div>' + slide.content + '</div>', 'text/html');
 
-      let yPos = 0.5;
-      doc.querySelectorAll('h1, h2, h3, p, li, pre').forEach(el => {
-        const tag = el.tagName.toLowerCase();
-        const text = el.textContent.trim();
-        if (!text) return;
+      // Check if this is a PPTX-imported slide (absolutely positioned divs)
+      const positionedDivs = doc.querySelectorAll('div[style*="position:absolute"]');
+      if (positionedDivs.length > 0) {
+        // Rich positioned export: preserve positions, colors, sizes
+        positionedDivs.forEach(div => {
+          const style = div.getAttribute('style') || '';
+          // Parse position percentages from style
+          const leftMatch = style.match(/left:([\d.]+)%/);
+          const topMatch = style.match(/top:([\d.]+)%/);
+          const widthMatch = style.match(/width:([\d.]+)%/);
+          const heightMatch = style.match(/height:([\d.]+)%/);
 
-        let fontSize = 18;
-        let bold = false;
-        if (tag === 'h1') { fontSize = 36; bold = true; }
-        else if (tag === 'h2') { fontSize = 28; bold = true; }
-        else if (tag === 'h3') { fontSize = 22; bold = true; }
-        else if (tag === 'pre') { fontSize = 12; }
-        else if (tag === 'li') { fontSize = 16; }
+          const x = leftMatch ? parseFloat(leftMatch[1]) / 100 * 10 : 0.5;
+          const y = topMatch ? parseFloat(topMatch[1]) / 100 * 5.63 : 0.5;
+          const w = widthMatch ? parseFloat(widthMatch[1]) / 100 * 10 : 9;
+          const h = heightMatch ? parseFloat(heightMatch[1]) / 100 * 5.63 : 0.5;
 
-        pptSlide.addText(text, {
-          x: 0.5, y: yPos, w: '90%', fontSize, bold,
-          fontFace: tag === 'pre' ? 'Courier New' : 'Arial',
-          color: '333333',
-          bullet: tag === 'li' ? { type: 'bullet' } : undefined,
+          // Check if decorative shape (no text, has background)
+          const bgMatch = style.match(/background:#([0-9A-Fa-f]{6})/);
+          if (bgMatch && !div.textContent.trim()) {
+            pptSlide.addShape(pptx.ShapeType.rect, {
+              x, y, w, h, fill: { color: bgMatch[1] }, line: { color: bgMatch[1] }
+            });
+            return;
+          }
+
+          // Text shape - extract styled text runs
+          const textEls = div.querySelectorAll('p, h1, h3, li');
+          textEls.forEach(el => {
+            const runs = [];
+            el.childNodes.forEach(node => {
+              if (node.nodeType === 3) {
+                // Text node
+                const text = node.textContent;
+                if (text.trim()) runs.push({ text, options: { fontSize: 18, color: '333333' } });
+              } else if (node.tagName === 'SPAN') {
+                const spanStyle = node.getAttribute('style') || '';
+                const opts = {};
+                const colorM = spanStyle.match(/color:#([0-9A-Fa-f]{6})/);
+                if (colorM) opts.color = colorM[1];
+                const sizeM = spanStyle.match(/font-size:([\d.]+)em/);
+                if (sizeM) opts.fontSize = Math.round(parseFloat(sizeM[1]) * 30);
+                if (spanStyle.includes('font-weight:bold')) opts.bold = true;
+                if (spanStyle.includes('font-style:italic')) opts.italic = true;
+                const spacingM = spanStyle.match(/letter-spacing:([\d.]+)pt/);
+                if (spacingM) opts.charSpacing = parseFloat(spacingM[1]) * 100;
+                runs.push({ text: node.textContent, options: opts });
+              } else if (node.tagName === 'STRONG') {
+                runs.push({ text: node.textContent, options: { bold: true } });
+              } else if (node.tagName === 'EM') {
+                runs.push({ text: node.textContent, options: { italic: true } });
+              }
+            });
+            if (runs.length > 0) {
+              pptSlide.addText(runs, { x, y, w, h, valign: 'middle', fontFace: 'Calibri' });
+            }
+          });
         });
-        yPos += (fontSize / 72) * 1.5 + 0.1;
-      });
+      } else {
+        // Legacy export: simple flow-based layout
+        let yPos = 0.5;
+        doc.querySelectorAll('h1, h2, h3, p, li, pre').forEach(el => {
+          const tag = el.tagName.toLowerCase();
+          const text = el.textContent.trim();
+          if (!text) return;
 
-      // Extract images
-      doc.querySelectorAll('img').forEach(img => {
-        const src = img.getAttribute('src');
-        if (src && !src.startsWith('data:')) {
-          try {
-            pptSlide.addImage({ path: window.location.origin + src, x: 1, y: yPos, w: 4, h: 3 });
-            yPos += 3.2;
-          } catch(e) { /* skip images that fail */ }
-        }
-      });
+          let fontSize = 18;
+          let bold = false;
+          if (tag === 'h1') { fontSize = 36; bold = true; }
+          else if (tag === 'h2') { fontSize = 28; bold = true; }
+          else if (tag === 'h3') { fontSize = 22; bold = true; }
+          else if (tag === 'pre') { fontSize = 12; }
+          else if (tag === 'li') { fontSize = 16; }
+
+          pptSlide.addText(text, {
+            x: 0.5, y: yPos, w: '90%', fontSize, bold,
+            fontFace: tag === 'pre' ? 'Courier New' : 'Arial',
+            color: '333333',
+            bullet: tag === 'li' ? { type: 'bullet' } : undefined,
+          });
+          yPos += (fontSize / 72) * 1.5 + 0.1;
+        });
+
+        // Extract images
+        doc.querySelectorAll('img').forEach(img => {
+          const src = img.getAttribute('src');
+          if (src && !src.startsWith('data:')) {
+            try {
+              pptSlide.addImage({ path: window.location.origin + src, x: 1, y: yPos, w: 4, h: 3 });
+              yPos += 3.2;
+            } catch(e) { /* skip images that fail */ }
+          }
+        });
+      }
     });
 
     pptx.writeFile({ fileName: title.replace(/[^a-zA-Z0-9]/g, '_') + '.pptx' });
