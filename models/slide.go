@@ -424,6 +424,11 @@ func (ss *SlideService) UpdateCategories(slideID int, categoryIDs []int) error {
 func (ss *SlideService) loadSlideContent(slide *Slide) error {
 	content, err := os.ReadFile(slide.ContentFilePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// Content file may not exist yet (e.g. before reimport writes it)
+			slide.ContentHTML = ""
+			return nil
+		}
 		return fmt.Errorf("failed to read content file: %v", err)
 	}
 	slide.ContentHTML = template.HTML(content)
