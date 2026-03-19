@@ -76,17 +76,11 @@ func (ss *SlideService) Create(userID int, title, slug, content string, isPublis
 		slug = sanitizeSlug(slug)
 	}
 
-	// Create slide directory
+	// Create slide directory and content file (best-effort, content is in DB)
 	slideDir := filepath.Join("static", "slides", slug)
-	if err := os.MkdirAll(slideDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create slide directory: %v", err)
-	}
-
-	// Create content file
+	os.MkdirAll(slideDir, 0755)
 	contentPath := filepath.Join(slideDir, "content.html")
-	if err := os.WriteFile(contentPath, []byte(content), 0644); err != nil {
-		return nil, fmt.Errorf("failed to write content file: %v", err)
-	}
+	os.WriteFile(contentPath, []byte(content), 0644) // best-effort, content is in DB
 
 	// Hash password if provided
 	var passwordHash string
