@@ -1235,6 +1235,9 @@ func createSlide(ss *models.SlideService) http.HandlerFunc {
 			Slug        string `json:"slug"`
 			Content     string `json:"content"`
 			IsPublished bool   `json:"is_published"`
+			Description string `json:"description"`
+			Metadata    string `json:"metadata"`
+			Password    string `json:"password"`
 			Categories  []int  `json:"categories"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1245,7 +1248,10 @@ func createSlide(ss *models.SlideService) http.HandlerFunc {
 			http.Error(w, "Title is required", http.StatusBadRequest)
 			return
 		}
-		slide, err := ss.Create(req.UserID, req.Title, req.Slug, req.Content, req.IsPublished, req.Categories, "", "{}", "")
+		if req.Metadata == "" {
+			req.Metadata = "{}"
+		}
+		slide, err := ss.Create(req.UserID, req.Title, req.Slug, req.Content, req.IsPublished, req.Categories, req.Description, req.Metadata, req.Password)
 		if err != nil {
 			logger.Error().Err(err).Msg("error creating slide")
 			http.Error(w, "Failed to create slide", http.StatusInternalServerError)
@@ -1267,6 +1273,9 @@ func updateSlide(ss *models.SlideService) http.HandlerFunc {
 			Slug        string `json:"slug"`
 			Content     string `json:"content"`
 			IsPublished *bool  `json:"is_published"`
+			Description string `json:"description"`
+			Metadata    string `json:"metadata"`
+			Password    string `json:"password"`
 			Categories  []int  `json:"categories"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1296,8 +1305,12 @@ func updateSlide(ss *models.SlideService) http.HandlerFunc {
 		if req.IsPublished != nil {
 			isPublished = *req.IsPublished
 		}
+		description := req.Description
+		if description == "" {
+			description = existing.Description
+		}
 
-		if err := ss.Update(slideID, title, slug, content, isPublished, req.Categories, "", "", ""); err != nil {
+		if err := ss.Update(slideID, title, slug, content, isPublished, req.Categories, description, req.Metadata, req.Password); err != nil {
 			logger.Error().Err(err).Msg("error updating slide")
 			http.Error(w, "Failed to update slide", http.StatusInternalServerError)
 			return

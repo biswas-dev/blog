@@ -47,6 +47,10 @@ type SlideService struct {
 // MigrateFileContentToDB migrates slide content from files into the DB column.
 // Safe to call on every startup — only updates slides with empty DB content.
 func (ss *SlideService) MigrateFileContentToDB() {
+	// Ensure the content column exists (idempotent)
+	ss.DB.Exec(`ALTER TABLE Slides ADD COLUMN IF NOT EXISTS content TEXT DEFAULT ''`)
+
+	// Backfill from files for any slides with empty DB content
 	rows, err := ss.DB.Query(`SELECT slide_id, content_file_path FROM Slides WHERE content IS NULL OR content = ''`)
 	if err != nil {
 		return
@@ -97,7 +101,7 @@ func (ss *SlideService) Create(userID int, title, slug, content string, isPublis
 		metadata = "{}"
 	}
 
-	// Insert slide into database (try with content column, fall back without)
+	// Insert slide into database (content stored in DB column)
 	var slide Slide
 	err := ss.DB.QueryRow(`INSERT INTO Slides (user_id, title, slug, content_file_path, content, is_published, description, slide_metadata, password_hash, created_at, updated_at)
 			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -105,17 +109,7 @@ func (ss *SlideService) Create(userID int, title, slug, content string, isPublis
 		userID, title, slug, contentPath, content, isPublished, description, metadata, passwordHash).Scan(
 		&slide.ID, &slide.CreatedAt, &slide.UpdatedAt)
 	if err != nil {
-		// Fallback: insert without content column (migration may not have run yet)
-		err = ss.DB.QueryRow(`INSERT INTO Slides (user_id, title, slug, content_file_path, is_published, description, slide_metadata, password_hash, created_at, updated_at)
-			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-			  RETURNING slide_id, created_at, updated_at`,
-			userID, title, slug, contentPath, isPublished, description, metadata, passwordHash).Scan(
-			&slide.ID, &slide.CreatedAt, &slide.UpdatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create slide: %v", err)
-		}
-		// Try to update content separately
-		ss.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, content, slide.ID)
+		return nil, fmt.Errorf("failed to create slide: %v", err)
 	}
 
 	slide.UserID = userID
@@ -368,19 +362,12 @@ func (ss *SlideService) Update(slideID int, title, slug, content string, isPubli
 		metadata = currentSlide.SlideMetadata
 	}
 
-	// Update database record (try with content column, fall back without)
+	// Update database record (content stored in DB column)
 	_, err = ss.DB.Exec(`UPDATE Slides SET title = $1, slug = $2, content = $3, is_published = $4, description = $5,
 	          slide_metadata = $6, password_hash = $7, updated_at = CURRENT_TIMESTAMP
 			  WHERE slide_id = $8`, title, slug, content, isPublished, description, metadata, passwordHash, slideID)
 	if err != nil {
-		// Fallback without content column
-		_, err = ss.DB.Exec(`UPDATE Slides SET title = $1, slug = $2, is_published = $3, description = $4,
-		          slide_metadata = $5, password_hash = $6, updated_at = CURRENT_TIMESTAMP
-				  WHERE slide_id = $7`, title, slug, isPublished, description, metadata, passwordHash, slideID)
-		if err != nil {
-			return fmt.Errorf("failed to update slide: %v", err)
-		}
-		ss.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, content, slideID)
+		return fmt.Errorf("failed to update slide: %v", err)
 	}
 
 	// Update search_content for full-text search indexing
