@@ -3,7 +3,7 @@ module anshumanbiswas.com/blog
 go 1.26.0
 
 require (
-	github.com/anchoo2kewl/go-wiki v0.1.1-0.20260301213114-dc55f282bf2d
+	github.com/anchoo2kewl/go-wiki v0.1.3
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/rs/zerolog v1.34.0
 	github.com/russross/blackfriday/v2 v2.1.0
@@ -35,7 +35,6 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.42.0 // indirect
 	go.opentelemetry.io/otel/metric v1.42.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
-	golang.org/x/image v0.37.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
@@ -58,5 +57,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.42.0
 	go.opentelemetry.io/otel/trace v1.42.0
 	golang.org/x/crypto v0.48.0
+	golang.org/x/image v0.37.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.74.8
 )
