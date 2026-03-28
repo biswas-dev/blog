@@ -22,7 +22,7 @@
                     <span class="reading-time">{{$post.ReadingTime}} min read</span>
                     {{if $post.AuthorDisplayName}}
                     <span class="sep">&middot;</span>
-                    <a href="/user/{{$post.Username}}" class="post-author-link">{{$post.AuthorDisplayName}}</a>
+                    <a href="/users/{{$post.Username}}" class="post-author-link">{{$post.AuthorDisplayName}}</a>
                     {{end}}
                     {{if $post.Featured}}
                     <span class="sep">&middot;</span>
@@ -110,7 +110,7 @@ function appendPost(post) {
                         <time datetime="${post.CreatedAt}">${post.PublicationDate}</time>
                         <span class="sep">&middot;</span>
                         <span class="reading-time">${post.ReadingTime || post.reading_time || 1} min read</span>
-                        ${post.AuthorDisplayName ? `<span class="sep">&middot;</span><a href="/user/${escapeHTML(post.Username)}" class="post-author-link">${escapeHTML(post.AuthorDisplayName)}</a>` : ''}
+                        ${post.AuthorDisplayName ? `<span class="sep">&middot;</span><a href="/users/${escapeHTML(post.Username)}" class="post-author-link">${escapeHTML(post.AuthorDisplayName)}</a>` : ''}
                         ${categoriesHTML}
                     </div>
                     <h2 class="post-item-title"><a href="/blog/${escapeHTML(post.Slug)}">${escapeHTML(post.Title)}</a></h2>
