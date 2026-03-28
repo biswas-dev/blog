@@ -47,7 +47,7 @@ case "$ENV" in
     APP_URL="https://anshumanbiswas.com"
     ENCRYPTION_KEY_VAR="PRODUCTION_ENCRYPTION_KEY"
     DD_PROFILING="true"
-    PROMOTE_FROM="uat"
+    PROMOTE_FROM="staging"
     ;;
   *)
     echo "ERROR: Unknown environment: $ENV"

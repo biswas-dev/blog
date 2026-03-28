@@ -11,8 +11,8 @@
 #
 # Flow:
 #   main push       → test → sonarqube → build image → push Harbor → deploy staging
-#   uat push        → promote staging digest → deploy UAT
-#   production push → promote UAT digest → deploy production
+#   uat push        → promote staging digest → deploy UAT (optional)
+#   production push → promote staging digest → deploy production
 #
 # Required secrets:
 #   HARBOR_AUTH                   — base64("username:password") for Harbor registry
