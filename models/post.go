@@ -64,7 +64,7 @@ type PostService struct {
 func (pp *PostService) GetTopPosts() (*PostsList, error) {
 	list := PostsList{}
 
-	query := `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE is_published = true ORDER BY created_at DESC LIMIT 5`
+	query := `SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username), p.category_id, p.title, p.content, p.slug, p.publication_date, p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured FROM posts p JOIN users u ON p.user_id = u.user_id WHERE p.is_published = true ORDER BY p.created_at DESC LIMIT 5`
 	rows, err := pp.DB.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("query top posts: %w", err)
@@ -73,7 +73,7 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.AuthorDisplayName, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
 			return nil, fmt.Errorf("scan top posts: %w", err)
 		}
@@ -108,7 +108,7 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsList, error) {
 	list := PostsList{}
 
-	query := `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE is_published = true ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	query := `SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username), p.category_id, p.title, p.content, p.slug, p.publication_date, p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured FROM posts p JOIN users u ON p.user_id = u.user_id WHERE p.is_published = true ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`
 	rows, err := pp.DB.Query(query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("query paginated posts: %w", err)
@@ -117,7 +117,7 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.AuthorDisplayName, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
 			return nil, fmt.Errorf("scan paginated posts: %w", err)
 		}

@@ -1319,6 +1319,8 @@ html:not(.dark) .dark\:hidden { display: block; }
 
 /* Meta separator dot */
 .post-item-meta .sep { color: var(--text-tertiary); }
+.post-author-link { color: var(--text-secondary); text-decoration: none; font-weight: 500; }
+.post-author-link:hover { color: var(--accent); }
 
 /* Post prev/next navigation */
 .post-nav { border-top: 1px solid var(--border-light); padding-top: 1.5rem; }
