@@ -43,6 +43,8 @@ github.com/anchoo2kewl/go-draw v0.8.3 h1:3Kcrzoz1aQucI4o8+Xi0DflQHGZQS1YsDzahxDW
 github.com/anchoo2kewl/go-draw v0.8.3/go.mod h1:46A+iuRBWucLLoa9z5U4+agNNQQ/Am0gFJhInW6SOJI=
 github.com/anchoo2kewl/go-wiki v0.1.5 h1:am9eze2o/8S6v89HlWSHZZ5DLCfgx0PnhAie6klSXWM=
 github.com/anchoo2kewl/go-wiki v0.1.5/go.mod h1:SdNfnXOnrAfDdswO14eYvIb12gA5eacOtz+cz3lAnQw=
+github.com/anchoo2kewl/go-wiki v0.1.8 h1:r9t1+NNYTEc+ERlrofVwj4WkWIZSituv6HTLAS7nc/Y=
+github.com/anchoo2kewl/go-wiki v0.1.8/go.mod h1:SdNfnXOnrAfDdswO14eYvIb12gA5eacOtz+cz3lAnQw=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
 github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
