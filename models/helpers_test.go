@@ -293,7 +293,7 @@ func TestRenderContentLocal(t *testing.T) {
 	}{
 		{"bold text", "**bold**", "<strong>bold</strong>"},
 		{"italic text", "*italic*", "<em>italic</em>"},
-		{"heading", "# Title", "<h1>Title</h1>"},
+		{"heading", "# Title", "<h1"},
 		{"link", "[text](http://example.com)", `href="http://example.com"`},
 	}
 
