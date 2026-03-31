@@ -168,6 +168,23 @@ func (cs *CategoryService) Delete(id int) error {
 	return nil
 }
 
+// GetByName retrieves a category by its name (case-insensitive)
+func (cs *CategoryService) GetByName(name string) (*Category, error) {
+	category := &Category{}
+	query := `
+		SELECT category_id, category_name, created_at
+		FROM Categories
+		WHERE LOWER(category_name) = LOWER($1)`
+	err := cs.DB.QueryRow(query, name).Scan(&category.ID, &category.Name, &category.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("category not found")
+		}
+		return nil, fmt.Errorf("failed to get category: %w", err)
+	}
+	return category, nil
+}
+
 // GetCategoriesByPostID retrieves all categories for a specific post
 func (cs *CategoryService) GetCategoriesByPostID(postID int) ([]Category, error) {
 	var categories []Category

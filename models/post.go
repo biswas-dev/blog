@@ -149,6 +149,54 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 	return &list, nil
 }
 
+// GetPublishedPostsByCategory returns published posts that belong to a specific category.
+func (pp *PostService) GetPublishedPostsByCategory(categoryID int) ([]Post, error) {
+	query := `SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
+	                 COALESCE(u.profile_picture_url, ''),
+	                 p.category_id, p.title, p.content, p.slug,
+	                 p.publication_date, p.last_edit_date, p.is_published,
+	                 p.featured_image_url, p.created_at, p.featured
+			  FROM posts p
+			  JOIN users u ON p.user_id = u.user_id
+			  JOIN post_categories pc ON p.post_id = pc.post_id
+			  WHERE pc.category_id = $1 AND p.is_published = true
+			  ORDER BY p.created_at DESC`
+	rows, err := pp.DB.Query(query, categoryID)
+	if err != nil {
+		return nil, fmt.Errorf("query posts by category: %w", err)
+	}
+	defer rows.Close()
+
+	var posts []Post
+	for rows.Next() {
+		var post Post
+		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.AuthorDisplayName,
+			&post.AuthorAvatarURL,
+			&post.CategoryID, &post.Title, &post.Content, &post.Slug,
+			&post.PublicationDate, &post.LastEditDate, &post.IsPublished,
+			&post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		if err != nil {
+			return nil, fmt.Errorf("scan post by category: %w", err)
+		}
+		formatPostDates(&post)
+		wordCount := len(strings.Fields(post.Content))
+		post.ReadingTime = (wordCount + 199) / 200
+		if post.ReadingTime < 1 {
+			post.ReadingTime = 1
+		}
+		preview := previewContentRaw(post.Content)
+		post.ContentHTML = template.HTML(RenderContent(preview))
+		posts = append(posts, post)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate posts by category: %w", err)
+	}
+	if err := pp.loadCategoriesForPosts(posts); err != nil {
+		return nil, fmt.Errorf("load categories: %w", err)
+	}
+	return posts, nil
+}
+
 func (pp *PostService) GetAllPosts() (*PostsList, error) {
 	list := PostsList{}
 

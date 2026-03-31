@@ -35,7 +35,7 @@
                     <span class="sep">&middot;</span>
                     <div class="category-pills">
                         {{range $post.Categories}}
-                        <span class="category-pill">{{.Name}}</span>
+                        <a href="/tags/{{.Name}}" class="category-pill">{{.Name}}</a>
                         {{end}}
                     </div>
                     {{end}}

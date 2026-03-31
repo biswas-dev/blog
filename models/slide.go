@@ -260,6 +260,46 @@ func (ss *SlideService) GetPublishedSlides() (*SlidesList, error) {
 	return &list, nil
 }
 
+// GetPublishedSlidesByCategory returns published slides that belong to a specific category.
+func (ss *SlideService) GetPublishedSlidesByCategory(categoryID int) ([]Slide, error) {
+	query := `SELECT s.slide_id, s.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
+	                 COALESCE(u.profile_picture_url, ''),
+	                 s.title, s.slug, s.content_file_path, s.is_published,
+	                 COALESCE(s.password_hash, ''), COALESCE(s.description, ''), COALESCE(s.slide_count, 0),
+	                 s.created_at, s.updated_at
+			  FROM Slides s
+			  JOIN Users u ON s.user_id = u.user_id
+			  JOIN Slide_Categories sc ON s.slide_id = sc.slide_id
+			  WHERE sc.category_id = $1 AND s.is_published = true
+			  ORDER BY s.created_at DESC`
+	rows, err := ss.DB.Query(query, categoryID)
+	if err != nil {
+		return nil, fmt.Errorf("query slides by category: %w", err)
+	}
+	defer rows.Close()
+
+	var slides []Slide
+	for rows.Next() {
+		var slide Slide
+		err := rows.Scan(&slide.ID, &slide.UserID, &slide.Username, &slide.AuthorDisplayName,
+			&slide.AuthorAvatarURL,
+			&slide.Title, &slide.Slug, &slide.ContentFilePath, &slide.IsPublished,
+			&slide.PasswordHash, &slide.Description, &slide.SlideCount,
+			&slide.CreatedAt, &slide.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("scan slide by category: %w", err)
+		}
+		slides = append(slides, slide)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate slides by category: %w", err)
+	}
+	if err := ss.loadCategoriesForSlides(slides); err != nil {
+		return nil, err
+	}
+	return slides, nil
+}
+
 // GetPublishedSlidesByUser returns published slides authored by a specific user.
 func (ss *SlideService) GetPublishedSlidesByUser(userID int) ([]Slide, error) {
 	rows, err := ss.DB.Query(`

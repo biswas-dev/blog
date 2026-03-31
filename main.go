@@ -386,6 +386,8 @@ func main() {
 	// Initialize Categories controller
 	categoriesC := controllers.Categories{
 		CategoryService: &categoryService,
+		PostService:     &postService,
+		SlideService:    &slideService,
 		SessionService:  &sessionService,
 	}
 
@@ -477,6 +479,8 @@ func main() {
 
 	categoriesC.Templates.Manage = views.Must(views.ParseFS(
 		templates.FS, "admin-categories.gohtml", "tailwind.gohtml"))
+	categoriesC.Templates.TagPage = views.Must(views.ParseFS(
+		templates.FS, "tag-page.gohtml", "tailwind.gohtml"))
 
 	// Initialize Slides templates
 	slidesC.Templates.AdminSlides = views.Must(views.ParseFS(
@@ -552,6 +556,7 @@ func main() {
 	r.Post("/admin/categories/{id}/delete", categoriesC.DeleteCategoryForm)
 
 	// Slides Routes
+	r.Get("/tags/{name}", categoriesC.TagPage)
 	r.Get("/slides", slidesC.PublicSlidesList)
 	r.Get("/slides/{slug}", slidesC.ViewSlide)
 	r.Post("/slides/{slug}/verify", slidesC.VerifySlidePassword)
