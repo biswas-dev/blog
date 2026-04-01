@@ -70,7 +70,7 @@ func TestSlideService_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			slide, err := slideService.Create(userID, tt.title, tt.slug, tt.content, tt.isPublished, nil, "", "{}", "")
+			slide, err := slideService.Create(userID, tt.title, tt.slug, tt.content, tt.isPublished, nil, "", "{}", "", "")
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -124,7 +124,7 @@ func TestSlideService_GetByID(t *testing.T) {
 		CleanupUser(t, db, userID)
 	})
 
-	slide, err := slideService.Create(userID, "Test Slide", "test-slide-getbyid", "<h1>Content</h1>", true, nil, "", "{}", "")
+	slide, err := slideService.Create(userID, "Test Slide", "test-slide-getbyid", "<h1>Content</h1>", true, nil, "", "{}", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test slide: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestSlideService_GetBySlug(t *testing.T) {
 		CleanupUser(t, db, userID)
 	})
 
-	slide, err := slideService.Create(userID, "Slug Test Slide", "unique-slug-test", "<h1>Content</h1>", true, nil, "", "{}", "")
+	slide, err := slideService.Create(userID, "Slug Test Slide", "unique-slug-test", "<h1>Content</h1>", true, nil, "", "{}", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test slide: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestSlideService_Update(t *testing.T) {
 		CleanupUser(t, db, userID)
 	})
 
-	slide, err := slideService.Create(userID, "Original Title", "original-slug-update", "<h1>Original</h1>", false, nil, "", "{}", "")
+	slide, err := slideService.Create(userID, "Original Title", "original-slug-update", "<h1>Original</h1>", false, nil, "", "{}", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test slide: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestSlideService_Update(t *testing.T) {
 
 	// Update the slide
 	newContent := "<h1>Updated Content</h1>"
-	err = slideService.Update(slide.ID, "Updated Title", "updated-slug", newContent, true, nil, "", "", "")
+	err = slideService.Update(slide.ID, "Updated Title", "updated-slug", newContent, true, nil, "", "", "", "")
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
@@ -256,7 +256,7 @@ func TestSlideService_Delete(t *testing.T) {
 		CleanupUser(t, db, userID)
 	})
 
-	slide, err := slideService.Create(userID, "To Delete", "delete-slide-test", "<h1>Delete Me</h1>", true, nil, "", "{}", "")
+	slide, err := slideService.Create(userID, "To Delete", "delete-slide-test", "<h1>Delete Me</h1>", true, nil, "", "{}", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test slide: %v", err)
 	}
@@ -297,9 +297,9 @@ func TestSlideService_GetPublishedSlides(t *testing.T) {
 	})
 
 	// Create published and draft slides
-	published1, _ := slideService.Create(userID, "Published 1", "pub-1", "<h1>Pub 1</h1>", true, nil, "", "{}", "")
-	published2, _ := slideService.Create(userID, "Published 2", "pub-2", "<h1>Pub 2</h1>", true, nil, "", "{}", "")
-	draft, _ := slideService.Create(userID, "Draft", "draft-1", "<h1>Draft</h1>", false, nil, "", "{}", "")
+	published1, _ := slideService.Create(userID, "Published 1", "pub-1", "<h1>Pub 1</h1>", true, nil, "", "{}", "", "")
+	published2, _ := slideService.Create(userID, "Published 2", "pub-2", "<h1>Pub 2</h1>", true, nil, "", "{}", "", "")
+	draft, _ := slideService.Create(userID, "Draft", "draft-1", "<h1>Draft</h1>", false, nil, "", "{}", "", "")
 
 	t.Cleanup(func() {
 		slideService.Delete(published1.ID)
@@ -352,8 +352,8 @@ func TestSlideService_GetAllSlides(t *testing.T) {
 	})
 
 	// Create slides (both published and draft)
-	published, _ := slideService.Create(userID, "Published", "all-pub-1", "<h1>Pub</h1>", true, nil, "", "{}", "")
-	draft, _ := slideService.Create(userID, "Draft", "all-draft-1", "<h1>Draft</h1>", false, nil, "", "{}", "")
+	published, _ := slideService.Create(userID, "Published", "all-pub-1", "<h1>Pub</h1>", true, nil, "", "{}", "", "")
+	draft, _ := slideService.Create(userID, "Draft", "all-draft-1", "<h1>Draft</h1>", false, nil, "", "{}", "", "")
 
 	t.Cleanup(func() {
 		slideService.Delete(published.ID)
@@ -407,7 +407,7 @@ func TestSlideService_Categories(t *testing.T) {
 	})
 
 	t.Run("create slide with categories", func(t *testing.T) {
-		slide, err := slideService.Create(userID, "Cat Slide", "cat-slide-1", "<h1>Content</h1>", true, []int{cat1.ID, cat2.ID}, "", "{}", "")
+		slide, err := slideService.Create(userID, "Cat Slide", "cat-slide-1", "<h1>Content</h1>", true, []int{cat1.ID, cat2.ID}, "", "{}", "", "")
 		if err != nil {
 			t.Fatalf("Failed to create slide with categories: %v", err)
 		}
@@ -423,13 +423,13 @@ func TestSlideService_Categories(t *testing.T) {
 	})
 
 	t.Run("update slide categories", func(t *testing.T) {
-		slide, _ := slideService.Create(userID, "Update Cat Slide", "update-cat-slide-1", "<h1>Content</h1>", true, []int{cat1.ID}, "", "{}", "")
+		slide, _ := slideService.Create(userID, "Update Cat Slide", "update-cat-slide-1", "<h1>Content</h1>", true, []int{cat1.ID}, "", "{}", "", "")
 		t.Cleanup(func() {
 			slideService.Delete(slide.ID)
 		})
 
 		// Update to different categories
-		err := slideService.Update(slide.ID, "Updated", "updated", "<h1>Updated</h1>", true, []int{cat2.ID}, "", "", "")
+		err := slideService.Update(slide.ID, "Updated", "updated", "<h1>Updated</h1>", true, []int{cat2.ID}, "", "", "", "")
 		if err != nil {
 			t.Errorf("Update() error = %v", err)
 		}
@@ -538,7 +538,7 @@ func TestSlideVersionService_MaybeCreateVersion(t *testing.T) {
 		CleanupUser(t, db, userID)
 	})
 
-	slide, err := slideService.Create(userID, "Version Test", "version-test-slide", "<h1>Original</h1>", true, nil, "", "{}", "")
+	slide, err := slideService.Create(userID, "Version Test", "version-test-slide", "<h1>Original</h1>", true, nil, "", "{}", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create slide: %v", err)
 	}
@@ -672,7 +672,7 @@ func TestSlide_PasswordProtection(t *testing.T) {
 			CleanupUser(t, db, userID)
 		})
 
-		slide, err := slideService.Create(userID, "Protected Slide", "protected-slide", "<h1>Secret</h1>", true, nil, "", "{}", "viewerpass")
+		slide, err := slideService.Create(userID, "Protected Slide", "protected-slide", "<h1>Secret</h1>", true, nil, "", "{}", "viewerpass", "")
 		if err != nil {
 			t.Fatalf("Failed to create slide with password: %v", err)
 		}
@@ -709,7 +709,7 @@ func TestSlide_Contributors(t *testing.T) {
 		CleanupUser(t, db, user2ID)
 	})
 
-	slide, err := slideService.Create(user1ID, "Contrib Test", "contrib-test-slide", "<h1>Original</h1>", true, nil, "", "{}", "")
+	slide, err := slideService.Create(user1ID, "Contrib Test", "contrib-test-slide", "<h1>Original</h1>", true, nil, "", "{}", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create slide: %v", err)
 	}
@@ -793,7 +793,7 @@ func TestSlide_Metadata(t *testing.T) {
 
 	t.Run("create slide with metadata", func(t *testing.T) {
 		metadata := `{"theme":"moon","transition":"slide"}`
-		slide, err := slideService.Create(userID, "Meta Slide", "meta-slide-1", "<h1>Content</h1>", true, nil, "A test slide", metadata, "")
+		slide, err := slideService.Create(userID, "Meta Slide", "meta-slide-1", "<h1>Content</h1>", true, nil, "A test slide", metadata, "", "")
 		if err != nil {
 			t.Fatalf("Failed to create slide with metadata: %v", err)
 		}
@@ -814,7 +814,7 @@ func TestSlide_Metadata(t *testing.T) {
 	})
 
 	t.Run("update slide metadata", func(t *testing.T) {
-		slide, err := slideService.Create(userID, "Meta Update", "meta-update-1", "<h1>Content</h1>", true, nil, "Initial desc", `{"theme":"black"}`, "")
+		slide, err := slideService.Create(userID, "Meta Update", "meta-update-1", "<h1>Content</h1>", true, nil, "Initial desc", `{"theme":"black"}`, "", "")
 		if err != nil {
 			t.Fatalf("Failed to create slide: %v", err)
 		}
@@ -823,7 +823,7 @@ func TestSlide_Metadata(t *testing.T) {
 		})
 
 		newMeta := `{"theme":"white","transition":"fade"}`
-		err = slideService.Update(slide.ID, "Meta Update", "meta-update-1", "<h1>Content</h1>", true, nil, "Updated desc", newMeta, "")
+		err = slideService.Update(slide.ID, "Meta Update", "meta-update-1", "<h1>Content</h1>", true, nil, "Updated desc", newMeta, "", "")
 		if err != nil {
 			t.Fatalf("Update() error = %v", err)
 		}
@@ -841,7 +841,7 @@ func TestSlide_Metadata(t *testing.T) {
 	})
 
 	t.Run("default empty metadata round-trips as empty JSON", func(t *testing.T) {
-		slide, err := slideService.Create(userID, "No Meta", "no-meta-1", "<h1>Content</h1>", true, nil, "", "", "")
+		slide, err := slideService.Create(userID, "No Meta", "no-meta-1", "<h1>Content</h1>", true, nil, "", "", "", "")
 		if err != nil {
 			t.Fatalf("Failed to create slide: %v", err)
 		}
