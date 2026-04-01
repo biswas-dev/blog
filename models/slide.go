@@ -319,6 +319,11 @@ func (ss *SlideService) GetPublishedSlidesByUser(userID int) ([]Slide, error) {
 		if err := rows.Scan(&s.ID, &s.Title, &s.Slug, &s.Description, &s.FeaturedImageURL, &s.SlideCount, &s.CreatedAt); err != nil {
 			return nil, err
 		}
+		if t, err := time.Parse(time.RFC3339Nano, s.CreatedAt); err == nil {
+			s.CreatedAt = t.Format(friendlyDateFormat)
+		} else if t, err := time.Parse(time.RFC3339, s.CreatedAt); err == nil {
+			s.CreatedAt = t.Format(friendlyDateFormat)
+		}
 		slides = append(slides, s)
 	}
 	return slides, rows.Err()
