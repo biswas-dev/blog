@@ -48,6 +48,7 @@ func (g Guides) PublicGuidesList(w http.ResponseWriter, r *http.Request) {
 		LoggedIn        bool
 		Username        string
 		IsAdmin         bool
+		SignupDisabled  bool
 		Description     string
 		CurrentPage     string
 		Guides          *models.GuidesList
@@ -56,6 +57,7 @@ func (g Guides) PublicGuidesList(w http.ResponseWriter, r *http.Request) {
 		LoggedIn:        user != nil,
 		Username:        getUsername(user),
 		IsAdmin:         user != nil && models.IsAdmin(user.Role),
+		SignupDisabled:  true,
 		Description:     "In-depth guides and tutorials - Anshuman Biswas Blog",
 		CurrentPage:     "guides",
 		Guides:          guides,
@@ -101,6 +103,7 @@ func (g Guides) ViewGuide(w http.ResponseWriter, r *http.Request) {
 		LoggedIn        bool
 		Username        string
 		IsAdmin         bool
+		SignupDisabled  bool
 		UserID          int
 		Description     string
 		CurrentPage     string
@@ -111,7 +114,8 @@ func (g Guides) ViewGuide(w http.ResponseWriter, r *http.Request) {
 		LoggedIn:        user != nil,
 		Username:        getUsername(user),
 		IsAdmin:         user != nil && models.IsAdmin(user.Role),
-		Description:     guide.Title + " - Anshuman Biswas",
+		SignupDisabled:  true,
+		Description:     guide.Title,
 		CurrentPage:     "guides",
 		Guide:           guide,
 		FullURL:         fullURL,
@@ -150,6 +154,7 @@ func (g Guides) AdminGuides(w http.ResponseWriter, r *http.Request) {
 		LoggedIn        bool
 		Username        string
 		IsAdmin         bool
+		SignupDisabled  bool
 		Description     string
 		CurrentPage     string
 		Guides          *models.GuidesList
@@ -158,6 +163,7 @@ func (g Guides) AdminGuides(w http.ResponseWriter, r *http.Request) {
 		LoggedIn:        true,
 		Username:        user.Username,
 		IsAdmin:         models.IsAdmin(user.Role),
+		SignupDisabled:  true,
 		Description:     "Manage Guides - Anshuman Biswas Blog",
 		CurrentPage:     "admin-guides",
 		Guides:          guides,
@@ -193,6 +199,7 @@ func (g Guides) NewGuide(w http.ResponseWriter, r *http.Request) {
 		LoggedIn        bool
 		Username        string
 		IsAdmin         bool
+		SignupDisabled  bool
 		Description     string
 		CurrentPage     string
 		Categories      []models.Category
@@ -203,6 +210,7 @@ func (g Guides) NewGuide(w http.ResponseWriter, r *http.Request) {
 		LoggedIn:        true,
 		Username:        user.Username,
 		IsAdmin:         models.IsAdmin(user.Role),
+		SignupDisabled:  true,
 		Description:     "Create New Guide - Anshuman Biswas Blog",
 		CurrentPage:     "admin-guides",
 		Categories:      categories,
@@ -306,6 +314,7 @@ func (g Guides) EditGuide(w http.ResponseWriter, r *http.Request) {
 		LoggedIn        bool
 		Username        string
 		IsAdmin         bool
+		SignupDisabled  bool
 		Description     string
 		CurrentPage     string
 		Categories      []models.Category
@@ -316,6 +325,7 @@ func (g Guides) EditGuide(w http.ResponseWriter, r *http.Request) {
 		LoggedIn:        true,
 		Username:        user.Username,
 		IsAdmin:         models.IsAdmin(user.Role),
+		SignupDisabled:  true,
 		Description:     "Edit Guide - Anshuman Biswas Blog",
 		CurrentPage:     "admin-guides",
 		Categories:      categories,
