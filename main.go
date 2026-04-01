@@ -857,7 +857,7 @@ func main() {
 
 	// Wrap go-draw handler with auth: only admin/editor can create, edit,
 	// save, delete, rename, or upload drawings. Everyone else gets read-only.
-	drawAuth := drawAuthMiddleware(&sessionService, drawHandler.Handler())
+	drawAuth := drawAuthMiddleware(&sessionService, apiToken, &apiTokenService, drawHandler.Handler())
 	r.Handle("/draw/*", drawAuth)
 
 	// Define a custom 404 handler
@@ -927,7 +927,7 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 // admin or editor role. Read operations (view, data, static, list) are open
 // to everyone. The list page injects CSS to hide the "+ New Drawing" button
 // for users who are not admin/editor.
-func drawAuthMiddleware(ss *models.SessionService, next http.Handler) http.Handler {
+func drawAuthMiddleware(ss *models.SessionService, apiTokenStr string, apiTokenService *models.APITokenService, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/draw")
 		path = strings.TrimPrefix(path, "/")
@@ -954,13 +954,26 @@ func drawAuthMiddleware(ss *models.SessionService, next http.Handler) http.Handl
 		}
 
 		if writeOp {
+			// Try session auth first
 			user, err := utils.IsUserLoggedIn(r, ss)
-			if err != nil || user == nil {
-				http.Error(w, "Unauthorized: sign in required", http.StatusUnauthorized)
-				return
+			authed := err == nil && user != nil && (models.IsAdmin(user.Role) || models.CanEditPosts(user.Role))
+
+			// Fall back to API token auth (Bearer token in Authorization header)
+			if !authed {
+				if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+					token := strings.TrimPrefix(authHeader, "Bearer ")
+					if token == apiTokenStr {
+						authed = true
+					} else if apiTokenService != nil {
+						if _, apiErr := apiTokenService.ValidateToken(token); apiErr == nil {
+							authed = true
+						}
+					}
+				}
 			}
-			if !models.IsAdmin(user.Role) && !models.CanEditPosts(user.Role) {
-				http.Error(w, "Forbidden: editor or admin role required", http.StatusForbidden)
+
+			if !authed {
+				http.Error(w, "Unauthorized: sign in or API token required", http.StatusUnauthorized)
 				return
 			}
 		}

@@ -148,8 +148,13 @@
     .guide-search-hint { padding: 8px 20px; font-size: 0.75rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light); }
 
     /* Keyboard shortcut toast */
-    .guide-toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: var(--surface, #1f2937); color: var(--text-primary, #fff); padding: 8px 16px; border-radius: 8px; font-size: 0.8125rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9998; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .guide-toast { position: fixed; bottom: 4rem; left: 50%; transform: translateX(-50%); background: var(--surface, #1f2937); color: var(--text-primary, #fff); padding: 8px 16px; border-radius: 8px; font-size: 0.8125rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9998; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .guide-toast.show { opacity: 1; }
+
+    /* Persistent shortcut hint bar */
+    .guide-shortcuts-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9997; display: flex; align-items: center; justify-content: center; gap: 1.5rem; padding: 6px 16px; background: var(--surface, #1e293b); border-top: 1px solid var(--border-light, rgba(127,127,127,0.15)); font-size: 0.75rem; color: var(--text-tertiary, #9ca3af); }
+    .guide-shortcuts-bar kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; background: var(--bg-tertiary, rgba(127,127,127,0.15)); border: 1px solid var(--border-light, rgba(127,127,127,0.25)); border-radius: 4px; font-family: inherit; font-size: 0.6875rem; font-weight: 600; color: var(--text-secondary, #d1d5db); }
+    @media (max-width: 640px) { .guide-shortcuts-bar { display: none; } }
 </style>
 
 <article class="max-w-7xl mx-auto">
@@ -488,6 +493,12 @@
     </div>
 </div>
 <div class="guide-toast" id="guide-toast"></div>
+<div class="guide-shortcuts-bar" id="guide-shortcuts-bar">
+    <span><kbd>/</kbd> Search</span>
+    <span><kbd>J</kbd> Next section</span>
+    <span><kbd>K</kbd> Prev section</span>
+    <span><kbd>H</kbd> Hide nav</span>
+</div>
 
 <script>
 (function() {
