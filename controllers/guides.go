@@ -11,6 +11,7 @@ import (
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/utils"
 	"anshumanbiswas.com/blog/views"
+	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -25,6 +26,7 @@ type Guides struct {
 	GuideService    *models.GuideService
 	SessionService  *models.SessionService
 	CategoryService *models.CategoryService
+	BlogWiki        *gowiki.Wiki
 }
 
 // PublicGuidesList displays the public guides listing page.
@@ -195,28 +197,38 @@ func (g Guides) NewGuide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate editor HTML from go-wiki
+	editorHTML, err := g.BlogWiki.EditorHTML("")
+	if err != nil {
+		log.Printf("Error generating editor HTML: %v", err)
+	}
+
 	data := struct {
-		LoggedIn        bool
-		Username        string
-		IsAdmin         bool
-		SignupDisabled  bool
-		Description     string
-		CurrentPage     string
-		Categories      []models.Category
-		Guide           *models.Guide
-		IsEdit          bool
-		UserPermissions models.UserPermissions
+		LoggedIn           bool
+		Username           string
+		IsAdmin            bool
+		SignupDisabled     bool
+		Description        string
+		CurrentPage        string
+		Categories         []models.Category
+		SelectedCategories []int
+		Guide              *models.Guide
+		Mode               string
+		EditorHTML         template.HTML
+		UserPermissions    models.UserPermissions
 	}{
-		LoggedIn:        true,
-		Username:        user.Username,
-		IsAdmin:         models.IsAdmin(user.Role),
-		SignupDisabled:  true,
-		Description:     "Create New Guide - Anshuman Biswas Blog",
-		CurrentPage:     "admin-guides",
-		Categories:      categories,
-		Guide:           &models.Guide{},
-		IsEdit:          false,
-		UserPermissions: perms,
+		LoggedIn:           true,
+		Username:           user.Username,
+		IsAdmin:            models.IsAdmin(user.Role),
+		SignupDisabled:     true,
+		Description:        "Create New Guide - Anshuman Biswas Blog",
+		CurrentPage:        "admin-guides",
+		Categories:         categories,
+		SelectedCategories: []int{},
+		Guide:              &models.Guide{},
+		Mode:               "new",
+		EditorHTML:         editorHTML,
+		UserPermissions:    perms,
 	}
 
 	g.Templates.GuideEditor.Execute(w, r, data)
@@ -310,28 +322,44 @@ func (g Guides) EditGuide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Convert guide categories to selected category IDs
+	selectedCategories := make([]int, len(guide.Categories))
+	for i, cat := range guide.Categories {
+		selectedCategories[i] = cat.ID
+	}
+
+	// Generate editor HTML from go-wiki
+	editorHTML, err := g.BlogWiki.EditorHTML(guide.Content)
+	if err != nil {
+		log.Printf("Error generating editor HTML: %v", err)
+	}
+
 	data := struct {
-		LoggedIn        bool
-		Username        string
-		IsAdmin         bool
-		SignupDisabled  bool
-		Description     string
-		CurrentPage     string
-		Categories      []models.Category
-		Guide           *models.Guide
-		IsEdit          bool
-		UserPermissions models.UserPermissions
+		LoggedIn           bool
+		Username           string
+		IsAdmin            bool
+		SignupDisabled     bool
+		Description        string
+		CurrentPage        string
+		Categories         []models.Category
+		SelectedCategories []int
+		Guide              *models.Guide
+		Mode               string
+		EditorHTML         template.HTML
+		UserPermissions    models.UserPermissions
 	}{
-		LoggedIn:        true,
-		Username:        user.Username,
-		IsAdmin:         models.IsAdmin(user.Role),
-		SignupDisabled:  true,
-		Description:     "Edit Guide - Anshuman Biswas Blog",
-		CurrentPage:     "admin-guides",
-		Categories:      categories,
-		Guide:           guide,
-		IsEdit:          true,
-		UserPermissions: perms,
+		LoggedIn:           true,
+		Username:           user.Username,
+		IsAdmin:            models.IsAdmin(user.Role),
+		SignupDisabled:     true,
+		Description:        "Edit Guide - Anshuman Biswas Blog",
+		CurrentPage:        "admin-guides",
+		Categories:         categories,
+		SelectedCategories: selectedCategories,
+		Guide:              guide,
+		Mode:               "edit",
+		EditorHTML:         editorHTML,
+		UserPermissions:    perms,
 	}
 
 	g.Templates.GuideEditor.Execute(w, r, data)

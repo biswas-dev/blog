@@ -1,136 +1,203 @@
 {{template "modern-header" .}}
 
-<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="mb-6">
-            <a href="/admin/guides" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">&larr; Back to Guides</a>
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                {{if .IsEdit}}Edit Guide{{else}}Create New Guide{{end}}
-            </h1>
-        </div>
+<section class="editor-container formatting-guide">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{if eq .Mode "edit"}}Edit Guide{{else}}New Guide{{end}}</h1>
+    <a href="/admin/guides" class="nav-link">Back to Guides</a>
+  </div>
 
-        <form method="POST" action="{{if .IsEdit}}/admin/guides/{{.Guide.ID}}{{else}}/admin/guides{{end}}">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Main Content Area -->
-                <div class="lg:col-span-2 space-y-6">
-                    <!-- Title -->
-                    <div>
-                        <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-                        <input type="text" name="title" id="title" required
-                               value="{{.Guide.Title}}"
-                               class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                               placeholder="Guide title"
-                               oninput="if(!document.getElementById('slug-manual').checked){document.getElementById('slug').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}">
-                    </div>
+  <form method="POST" action="{{if eq .Mode "edit"}}/admin/guides/{{.Guide.ID}}{{else}}/admin/guides{{end}}">
+    {{csrfField}}
+    <div class="editor-layout" style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 1.5rem !important; width: 100% !important; flex-wrap: nowrap !important;">
 
-                    <!-- Slug -->
-                    <div>
-                        <label for="slug" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Slug
-                            <label class="inline-flex items-center ml-2 text-xs text-gray-500">
-                                <input type="checkbox" id="slug-manual" class="mr-1 rounded" {{if .IsEdit}}checked{{end}}>
-                                Manual
-                            </label>
-                        </label>
-                        <input type="text" name="slug" id="slug"
-                               value="{{.Guide.Slug}}"
-                               class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                               placeholder="guide-slug">
-                    </div>
-
-                    <!-- Description -->
-                    <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-                        <textarea name="description" id="description" rows="2"
-                                  class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                  placeholder="Brief description of the guide">{{.Guide.Description}}</textarea>
-                    </div>
-
-                    <!-- Content -->
-                    <div>
-                        <label for="content" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Content (Markdown)</label>
-                        <textarea name="content" id="content" rows="30" required
-                                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                  placeholder="Write your guide content in Markdown...">{{.Guide.Content}}</textarea>
-                    </div>
+      <!-- Sidebar: slug, description, featured image, categories, publish -->
+      <div class="editor-sidebar" style="display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; border-radius: 0.75rem !important; box-sizing: border-box !important; flex: 0 0 320px !important; width: 320px !important; min-width: 320px !important; max-width: 320px !important; position: sticky !important; top: 1rem !important; align-self: flex-start !important; overflow: hidden !important;">
+        <div class="sidebar-scrollable-content" style="flex: 1 1 auto; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+          <div style="flex: 0 0 auto; min-width: 200px;">
+          Slug
+            <input type="text" name="slug" placeholder="Slug (optional)" class="form-input w-full" value="{{.Guide.Slug}}" />
+          </div>
+          <div style="flex: 0 0 auto; min-width: 200px;">
+          Description
+            <textarea name="description" placeholder="Brief description of the guide" class="form-input w-full" rows="3">{{.Guide.Description}}</textarea>
+          </div>
+          <div style="flex: 0 0 auto; min-width: 200px;">
+          Feature Image
+            <input type="text" name="featured_image_url" id="featured-url" placeholder="Featured Image URL" class="form-input w-full" value="{{.Guide.FeaturedImageURL}}" />
+            <div class="cover-upload-section mt-2">
+              <div id="current-cover-preview" class="current-cover-preview" style="display: {{if .Guide.FeaturedImageURL}}block{{else}}none{{end}};">
+                <img id="current-cover-img" src="{{.Guide.FeaturedImageURL}}" alt="Current featured image" style="max-width: 100%; border-radius: 8px;" />
+                <button type="button" id="remove-cover-btn" class="remove-cover-btn" aria-label="Remove featured image" style="margin-top: 4px; background: none; border: 1px solid #ef4444; color: #ef4444; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;">&times; Remove</button>
+              </div>
+              <div id="cover-upload-zone" class="cover-drop-zone" style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 1rem; text-align: center; cursor: pointer; margin-top: 0.5rem;">
+                <div class="cover-drop-content">
+                  {{icon "cloud-upload" "w-6 h-6"}}
+                  <div style="font-size: 13px; color: #6b7280;">Drop image here or click Upload</div>
                 </div>
-
-                <!-- Right Sidebar -->
-                <div class="space-y-6">
-                    <!-- Publish Settings -->
-                    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Publish Settings</h3>
-
-                        <div class="flex items-center mb-4">
-                            <input type="checkbox" name="is_published" id="is_published"
-                                   {{if .Guide.IsPublished}}checked{{end}}
-                                   class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                            <label for="is_published" class="ml-2 text-sm text-gray-700 dark:text-gray-300">Published</label>
-                        </div>
-
-                        <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            {{if .IsEdit}}Update Guide{{else}}Create Guide{{end}}
-                        </button>
-                    </div>
-
-                    <!-- Featured Image -->
-                    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Featured Image</h3>
-                        <input type="text" name="featured_image_url" id="featured_image_url"
-                               value="{{.Guide.FeaturedImageURL}}"
-                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                               placeholder="https://example.com/image.jpg">
-                        <div id="image-preview" class="mt-2">
-                            {{if .Guide.FeaturedImageURL}}
-                            <img src="{{.Guide.FeaturedImageURL}}" alt="Preview" class="w-full rounded-md">
-                            {{end}}
-                        </div>
-                    </div>
-
-                    <!-- Categories -->
-                    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Categories</h3>
-                        <input type="hidden" name="categories" id="categories-input">
-                        <div class="space-y-2 max-h-48 overflow-y-auto">
-                            {{$guideCategories := $.Guide.Categories}}
-                            {{range $cat := $.Categories}}
-                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                <input type="checkbox" class="category-checkbox rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                                       value="{{$cat.ID}}"
-                                       {{range $guideCategories}}{{if eq .ID $cat.ID}}checked{{end}}{{end}}>
-                                {{$cat.Name}}
-                            </label>
-                            {{end}}
-                        </div>
-                    </div>
-                </div>
+              </div>
+              <div class="cover-upload-controls" style="display: flex; gap: 8px; margin-top: 8px;">
+                <input type="file" id="cover-upload" accept="image/*" style="display:none" />
+                <button type="button" id="upload-new-cover-btn" class="btn btn-secondary" style="font-size: 13px; padding: 6px 12px;">Upload New</button>
+                <button type="button" id="choose-existing-cover-btn" class="btn" style="font-size: 13px; padding: 6px 12px;">Choose Existing</button>
+              </div>
             </div>
-        </form>
+          </div>
+          <div style="flex: 0 0 auto; min-width: 250px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Categories <span class="text-red-500">*</span>
+            </label>
+            <div class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-2 max-h-32 overflow-y-auto">
+              {{if .Categories}}
+                {{range .Categories}}
+                <label class="flex items-center space-x-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 cursor-pointer">
+                  <input type="checkbox"
+                         name="categories"
+                         value="{{.ID}}"
+                         class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                         {{$catID := .ID}}{{range $.SelectedCategories}}{{if eq . $catID}}checked{{end}}{{end}}>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">{{.Name}}</span>
+                </label>
+                {{end}}
+              {{else}}
+                <p class="text-sm text-gray-500 dark:text-gray-400">No categories available</p>
+              {{end}}
+            </div>
+          </div>
+          <div style="flex: 0 0 auto;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Publish</label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" name="is_published" {{if .Guide.IsPublished}}checked{{end}}
+                     class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+              <span class="text-sm text-gray-700 dark:text-gray-300">Published</span>
+            </label>
+          </div>
+        </div>
+        <!-- Fixed button area at bottom -->
+        <div class="sidebar-button-area" style="flex: 0 0 auto; padding: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px 24px; font-size: 16px; font-weight: 600;">
+            {{if eq .Mode "edit"}}Update Guide{{else}}Create Guide{{end}}
+          </button>
+        </div>
+      </div>
+
+      <!-- Main content area -->
+      <div class="editor-main" style="display: flex !important; flex-direction: column !important; gap: 1rem !important; width: 100% !important;">
+        <input type="text" name="title" placeholder="Title" class="form-input w-full" value="{{.Guide.Title}}" required />
+        {{.EditorHTML}}
+      </div>
     </div>
-</div>
+  </form>
+</section>
 
+{{if eq .Mode "edit"}}
 <script>
-// Gather checked category IDs into hidden input before form submit
-document.querySelector('form').addEventListener('submit', function() {
-    var ids = [];
-    document.querySelectorAll('.category-checkbox:checked').forEach(function(cb) {
-        ids.push(cb.value);
-    });
-    document.getElementById('categories-input').value = ids.join(',');
-});
-
-// Featured image preview
-var imgInput = document.getElementById('featured_image_url');
-if (imgInput) {
-    imgInput.addEventListener('input', function() {
-        var preview = document.getElementById('image-preview');
-        if (this.value) {
-            preview.innerHTML = '<img src="' + this.value + '" alt="Preview" class="w-full rounded-md" onerror="this.style.display=\'none\'">';
-        } else {
-            preview.innerHTML = '';
-        }
-    });
+if (window.__goWikiConfig) {
+  window.__goWikiConfig.guideId = "{{.Guide.ID}}";
+  window.__goWikiConfig.cloudinaryFolder = "blog/{{.Guide.ID}}";
 }
 </script>
+{{end}}
+
+<!-- Featured image sidebar JS (blog-specific) -->
+<script>
+(function() {
+  'use strict';
+  document.addEventListener('DOMContentLoaded', function() {
+    var featuredURL = document.getElementById('featured-url');
+    var coverPreview = document.getElementById('current-cover-preview');
+    var coverImg = document.getElementById('current-cover-img');
+    var removeBtn = document.getElementById('remove-cover-btn');
+    var uploadInput = document.getElementById('cover-upload');
+    var uploadBtn = document.getElementById('upload-new-cover-btn');
+    var chooseBtn = document.getElementById('choose-existing-cover-btn');
+    var dropZone = document.getElementById('cover-upload-zone');
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', function() {
+        featuredURL.value = '';
+        coverPreview.style.display = 'none';
+      });
+    }
+
+    if (uploadBtn) {
+      uploadBtn.addEventListener('click', function() { uploadInput.click(); });
+    }
+
+    if (uploadInput) {
+      uploadInput.addEventListener('change', function() {
+        if (!uploadInput.files.length) return;
+        var fd = new FormData();
+        fd.append('file', uploadInput.files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    // Drag-and-drop for featured image zone
+    if (dropZone) {
+      dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.borderColor = '#6366f1'; });
+      dropZone.addEventListener('dragleave', function() { dropZone.style.borderColor = '#d1d5db'; });
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.style.borderColor = '#d1d5db';
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length || !files[0].type.startsWith('image/')) return;
+        var fd = new FormData();
+        fd.append('file', files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    // Choose existing button
+    if (chooseBtn) {
+      chooseBtn.addEventListener('click', function() {
+        fetch('/admin/uploads/list?type=featured')
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            var images = data.images || [];
+            if (images.length === 0) { alert('No existing images found'); return; }
+            var url = prompt('Select image URL from: ' + images.slice(0, 5).map(function(i) { return i.url; }).join(', '));
+            if (url) {
+              featuredURL.value = url;
+              coverImg.src = url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function() { alert('Failed to load images'); });
+      });
+    }
+  });
+})();
+</script>
+
+<style>
+/* Blog-specific sidebar styles */
+.editor-sidebar {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+.dark .editor-sidebar {
+  background: #1e293b;
+  border-color: #334155;
+}
+</style>
 
 {{template "modern-footer" .}}

@@ -408,6 +408,7 @@ func main() {
 		GuideService:    &guideService,
 		SessionService:  &sessionService,
 		CategoryService: &categoryService,
+		BlogWiki:        blogWiki,
 	}
 
 	// Initialize SlideVersions controller
