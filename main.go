@@ -801,6 +801,26 @@ func main() {
 		r.Delete("/{slideID}", deleteSlide(&slideService))
 	})
 
+	// Guides API
+	r.Route("/api/guides", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listGuidesAPI(&guideService))
+		r.Get("/{guideID}", getGuideAPI(&guideService))
+		r.Post("/", createGuideAPI(&guideService))
+		r.Put("/{guideID}", updateGuideAPI(&guideService))
+		r.Delete("/{guideID}", deleteGuideAPI(&guideService))
+	})
+
+	// Comments API (token-authenticated)
+	r.Route("/api/comments", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/post/{slug}", commentsC.HandleListComments)
+		r.Post("/post/{slug}", commentsC.HandleCreateComment)
+		r.Get("/guide/{slug}", commentsC.HandleListGuideComments)
+		r.Post("/guide/{slug}", commentsC.HandleCreateGuideComment)
+		r.Delete("/{commentID}", commentsC.HandleDeleteComment)
+	})
+
 	// Wiki API
 	wikiPageService := &models.WikiPageService{DB: DB}
 	wikiC := controllers.Wiki{WikiPageService: wikiPageService}
@@ -1508,6 +1528,147 @@ func deleteSlide(ss *models.SlideService) http.HandlerFunc {
 		if err := ss.Delete(slideID); err != nil {
 			logger.Error().Err(err).Msg("error deleting slide")
 			http.Error(w, "Failed to delete slide", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// ── Guide API handlers ──────────────────────────────────────────────
+
+func listGuidesAPI(gs *models.GuideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guides, err := gs.GetAllGuides()
+		if err != nil {
+			http.Error(w, "Failed to fetch guides", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, guides, http.StatusOK)
+	}
+}
+
+func getGuideAPI(gs *models.GuideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideID, err := strconv.Atoi(chi.URLParam(r, "guideID"))
+		if err != nil {
+			http.Error(w, "Invalid guide ID", http.StatusBadRequest)
+			return
+		}
+		guide, err := gs.GetByID(guideID)
+		if err != nil {
+			http.Error(w, "Guide not found", http.StatusNotFound)
+			return
+		}
+		jsonResponse(w, guide, http.StatusOK)
+	}
+}
+
+func createGuideAPI(gs *models.GuideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			UserID           int    `json:"user_id"`
+			Title            string `json:"title"`
+			Slug             string `json:"slug"`
+			Content          string `json:"content"`
+			Description      string `json:"description"`
+			FeaturedImageURL string `json:"featured_image_url"`
+			IsPublished      bool   `json:"is_published"`
+			Categories       []int  `json:"categories"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			return
+		}
+		if req.Title == "" {
+			http.Error(w, "Title is required", http.StatusBadRequest)
+			return
+		}
+		if req.UserID == 0 {
+			req.UserID = 1 // default to first user
+		}
+		guide, err := gs.Create(req.UserID, req.Title, req.Slug, req.Content, req.Description, req.FeaturedImageURL, req.IsPublished, req.Categories)
+		if err != nil {
+			logger.Error().Err(err).Msg("error creating guide")
+			http.Error(w, "Failed to create guide: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, guide, http.StatusCreated)
+	}
+}
+
+func updateGuideAPI(gs *models.GuideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideID, err := strconv.Atoi(chi.URLParam(r, "guideID"))
+		if err != nil {
+			http.Error(w, "Invalid guide ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Title            string `json:"title"`
+			Slug             string `json:"slug"`
+			Content          string `json:"content"`
+			Description      string `json:"description"`
+			FeaturedImageURL string `json:"featured_image_url"`
+			IsPublished      *bool  `json:"is_published"`
+			Categories       []int  `json:"categories"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			return
+		}
+		existing, err := gs.GetByID(guideID)
+		if err != nil {
+			http.Error(w, "Guide not found", http.StatusNotFound)
+			return
+		}
+		title := req.Title
+		if title == "" {
+			title = existing.Title
+		}
+		slug := req.Slug
+		if slug == "" {
+			slug = existing.Slug
+		}
+		content := req.Content
+		if content == "" {
+			content = existing.Content
+		}
+		description := req.Description
+		if description == "" {
+			description = existing.Description
+		}
+		featuredImageURL := req.FeaturedImageURL
+		if featuredImageURL == "" {
+			featuredImageURL = existing.FeaturedImageURL
+		}
+		isPublished := existing.IsPublished
+		if req.IsPublished != nil {
+			isPublished = *req.IsPublished
+		}
+		if err := gs.Update(guideID, title, slug, content, description, featuredImageURL, isPublished, req.Categories); err != nil {
+			logger.Error().Err(err).Msg("error updating guide")
+			http.Error(w, "Failed to update guide", http.StatusInternalServerError)
+			return
+		}
+		updated, err := gs.GetByID(guideID)
+		if err != nil {
+			http.Error(w, "Failed to fetch updated guide", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, updated, http.StatusOK)
+	}
+}
+
+func deleteGuideAPI(gs *models.GuideService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideID, err := strconv.Atoi(chi.URLParam(r, "guideID"))
+		if err != nil {
+			http.Error(w, "Invalid guide ID", http.StatusBadRequest)
+			return
+		}
+		if err := gs.Delete(guideID); err != nil {
+			logger.Error().Err(err).Msg("error deleting guide")
+			http.Error(w, "Failed to delete guide", http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

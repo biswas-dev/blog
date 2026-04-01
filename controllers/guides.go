@@ -247,14 +247,6 @@ func (g Guides) CreateGuide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	guide, err := g.GuideService.Create(user.UserID, title, slug, content, description, featuredImageURL, isPublished)
-	if err != nil {
-		log.Printf("Error creating guide: %v", err)
-		http.Error(w, "Failed to create guide", http.StatusInternalServerError)
-		return
-	}
-
-	// Add categories
 	var categoryIDs []int
 	if categoriesStr != "" {
 		for _, catStr := range strings.Split(categoriesStr, ",") {
@@ -263,10 +255,12 @@ func (g Guides) CreateGuide(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if len(categoryIDs) > 0 {
-		if err := g.GuideService.AddCategories(guide.ID, categoryIDs); err != nil {
-			log.Printf("Error adding guide categories: %v", err)
-		}
+
+	guide, err := g.GuideService.Create(user.UserID, title, slug, content, description, featuredImageURL, isPublished, categoryIDs)
+	if err != nil {
+		log.Printf("Error creating guide: %v", err)
+		http.Error(w, "Failed to create guide", http.StatusInternalServerError)
+		return
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/guides/%d/edit", guide.ID), http.StatusFound)
@@ -373,14 +367,6 @@ func (g Guides) UpdateGuide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = g.GuideService.Update(guideID, title, slug, content, description, featuredImageURL, isPublished)
-	if err != nil {
-		log.Printf("Error updating guide: %v", err)
-		http.Error(w, "Failed to update guide", http.StatusInternalServerError)
-		return
-	}
-
-	// Update categories
 	var categoryIDs []int
 	if categoriesStr != "" {
 		for _, catStr := range strings.Split(categoriesStr, ",") {
@@ -389,8 +375,12 @@ func (g Guides) UpdateGuide(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if err := g.GuideService.UpdateCategories(guideID, categoryIDs); err != nil {
-		log.Printf("Error updating guide categories: %v", err)
+
+	err = g.GuideService.Update(guideID, title, slug, content, description, featuredImageURL, isPublished, categoryIDs)
+	if err != nil {
+		log.Printf("Error updating guide: %v", err)
+		http.Error(w, "Failed to update guide", http.StatusInternalServerError)
+		return
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/guides/%d/edit", guideID), http.StatusFound)

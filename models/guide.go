@@ -41,7 +41,7 @@ type GuideService struct {
 }
 
 // Create creates a new guide and returns it.
-func (gs *GuideService) Create(userID int, title, slug, content, description, featuredImageURL string, isPublished bool) (*Guide, error) {
+func (gs *GuideService) Create(userID int, title, slug, content, description, featuredImageURL string, isPublished bool, categoryIDs []int) (*Guide, error) {
 	if slug == "" {
 		slug = generateSlug(title)
 	} else {
@@ -70,11 +70,17 @@ func (gs *GuideService) Create(userID int, title, slug, content, description, fe
 	guide.PublicationDate = now.Format(friendlyDateFormat)
 	guide.LastEditDate = now.Format(friendlyDateFormat)
 
+	if len(categoryIDs) > 0 {
+		if err := gs.AddCategories(guide.ID, categoryIDs); err != nil {
+			return &guide, nil // guide created, categories failed — non-fatal
+		}
+	}
+
 	return &guide, nil
 }
 
 // Update updates an existing guide.
-func (gs *GuideService) Update(guideID int, title, slug, content, description, featuredImageURL string, isPublished bool) error {
+func (gs *GuideService) Update(guideID int, title, slug, content, description, featuredImageURL string, isPublished bool, categoryIDs []int) error {
 	if slug == "" {
 		slug = generateSlug(title)
 	} else {
@@ -87,6 +93,9 @@ func (gs *GuideService) Update(guideID int, title, slug, content, description, f
 		title, slug, content, description, featuredImageURL, isPublished, time.Now(), time.Now(), guideID)
 	if err != nil {
 		return fmt.Errorf("update guide: %w", err)
+	}
+	if len(categoryIDs) > 0 {
+		_ = gs.UpdateCategories(guideID, categoryIDs)
 	}
 	return nil
 }
