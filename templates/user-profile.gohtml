@@ -193,7 +193,7 @@
   {{end}}
 
   <!-- Stats -->
-  {{$nPosts := len .AuthoredPosts}}{{$nContribs := len .ContributedPosts}}{{$nComments := len .UserComments}}{{$nSlides := len .AuthoredSlides}}
+  {{$nPosts := len .AuthoredPosts}}{{$nContribs := len .ContributedPosts}}{{$nComments := len .UserComments}}{{$nSlides := len .AuthoredSlides}}{{$nGuides := len .AuthoredGuides}}
   <div class="profile-stats">
     <div class="stat-item">
       <span class="stat-value">{{$nPosts}}</span>
@@ -203,6 +203,12 @@
     <div class="stat-item">
       <span class="stat-value">{{$nSlides}}</span>
       <span class="stat-label">Slides</span>
+    </div>
+    {{end}}
+    {{if $nGuides}}
+    <div class="stat-item">
+      <span class="stat-value">{{$nGuides}}</span>
+      <span class="stat-label">Guides</span>
     </div>
     {{end}}
     <div class="stat-item">
@@ -252,18 +258,55 @@
     {{end}}
   </section>
 
-  <!-- Slides -->
+  <!-- Presentations -->
   {{if .AuthoredSlides}}
   <section>
     <div class="section-header">
       <h2 class="section-title">Presentations</h2>
       <span class="section-count">{{$nSlides}}</span>
     </div>
-    <div class="contribution-list">
+    <div class="post-cards">
       {{range .AuthoredSlides}}
-      <a href="/slides/{{.Slug}}" class="contribution-item">
-        {{icon "columns" "w-4 h-4"}}
-        <span class="contribution-title">{{.Title}}</span>
+      <a href="/slides/{{.Slug}}" class="post-card">
+        <div class="post-card-img-placeholder" style="height:100px;">
+          <div style="text-center">
+            {{icon "columns" "w-10 h-10"}}
+            {{if .SlideCount}}<div style="font-size:0.75rem;color:var(--text-tertiary);margin-top:4px;">{{.SlideCount}} slides</div>{{end}}
+          </div>
+        </div>
+        <div class="post-card-body">
+          <div class="post-card-title">{{.Title}}</div>
+          {{if .Description}}<div style="font-size:0.8125rem;color:var(--text-secondary);margin-top:0.25rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{.Description}}</div>{{end}}
+          <div class="post-card-meta">{{.CreatedAt}}</div>
+        </div>
+      </a>
+      {{end}}
+    </div>
+  </section>
+  {{end}}
+
+  <!-- Guides -->
+  {{if .AuthoredGuides}}
+  <section>
+    <div class="section-header">
+      <h2 class="section-title">Guides</h2>
+      <span class="section-count">{{$nGuides}}</span>
+    </div>
+    <div class="post-cards">
+      {{range .AuthoredGuides}}
+      <a href="/guides/{{.Slug}}" class="post-card">
+        {{if .FeaturedImageURL}}
+          <img src="{{.FeaturedImageURL}}" alt="{{.Title}}" class="post-card-img" loading="lazy" />
+        {{else}}
+          <div class="post-card-img-placeholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+        {{end}}
+        <div class="post-card-body">
+          <div class="post-card-title">{{.Title}}</div>
+          {{if .Description}}<div style="font-size:0.8125rem;color:var(--text-secondary);margin-top:0.25rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{.Description}}</div>{{end}}
+          <div class="post-card-meta">{{.PublicationDate}}</div>
+        </div>
       </a>
       {{end}}
     </div>

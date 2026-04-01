@@ -235,6 +235,30 @@ func (gs *GuideService) GetPublishedGuides() (*GuidesList, error) {
 	return &list, nil
 }
 
+// GetPublishedGuidesByUser returns published guides by a specific user.
+func (gs *GuideService) GetPublishedGuidesByUser(userID int) ([]Guide, error) {
+	rows, err := gs.DB.Query(`
+		SELECT g.guide_id, g.title, g.slug, COALESCE(g.description, ''),
+		       COALESCE(g.featured_image_url, ''), g.created_at
+		FROM Guides g
+		WHERE g.user_id = $1 AND g.is_published = true
+		ORDER BY g.created_at DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var guides []Guide
+	for rows.Next() {
+		var g Guide
+		if err := rows.Scan(&g.ID, &g.Title, &g.Slug, &g.Description, &g.FeaturedImageURL, &g.CreatedAt); err != nil {
+			return nil, err
+		}
+		formatGuideDates(&g)
+		guides = append(guides, g)
+	}
+	return guides, rows.Err()
+}
+
 // GetAllGuides returns all guides (for admin) ordered by creation date.
 func (gs *GuideService) GetAllGuides() (*GuidesList, error) {
 	list := GuidesList{}

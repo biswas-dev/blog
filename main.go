@@ -292,6 +292,9 @@ func main() {
 	}
 	slideService.MigrateFileContentToDB()
 
+	// Initialize GuideService (early, needed by Users controller)
+	guideService := models.GuideService{DB: DB}
+
 	slideVersionService := &models.SlideVersionService{DB: DB}
 
 	// Initialize SearchService
@@ -352,6 +355,7 @@ func main() {
 		ImageMetadataService: &imageMetadataService,
 		UserActivityService:  &userActivityService,
 		SlideService:         &slideService,
+		GuideService:         &guideService,
 		BlogWiki:             blogWiki,
 	}
 
@@ -382,9 +386,6 @@ func main() {
 		SessionService:     &sessionService,
 		PostService:        &postService,
 	}
-
-	// Initialize GuideService
-	guideService := models.GuideService{DB: DB}
 
 	// Initialize Categories controller
 	categoriesC := controllers.Categories{

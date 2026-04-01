@@ -303,7 +303,7 @@ func (ss *SlideService) GetPublishedSlidesByCategory(categoryID int) ([]Slide, e
 // GetPublishedSlidesByUser returns published slides authored by a specific user.
 func (ss *SlideService) GetPublishedSlidesByUser(userID int) ([]Slide, error) {
 	rows, err := ss.DB.Query(`
-		SELECT s.slide_id, s.title, s.slug, s.created_at
+		SELECT s.slide_id, s.title, s.slug, COALESCE(s.description, ''), COALESCE(s.slide_count, 0), s.created_at
 		FROM Slides s
 		WHERE s.user_id = $1 AND s.is_published = true
 		ORDER BY s.created_at DESC`, userID)
@@ -314,7 +314,7 @@ func (ss *SlideService) GetPublishedSlidesByUser(userID int) ([]Slide, error) {
 	var slides []Slide
 	for rows.Next() {
 		var s Slide
-		if err := rows.Scan(&s.ID, &s.Title, &s.Slug, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.Title, &s.Slug, &s.Description, &s.SlideCount, &s.CreatedAt); err != nil {
 			return nil, err
 		}
 		slides = append(slides, s)

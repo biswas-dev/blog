@@ -116,6 +116,7 @@ type Users struct {
 	ImageMetadataService *models.ImageMetadataService
 	UserActivityService  *models.UserActivityService
 	SlideService         *models.SlideService
+	GuideService         *models.GuideService
 	BlogWiki             *gowiki.Wiki
 }
 
@@ -1975,6 +1976,11 @@ func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
 		authoredSlides, _ = u.SlideService.GetPublishedSlidesByUser(profileUser.UserID)
 	}
 
+	var authoredGuides []models.Guide
+	if u.GuideService != nil {
+		authoredGuides, _ = u.GuideService.GetPublishedGuidesByUser(profileUser.UserID)
+	}
+
 	var data struct {
 		LoggedIn         bool
 		Email            string
@@ -1988,6 +1994,7 @@ func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
 		AuthoredPosts    []models.Post
 		ContributedPosts []models.Post
 		AuthoredSlides   []models.Slide
+		AuthoredGuides   []models.Guide
 		UserComments     []UserComment
 	}
 
@@ -1997,6 +2004,7 @@ func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
 	data.AuthoredPosts = authoredPosts
 	data.ContributedPosts = contributedPosts
 	data.AuthoredSlides = authoredSlides
+	data.AuthoredGuides = authoredGuides
 	data.UserComments = userComments
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
 
