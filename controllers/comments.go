@@ -12,10 +12,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// CommentsController handles CRUD for post comments.
+// CommentsController handles CRUD for post and guide comments.
 type CommentsController struct {
-	DB             *sql.DB
-	BlogService    *models.BlogService
+	DB           *sql.DB
+	BlogService  *models.BlogService
+	GuideService *models.GuideService
 }
 
 type commentResponse struct {
@@ -46,6 +47,55 @@ func (cc *CommentsController) HandleListComments(w http.ResponseWriter, r *http.
 		JOIN Users u ON u.user_id = c.user_id
 		WHERE c.post_id = $1
 		ORDER BY c.comment_date ASC`, postID)
+	if err != nil {
+		http.Error(w, "Failed to fetch comments", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var flat []commentResponse
+	for rows.Next() {
+		var c commentResponse
+		var parentID sql.NullInt64
+		var commentDate time.Time
+		if err := rows.Scan(&c.CommentID, &c.UserID, &c.Username, &c.AvatarURL, &parentID, &c.Content, &commentDate); err != nil {
+			http.Error(w, "Failed to scan comment", http.StatusInternalServerError)
+			return
+		}
+		if parentID.Valid {
+			pid := int(parentID.Int64)
+			c.ParentCommentID = &pid
+		}
+		c.CommentDate = commentDate.Format(time.RFC3339)
+		flat = append(flat, c)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Failed to iterate comments", http.StatusInternalServerError)
+		return
+	}
+
+	nested := nestComments(flat)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(nested)
+}
+
+// HandleListGuideComments returns comments for a guide ordered by date (threaded).
+// GET /guides/{slug}/comments
+func (cc *CommentsController) HandleListGuideComments(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+
+	guideID, err := cc.guideIDFromSlug(slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	rows, err := cc.DB.QueryContext(r.Context(), `
+		SELECT c.comment_id, c.user_id, COALESCE(NULLIF(u.full_name, ''), u.username), COALESCE(u.profile_picture_url, ''), c.parent_comment_id, c.content, c.comment_date
+		FROM Comments c
+		JOIN Users u ON u.user_id = c.user_id
+		WHERE c.guide_id = $1
+		ORDER BY c.comment_date ASC`, guideID)
 	if err != nil {
 		http.Error(w, "Failed to fetch comments", http.StatusInternalServerError)
 		return
@@ -177,6 +227,83 @@ func (cc *CommentsController) HandleCreateComment(w http.ResponseWriter, r *http
 	json.NewEncoder(w).Encode(resp)
 }
 
+// HandleCreateGuideComment creates a new comment on a guide.
+// POST /guides/{slug}/comments
+func (cc *CommentsController) HandleCreateGuideComment(w http.ResponseWriter, r *http.Request) {
+	user := authmw.GetUserFromContext(r.Context())
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	perms := models.GetPermissions(user.Role)
+	if !perms.CanComment {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	slug := chi.URLParam(r, "slug")
+	guideID, err := cc.guideIDFromSlug(slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	var body struct {
+		Content         string `json:"content"`
+		ParentCommentID *int   `json:"parent_comment_id,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	body.Content = sanitizeCommentContent(body.Content)
+	if body.Content == "" {
+		http.Error(w, "Comment content cannot be empty", http.StatusBadRequest)
+		return
+	}
+	if len(body.Content) > 5000 {
+		http.Error(w, "Comment content too long (max 5000 characters)", http.StatusBadRequest)
+		return
+	}
+
+	var commentID int
+	var commentDate time.Time
+	if body.ParentCommentID != nil {
+		err = cc.DB.QueryRowContext(r.Context(), `
+			INSERT INTO Comments (user_id, guide_id, parent_comment_id, content, comment_date)
+			VALUES ($1, $2, $3, $4, NOW())
+			RETURNING comment_id, comment_date`,
+			user.UserID, guideID, *body.ParentCommentID, body.Content,
+		).Scan(&commentID, &commentDate)
+	} else {
+		err = cc.DB.QueryRowContext(r.Context(), `
+			INSERT INTO Comments (user_id, guide_id, content, comment_date)
+			VALUES ($1, $2, $3, NOW())
+			RETURNING comment_id, comment_date`,
+			user.UserID, guideID, body.Content,
+		).Scan(&commentID, &commentDate)
+	}
+	if err != nil {
+		http.Error(w, "Failed to create comment", http.StatusInternalServerError)
+		return
+	}
+
+	resp := commentResponse{
+		CommentID:       commentID,
+		UserID:          user.UserID,
+		Username:        user.DisplayName(),
+		AvatarURL:       user.AvatarURL,
+		ParentCommentID: body.ParentCommentID,
+		Content:         body.Content,
+		CommentDate:     commentDate.Format(time.RFC3339),
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
+}
+
 // HandleDeleteComment deletes a comment (author or admin).
 // DELETE /comments/{commentID}
 func (cc *CommentsController) HandleDeleteComment(w http.ResponseWriter, r *http.Request) {
@@ -224,6 +351,12 @@ func (cc *CommentsController) HandleDeleteComment(w http.ResponseWriter, r *http
 func (cc *CommentsController) postIDFromSlug(slug string) (int, error) {
 	var id int
 	err := cc.DB.QueryRow(`SELECT post_id FROM Posts WHERE slug = $1`, slug).Scan(&id)
+	return id, err
+}
+
+func (cc *CommentsController) guideIDFromSlug(slug string) (int, error) {
+	var id int
+	err := cc.DB.QueryRow(`SELECT guide_id FROM Guides WHERE slug = $1`, slug).Scan(&id)
 	return id, err
 }
 

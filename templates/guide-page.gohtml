@@ -1,0 +1,402 @@
+{{template "modern-header" .}}
+
+<style>
+    .guide-layout {
+        display: grid;
+        grid-template-columns: 1fr 260px;
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+    .guide-toc {
+        position: sticky;
+        top: 6rem;
+        max-height: calc(100vh - 8rem);
+        overflow-y: auto;
+        padding: 1.25rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border-light, #e5e7eb);
+        background: var(--surface, #fff);
+    }
+    .guide-toc h3 {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-tertiary, #9ca3af);
+        margin-bottom: 0.75rem;
+    }
+    .guide-toc ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .guide-toc li {
+        margin-bottom: 0.25rem;
+    }
+    .toc-link {
+        display: block;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary, #6b7280);
+        text-decoration: none;
+        border-left: 2px solid transparent;
+        transition: all 0.15s;
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+    .toc-link:hover {
+        color: var(--accent, #0d9488);
+    }
+    .toc-link.active {
+        color: var(--accent, #0d9488);
+        border-left-color: var(--accent, #0d9488);
+        font-weight: 500;
+        background: rgba(13, 148, 136, 0.05);
+    }
+
+    /* Mobile TOC dropdown */
+    .guide-toc-mobile {
+        display: none;
+        margin-bottom: 1.5rem;
+    }
+    .guide-toc-mobile details {
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 0.5rem;
+        background: var(--surface, #fff);
+    }
+    .guide-toc-mobile summary {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+    .guide-toc-mobile ul {
+        list-style: none;
+        padding: 0 1rem 0.75rem;
+        margin: 0;
+    }
+    .guide-toc-mobile li {
+        margin-bottom: 0.25rem;
+    }
+    .guide-toc-mobile .toc-link {
+        padding: 0.25rem 0.5rem;
+    }
+
+    @media (max-width: 1024px) {
+        .guide-layout {
+            grid-template-columns: 1fr;
+        }
+        .guide-toc {
+            display: none;
+        }
+        .guide-toc-mobile {
+            display: block;
+        }
+    }
+</style>
+
+<article class="max-w-7xl mx-auto">
+    <!-- Article Header -->
+    <header class="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-4">
+        {{if .Guide.FeaturedImageURL}}
+        <div class="mb-8 rounded-2xl overflow-hidden">
+            <img src="{{.Guide.FeaturedImageURL}}" alt="{{.Guide.Title}}" class="w-full" loading="eager">
+        </div>
+        {{end}}
+
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight" style="color: var(--text-primary);">
+            {{.Guide.Title}}
+        </h1>
+
+        {{if .Guide.Description}}
+        <p class="text-xl mb-6" style="color: var(--text-secondary);">{{.Guide.Description}}</p>
+        {{end}}
+
+        <!-- Meta Information -->
+        <div class="flex flex-wrap items-center gap-6 pb-6 border-b" style="color: var(--text-tertiary); border-color: var(--border-light);">
+            <a href="/users/{{.Guide.Username}}" class="inline-flex items-center gap-2 hover:opacity-80 transition-opacity">
+                {{if .Guide.AuthorAvatarURL}}
+                <img src="{{thumbURL .Guide.AuthorAvatarURL}}" alt="{{.Guide.AuthorDisplayName}}" class="w-8 h-8 rounded-full object-cover" width="32" height="32">
+                {{end}}
+                <span class="font-medium" style="color: var(--text-primary);">{{.Guide.AuthorDisplayName}}</span>
+            </a>
+
+            <div class="flex items-center gap-2">
+                {{icon "calendar" "w-4 h-4"}}
+                <time>{{.Guide.PublicationDate}}</time>
+            </div>
+
+            <div class="flex items-center gap-2">
+                {{icon "clock" "w-4 h-4"}}
+                <span>{{.Guide.ReadingTime}} min read</span>
+            </div>
+
+            {{if .Guide.Categories}}
+            <div class="flex flex-wrap gap-2">
+                {{range .Guide.Categories}}
+                <a href="/tags/{{.Name}}" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors" style="background: rgba(13,148,136,0.1); color: var(--accent);">
+                    {{.Name}}
+                </a>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+    </header>
+
+    <!-- Mobile TOC -->
+    <div class="guide-toc-mobile max-w-4xl mx-auto px-4 sm:px-6">
+        <details>
+            <summary>Table of Contents</summary>
+            <ul id="toc-list-mobile"></ul>
+        </details>
+    </div>
+
+    <!-- Two-column layout: content + TOC sidebar -->
+    <div class="guide-layout">
+        <!-- Main Content -->
+        <div class="min-w-0">
+            <div id="guide-content" class="prose prose-lg max-w-none dark:prose-invert">
+                {{.Guide.ContentHTML}}
+            </div>
+
+            <!-- Share Buttons -->
+            <div class="mt-12 pt-6 border-t" style="border-color: var(--border-light);">
+                <h3 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-tertiary);">Share this guide</h3>
+                <div class="flex items-center gap-3">
+                    <a href="https://x.com/intent/tweet?url={{.FullURL}}&text={{.Guide.Title}}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border" style="border-color: var(--border-light); color: var(--text-secondary);">
+                        Share on X
+                    </a>
+                    <a href="https://www.linkedin.com/sharing/share-offsite/?url={{.FullURL}}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border" style="border-color: var(--border-light); color: var(--text-secondary);">
+                        Share on LinkedIn
+                    </a>
+                    <button onclick="navigator.clipboard.writeText('{{.FullURL}}').then(()=>{this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy Link'},2000)})"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border" style="border-color: var(--border-light); color: var(--text-secondary);">
+                        Copy Link
+                    </button>
+                </div>
+            </div>
+
+            <!-- Comments Section -->
+            <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700" id="comments-section">
+                <h2 class="text-2xl font-bold mb-6">Comments</h2>
+
+                <div id="comments-list" class="mb-8">
+                    <p class="text-gray-500 dark:text-gray-400 text-sm" id="comments-loading">Loading comments...</p>
+                </div>
+
+                {{if .LoggedIn}}
+                    {{if .UserPermissions.CanComment}}
+                    <div class="comment-compose-box" id="comment-compose">
+                        <div id="reply-banner" class="reply-banner" style="display:none;">
+                            <span id="reply-banner-text"></span>
+                            <button type="button" id="cancel-reply" class="cancel-reply-btn">&#x2715; Cancel</button>
+                        </div>
+                        <div class="comment-toolbar">
+                            <button type="button" class="fmt-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+                            <button type="button" class="fmt-btn fmt-italic" data-cmd="italic" title="Italic"><i>I</i></button>
+                            <button type="button" class="fmt-btn" data-cmd="code" title="Inline code">`</button>
+                            <button type="button" class="fmt-btn" data-cmd="codeblock" title="Code block">{ }</button>
+                            <button type="button" class="fmt-btn" data-cmd="link" title="Link">&#128279;</button>
+                            <span class="toolbar-sep"></span>
+                            <span class="toolbar-hint">Markdown supported</span>
+                        </div>
+                        <textarea id="new-comment-content" rows="4" maxlength="5000"
+                            class="comment-textarea"
+                            placeholder="Write a comment... Markdown supported"></textarea>
+                        <div class="comment-compose-footer">
+                            <span id="comment-char-count" class="comment-char-count">0 / 5000</span>
+                            <button id="submit-comment" class="btn btn-primary">Post Comment</button>
+                        </div>
+                    </div>
+                    {{end}}
+                {{else}}
+                <div class="signin-prompt">
+                    <p class="signin-prompt-text">Sign in to join the discussion</p>
+                    <a href="/auth/github?return_to=/guides/{{.Guide.Slug}}" class="gh-signin-link">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/></svg>
+                        Sign in with GitHub to comment
+                    </a>
+                </div>
+                {{end}}
+            </section>
+        </div>
+
+        <!-- Sticky TOC Sidebar (desktop) -->
+        <aside class="guide-toc" id="guide-toc">
+            <h3>On This Page</h3>
+            <ul id="toc-list"></ul>
+        </aside>
+    </div>
+</article>
+
+<script>
+(function() {
+    // Auto-generate TOC from h2, h3 headings
+    var content = document.getElementById('guide-content');
+    var tocList = document.getElementById('toc-list');
+    var tocListMobile = document.getElementById('toc-list-mobile');
+    if (!content || !tocList) return;
+
+    var headings = content.querySelectorAll('h2, h3');
+    headings.forEach(function(heading, i) {
+        if (!heading.id) heading.id = 'section-' + i;
+
+        // Desktop TOC
+        var li = document.createElement('li');
+        li.className = heading.tagName === 'H3' ? 'ml-4' : '';
+        var a = document.createElement('a');
+        a.href = '#' + heading.id;
+        a.textContent = heading.textContent;
+        a.className = 'toc-link';
+        li.appendChild(a);
+        tocList.appendChild(li);
+
+        // Mobile TOC
+        if (tocListMobile) {
+            var liM = document.createElement('li');
+            liM.className = heading.tagName === 'H3' ? 'ml-4' : '';
+            var aM = document.createElement('a');
+            aM.href = '#' + heading.id;
+            aM.textContent = heading.textContent;
+            aM.className = 'toc-link';
+            liM.appendChild(aM);
+            tocListMobile.appendChild(liM);
+        }
+    });
+
+    // Hide TOC if no headings
+    if (headings.length === 0) {
+        var tocSidebar = document.getElementById('guide-toc');
+        if (tocSidebar) tocSidebar.style.display = 'none';
+        var tocMobile = document.querySelector('.guide-toc-mobile');
+        if (tocMobile) tocMobile.style.display = 'none';
+    }
+
+    // Active section tracking via IntersectionObserver
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                document.querySelectorAll('.toc-link').forEach(function(l) { l.classList.remove('active'); });
+                var links = document.querySelectorAll('a[href="#' + entry.target.id + '"]');
+                links.forEach(function(link) { link.classList.add('active'); });
+            }
+        });
+    }, { rootMargin: '-80px 0px -80% 0px' });
+    headings.forEach(function(h) { observer.observe(h); });
+
+    // Comments
+    var slug = '{{.Guide.Slug}}';
+    var commentsList = document.getElementById('comments-list');
+    var loadingEl = document.getElementById('comments-loading');
+
+    function renderComment(c, depth) {
+        depth = depth || 0;
+        var ml = depth > 0 ? ' style="margin-left:' + Math.min(depth * 24, 96) + 'px"' : '';
+        var dateStr = '';
+        try { dateStr = new Date(c.comment_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}); } catch(e) { dateStr = c.comment_date; }
+        var html = '<div class="comment-item"' + ml + '>' +
+            '<div class="comment-header">' +
+            (c.avatar_url ? '<img src="' + c.avatar_url + '" class="comment-avatar" width="28" height="28">' : '') +
+            '<strong class="comment-author">' + escapeHtml(c.username) + '</strong>' +
+            '<span class="comment-date">' + dateStr + '</span>' +
+            '</div>' +
+            '<div class="comment-body">' + escapeHtml(c.content) + '</div>' +
+            '<div class="comment-actions"><button class="reply-btn" data-id="' + c.comment_id + '" data-name="' + escapeHtml(c.username) + '">Reply</button></div>' +
+            '</div>';
+        if (c.replies) {
+            c.replies.forEach(function(r) { html += renderComment(r, depth + 1); });
+        }
+        return html;
+    }
+
+    function escapeHtml(s) {
+        var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+    }
+
+    function loadComments() {
+        fetch('/guides/' + slug + '/comments')
+            .then(function(r) { return r.json(); })
+            .then(function(comments) {
+                if (!comments || comments.length === 0) {
+                    commentsList.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">No comments yet. Be the first to comment!</p>';
+                    return;
+                }
+                var html = '';
+                comments.forEach(function(c) { html += renderComment(c); });
+                commentsList.innerHTML = html;
+                addReplyListeners();
+            })
+            .catch(function() {
+                commentsList.innerHTML = '<p class="text-gray-500 text-sm">Failed to load comments.</p>';
+            });
+    }
+
+    var parentCommentId = null;
+
+    function addReplyListeners() {
+        document.querySelectorAll('.reply-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                parentCommentId = parseInt(btn.dataset.id);
+                var banner = document.getElementById('reply-banner');
+                var bannerText = document.getElementById('reply-banner-text');
+                if (banner && bannerText) {
+                    bannerText.textContent = 'Replying to ' + btn.dataset.name;
+                    banner.style.display = 'flex';
+                }
+                var ta = document.getElementById('new-comment-content');
+                if (ta) ta.focus();
+            });
+        });
+    }
+
+    var cancelReply = document.getElementById('cancel-reply');
+    if (cancelReply) {
+        cancelReply.addEventListener('click', function() {
+            parentCommentId = null;
+            document.getElementById('reply-banner').style.display = 'none';
+        });
+    }
+
+    var submitBtn = document.getElementById('submit-comment');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            var ta = document.getElementById('new-comment-content');
+            var content = ta ? ta.value.trim() : '';
+            if (!content) return;
+            var payload = { content: content };
+            if (parentCommentId) payload.parent_comment_id = parentCommentId;
+
+            fetch('/guides/' + slug + '/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(function(r) {
+                if (r.ok) {
+                    ta.value = '';
+                    parentCommentId = null;
+                    var banner = document.getElementById('reply-banner');
+                    if (banner) banner.style.display = 'none';
+                    loadComments();
+                }
+            });
+        });
+    }
+
+    // Character count
+    var charCount = document.getElementById('comment-char-count');
+    var commentTa = document.getElementById('new-comment-content');
+    if (charCount && commentTa) {
+        commentTa.addEventListener('input', function() {
+            charCount.textContent = commentTa.value.length + ' / 5000';
+        });
+    }
+
+    loadComments();
+})();
+</script>
+
+{{template "modern-footer" .}}

@@ -41,6 +41,7 @@ type Categories struct {
 	CategoryService *models.CategoryService
 	PostService     *models.PostService
 	SlideService    *models.SlideService
+	GuideService    *models.GuideService
 	SessionService  *models.SessionService
 	Templates       struct {
 		Manage  views.Template
@@ -74,14 +75,25 @@ func (c *Categories) TagPage(w http.ResponseWriter, r *http.Request) {
 		slides = nil
 	}
 
+	var guides []models.Guide
+	if c.GuideService != nil {
+		guides, err = c.GuideService.GetPublishedGuidesByCategory(category.ID)
+		if err != nil {
+			log.Printf("Failed to get guides for tag %q: %v", tagName, err)
+			guides = nil
+		}
+	}
+
 	user, _ := utils.IsUserLoggedIn(r, c.SessionService)
 
 	var data struct {
 		TagName         string
 		Posts           []models.Post
 		Slides          []models.Slide
+		Guides          []models.Guide
 		PostCount       int
 		SlideCount      int
+		GuideCount      int
 		TotalCount      int
 		LoggedIn        bool
 		IsAdmin         bool
@@ -93,10 +105,12 @@ func (c *Categories) TagPage(w http.ResponseWriter, r *http.Request) {
 	data.TagName = category.Name
 	data.Posts = posts
 	data.Slides = slides
+	data.Guides = guides
 	data.PostCount = len(posts)
 	data.SlideCount = len(slides)
-	data.TotalCount = len(posts) + len(slides)
-	data.Description = fmt.Sprintf("Posts and presentations tagged with %q", category.Name)
+	data.GuideCount = len(guides)
+	data.TotalCount = len(posts) + len(slides) + len(guides)
+	data.Description = fmt.Sprintf("Posts, presentations, and guides tagged with %q", category.Name)
 	data.CurrentPage = "tags"
 
 	if user != nil {

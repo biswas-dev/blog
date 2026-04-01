@@ -1,0 +1,3 @@
+ALTER TABLE Comments DROP COLUMN IF EXISTS guide_id;
+DROP TABLE IF EXISTS Guide_Categories;
+DROP TABLE IF EXISTS Guides;

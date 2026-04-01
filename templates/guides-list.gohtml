@@ -1,0 +1,98 @@
+{{template "modern-header" .}}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold sm:text-5xl" style="color: var(--text-primary);">
+            Guides
+        </h1>
+        <p class="mt-4 text-xl max-w-2xl mx-auto" style="color: var(--text-secondary);">
+            In-depth tutorials and structured content for learning
+        </p>
+    </div>
+
+    {{if .Guides.Guides}}
+        <!-- Guides Grid -->
+        <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {{range .Guides.Guides}}
+            <div class="rounded-lg overflow-hidden border transition-all hover:shadow-lg" style="background: var(--surface); border-color: var(--border-light);">
+                {{if .FeaturedImageURL}}
+                <div class="h-48 overflow-hidden">
+                    <img src="{{.FeaturedImageURL}}" alt="{{.Title}}" class="w-full h-full object-cover" loading="lazy">
+                </div>
+                {{else}}
+                <div class="h-48 flex items-center justify-center" style="background: linear-gradient(135deg, var(--accent), #2563eb);">
+                    <div class="text-center text-white">
+                        {{icon "document" "w-16 h-16 mx-auto mb-4 opacity-80"}}
+                        <p class="text-sm font-medium opacity-90">Guide</p>
+                    </div>
+                </div>
+                {{end}}
+
+                <!-- Content -->
+                <div class="p-6">
+                    <h3 class="text-xl font-semibold mb-2">
+                        <a href="/guides/{{.Slug}}" class="transition-colors" style="color: var(--text-primary);"
+                           onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">{{.Title}}</a>
+                    </h3>
+
+                    {{if .Description}}
+                    <p class="text-sm mb-3 line-clamp-2" style="color: var(--text-secondary);">{{.Description}}</p>
+                    {{end}}
+
+                    <!-- Author -->
+                    <div class="flex items-center gap-2 mb-3">
+                        {{if .AuthorAvatarURL}}
+                        <img src="{{thumbURL .AuthorAvatarURL}}" alt="{{.AuthorDisplayName}}" class="w-6 h-6 rounded-full object-cover" width="24" height="24">
+                        {{end}}
+                        <span class="text-sm" style="color: var(--text-secondary);">{{.AuthorDisplayName}}</span>
+                    </div>
+
+                    <!-- Categories -->
+                    {{if .Categories}}
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        {{range .Categories}}
+                        <a href="/tags/{{.Name}}" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors" style="background: rgba(13,148,136,0.1); color: var(--accent);">
+                            {{.Name}}
+                        </a>
+                        {{end}}
+                    </div>
+                    {{end}}
+
+                    <!-- Meta Info -->
+                    <div class="flex items-center justify-between text-sm" style="color: var(--text-tertiary);">
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center">
+                                {{icon "clock" "w-4 h-4 mr-1"}}
+                                {{.ReadingTime}} min read
+                            </div>
+                            <div class="flex items-center">
+                                {{icon "calendar" "w-4 h-4 mr-1"}}
+                                {{.PublicationDate}}
+                            </div>
+                        </div>
+                        {{if $.IsAdmin}}
+                        <a href="/admin/guides/{{.ID}}/edit" class="font-medium" style="color: var(--accent);">Edit</a>
+                        {{end}}
+                    </div>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    {{else}}
+        <!-- Empty State -->
+        <div class="text-center py-16">
+            <div class="max-w-md mx-auto">
+                {{icon "document" "mx-auto h-24 w-24"}}
+                <h3 class="mt-6 text-xl font-medium" style="color: var(--text-primary);">
+                    No guides yet
+                </h3>
+                <p class="mt-2" style="color: var(--text-secondary);">
+                    Check back soon for in-depth guides and tutorials.
+                </p>
+            </div>
+        </div>
+    {{end}}
+</div>
+
+{{template "modern-footer" .}}

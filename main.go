@@ -29,9 +29,9 @@ import (
 )
 
 const (
-	mimeSVG            = "image/svg+xml"
-	headerCacheCtrl    = "Cache-Control"
-	headerContentType  = "Content-Type"
+	mimeSVG           = "image/svg+xml"
+	headerCacheCtrl   = "Cache-Control"
+	headerContentType = "Content-Type"
 
 	routeAdminUploads       = "/admin/uploads"
 	routeImageMetadata      = "/api/admin/image-metadata"
@@ -383,11 +383,15 @@ func main() {
 		PostService:        &postService,
 	}
 
+	// Initialize GuideService
+	guideService := models.GuideService{DB: DB}
+
 	// Initialize Categories controller
 	categoriesC := controllers.Categories{
 		CategoryService: &categoryService,
 		PostService:     &postService,
 		SlideService:    &slideService,
+		GuideService:    &guideService,
 		SessionService:  &sessionService,
 	}
 
@@ -397,6 +401,13 @@ func main() {
 		SlideVersionService: slideVersionService,
 		SessionService:      &sessionService,
 		CategoryService:     &categoryService,
+	}
+
+	// Initialize Guides controller
+	guidesC := controllers.Guides{
+		GuideService:    &guideService,
+		SessionService:  &sessionService,
+		CategoryService: &categoryService,
 	}
 
 	// Initialize SlideVersions controller
@@ -485,18 +496,28 @@ func main() {
 	// Initialize Slides templates
 	slidesC.Templates.AdminSlides = views.Must(views.ParseFS(
 		templates.FS, "admin-slides.gohtml", "tailwind.gohtml"))
-	
+
 	slidesC.Templates.SlideEditor = views.Must(views.ParseFS(
 		templates.FS, "slide-editor.gohtml", "tailwind.gohtml"))
-	
+
 	slidesC.Templates.SlidesList = views.Must(views.ParseFS(
 		templates.FS, "slides-list.gohtml", "tailwind.gohtml"))
-	
+
 	slidesC.Templates.SlidePresentation = views.Must(views.ParseFS(
 		templates.FS, "slide-presentation.gohtml", "tailwind.gohtml"))
 
 	slidesC.Templates.SlidePassword = views.Must(views.ParseFS(
 		templates.FS, "slide-password.gohtml", "tailwind.gohtml"))
+
+	// Initialize Guides templates
+	guidesC.Templates.GuidesList = views.Must(views.ParseFS(
+		templates.FS, "guides-list.gohtml", "tailwind.gohtml"))
+	guidesC.Templates.GuidePage = views.Must(views.ParseFS(
+		templates.FS, "guide-page.gohtml", "tailwind.gohtml"))
+	guidesC.Templates.AdminGuides = views.Must(views.ParseFS(
+		templates.FS, "admin-guides.gohtml", "tailwind.gohtml"))
+	guidesC.Templates.GuideEditor = views.Must(views.ParseFS(
+		templates.FS, "guide-editor.gohtml", "tailwind.gohtml"))
 
 	// Initialize Analytics controller
 	analyticsC := controllers.Analytics{
@@ -570,6 +591,19 @@ func main() {
 	r.Post("/admin/slides/{slideID}/delete", slidesC.DeleteSlide)
 	r.Post("/admin/slides/preview", slidesC.PreviewSlide)
 	r.Post("/admin/slides/upload-image", slidesC.UploadSlideImage)
+
+	// Public Guide Routes
+	r.Get("/guides", guidesC.PublicGuidesList)
+	r.Get("/guides/{slug}", guidesC.ViewGuide)
+
+	// Admin Guide Routes
+	r.Get("/admin/guides", guidesC.AdminGuides)
+	r.Get("/admin/guides/new", guidesC.NewGuide)
+	r.Post("/admin/guides", guidesC.CreateGuide)
+	r.Get("/admin/guides/{guideID}/edit", guidesC.EditGuide)
+	r.Post("/admin/guides/{guideID}", guidesC.UpdateGuide)
+	r.Post("/admin/guides/{guideID}/delete", guidesC.DeleteGuide)
+	r.Post("/admin/guides/preview", guidesC.PreviewGuide)
 
 	// Slide Version API Routes
 	r.Get("/api/slides/{slideID}/versions", slideVersionsC.HandleListVersions)
@@ -689,13 +723,16 @@ func main() {
 
 	// Comments routes
 	commentsC := controllers.CommentsController{
-		DB:          DB,
-		BlogService: blogService,
+		DB:           DB,
+		BlogService:  blogService,
+		GuideService: &guideService,
 	}
 	r.Get("/blog/{slug}/comments", commentsC.HandleListComments)
+	r.Get("/guides/{slug}/comments", commentsC.HandleListGuideComments)
 	r.Group(func(r chi.Router) {
 		r.Use(authmw.AuthenticatedUser(&sessionService, &apiTokenService))
 		r.Post("/blog/{slug}/comments", commentsC.HandleCreateComment)
+		r.Post("/guides/{slug}/comments", commentsC.HandleCreateGuideComment)
 		r.Delete("/comments/{commentID}", commentsC.HandleDeleteComment)
 	})
 
@@ -976,11 +1013,13 @@ func getAllPosts(w http.ResponseWriter, r *http.Request) {
 
 // FormattedPost represents a post in the requested API format
 type FormattedPost struct {
-	Date       string   `json:"date"`
-	Title      string   `json:"title"`
-	Categories []string `json:"categories"`
-	ReadTime   string   `json:"read_time"`
-	Link       string   `json:"link"`
+	Date          string   `json:"date"`
+	Title         string   `json:"title"`
+	Categories    []string `json:"categories"`
+	ReadTime      string   `json:"read_time"`
+	Link          string   `json:"link"`
+	Excerpt       string   `json:"excerpt,omitempty"`
+	CoverImageURL string   `json:"cover_image_url,omitempty"`
 }
 
 func getFormattedPosts(w http.ResponseWriter, r *http.Request) {
@@ -988,8 +1027,18 @@ func getFormattedPosts(w http.ResponseWriter, r *http.Request) {
 		DB: DB,
 	}
 
-	// Get the 5 latest posts with user information
-	posts, err := postService.GetTopPosts()
+	limit := 5
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			if parsed > 50 {
+				parsed = 50
+			}
+			limit = parsed
+		}
+	}
+
+	// Get the latest posts with user information.
+	posts, err := postService.GetTopPostsWithPagination(limit, 0)
 	if err != nil {
 		http.Error(w, "Failed to fetch posts", http.StatusInternalServerError)
 		return
@@ -997,15 +1046,21 @@ func getFormattedPosts(w http.ResponseWriter, r *http.Request) {
 
 	// Format posts according to the requested structure
 	var formattedPosts []FormattedPost
-	
+
 	// Get the request host to construct full URLs
-	host := r.Host
+	host := r.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = r.Host
+	}
 	if host == "" {
 		host = "localhost:8080" // fallback
 	}
-	scheme := "http"
-	if r.TLS != nil {
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" && r.TLS != nil {
 		scheme = "https"
+	}
+	if scheme == "" {
+		scheme = "http"
 	}
 
 	for _, post := range posts.Posts {
@@ -1037,14 +1092,18 @@ func getFormattedPosts(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Construct full link
-		link := fmt.Sprintf("%s://%s/blog/%s", scheme, host, post.Slug)
+		link := normalizeFormattedPublicURL(fmt.Sprintf("%s://%s/blog/%s", scheme, host, post.Slug), scheme, host)
+		coverImageURL := normalizeFormattedCoverURL(post.FeaturedImageURL, scheme, host)
+		excerpt := formatPostExcerpt(post.Content, 40)
 
 		formattedPost := FormattedPost{
-			Date:       formattedDate,
-			Title:      post.Title,
-			Categories: categories,
-			ReadTime:   readTime,
-			Link:       link,
+			Date:          formattedDate,
+			Title:         post.Title,
+			Categories:    categories,
+			ReadTime:      readTime,
+			Link:          link,
+			Excerpt:       excerpt,
+			CoverImageURL: coverImageURL,
 		}
 
 		formattedPosts = append(formattedPosts, formattedPost)
@@ -1052,6 +1111,115 @@ func getFormattedPosts(w http.ResponseWriter, r *http.Request) {
 
 	// Send the formatted posts as JSON response
 	jsonResponse(w, formattedPosts, http.StatusOK)
+}
+
+func normalizeFormattedPublicURL(raw, scheme, host string) string {
+	if raw == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(raw, "//") {
+		return fmt.Sprintf("%s:%s", scheme, raw)
+	}
+
+	if strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://") {
+		trimmed := strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://")
+		return fmt.Sprintf("%s://%s", scheme, trimmed)
+	}
+
+	if !strings.HasPrefix(raw, "/") {
+		raw = "/" + raw
+	}
+
+	return fmt.Sprintf("%s://%s%s", scheme, host, raw)
+}
+
+func normalizeFormattedCoverURL(raw, scheme, host string) string {
+	if raw == "" || raw == "image.jpg" {
+		return ""
+	}
+
+	if !strings.HasPrefix(raw, "/") {
+		if strings.HasPrefix(raw, "static/") {
+			raw = "/" + raw
+		} else if strings.HasPrefix(raw, "uploads/") {
+			raw = "/static/" + raw
+		} else {
+			raw = "/static/" + strings.TrimPrefix(raw, "/")
+		}
+	}
+
+	if !strings.HasPrefix(raw, "/static/") {
+		raw = "/static/" + strings.TrimPrefix(raw, "/")
+	}
+
+	return normalizeFormattedPublicURL(raw, scheme, host)
+}
+
+func formatPostExcerpt(content string, maxWords int) string {
+	markers := []string{"<more-->", "<more -->", "&lt;more--&gt;", "&lt;more --&gt;"}
+	for _, marker := range markers {
+		if idx := strings.Index(content, marker); idx != -1 {
+			content = content[:idx]
+			break
+		}
+	}
+
+	lines := strings.Split(content, "\n")
+	parts := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" ||
+			strings.HasPrefix(trimmed, "#") ||
+			strings.HasPrefix(trimmed, "![") ||
+			strings.HasPrefix(trimmed, "---") ||
+			strings.HasPrefix(trimmed, "```") ||
+			strings.HasPrefix(trimmed, "|") ||
+			strings.HasPrefix(trimmed, "<!--") {
+			continue
+		}
+
+		trimmed = strings.NewReplacer(
+			"**", "",
+			"__", "",
+			"`", "",
+			"*", "",
+			"_", "",
+		).Replace(trimmed)
+		trimmed = stripMarkdownLinksForAPI(trimmed)
+		parts = append(parts, trimmed)
+	}
+
+	text := strings.Join(parts, " ")
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return ""
+	}
+
+	if len(words) <= maxWords {
+		return strings.Join(words, " ")
+	}
+
+	return strings.Join(words[:maxWords], " ") + "..."
+}
+
+func stripMarkdownLinksForAPI(s string) string {
+	for {
+		start := strings.Index(s, "[")
+		if start == -1 {
+			return s
+		}
+		mid := strings.Index(s[start:], "](")
+		if mid == -1 {
+			return s
+		}
+		end := strings.Index(s[start+mid:], ")")
+		if end == -1 {
+			return s
+		}
+		linkText := s[start+1 : start+mid]
+		s = s[:start] + linkText + s[start+mid+end+1:]
+	}
 }
 
 func getPostByID(w http.ResponseWriter, r *http.Request) {
@@ -1416,4 +1584,3 @@ func xmlEscape(s string) string {
 	s = strings.ReplaceAll(s, "'", "&apos;")
 	return s
 }
-

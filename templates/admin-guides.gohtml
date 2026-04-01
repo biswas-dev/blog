@@ -1,0 +1,101 @@
+{{template "modern-header" .}}
+
+<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Guide Management</h1>
+                    <p class="text-gray-600 dark:text-gray-400 mt-1">Create and manage long-form guides and tutorials</p>
+                </div>
+                <div class="flex space-x-3">
+                    <a href="/guides" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700">
+                        View Public Guides
+                    </a>
+                    <a href="/admin/guides/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        {{icon "plus" "w-4 h-4 mr-2"}}
+                        New Guide
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guides Table -->
+        <div class="bg-white dark:bg-slate-800 shadow overflow-hidden rounded-lg">
+            {{if .Guides.Guides}}
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-slate-700">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Author</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Categories</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {{range .Guides.Guides}}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                <a href="/guides/{{.Slug}}" class="hover:text-indigo-600 dark:hover:text-indigo-400">{{.Title}}</a>
+                            </div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">/guides/{{.Slug}}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                {{if .AuthorAvatarURL}}
+                                <img src="{{thumbURL .AuthorAvatarURL}}" alt="{{.AuthorDisplayName}}" class="w-6 h-6 rounded-full object-cover" width="24" height="24">
+                                {{end}}
+                                <span class="text-sm text-gray-900 dark:text-gray-300">{{.AuthorDisplayName}}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {{if .IsPublished}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                Published
+                            </span>
+                            {{else}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                Draft
+                            </span>
+                            {{end}}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-wrap gap-1">
+                                {{range .Categories}}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{{.Name}}</span>
+                                {{end}}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{.PublicationDate}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="/admin/guides/{{.ID}}/edit" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Edit</a>
+                                <form method="POST" action="/admin/guides/{{.ID}}/delete" onsubmit="return confirm('Delete this guide?');" style="display:inline;">
+                                    <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            <div class="text-center py-12">
+                <p class="text-gray-500 dark:text-gray-400">No guides yet. Create your first guide!</p>
+                <a href="/admin/guides/new" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                    {{icon "plus" "w-4 h-4 mr-2"}}
+                    New Guide
+                </a>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</div>
+
+{{template "modern-footer" .}}

@@ -1,0 +1,136 @@
+{{template "modern-header" .}}
+
+<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-6">
+            <a href="/admin/guides" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">&larr; Back to Guides</a>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+                {{if .IsEdit}}Edit Guide{{else}}Create New Guide{{end}}
+            </h1>
+        </div>
+
+        <form method="POST" action="{{if .IsEdit}}/admin/guides/{{.Guide.ID}}{{else}}/admin/guides{{end}}">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Main Content Area -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Title -->
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                        <input type="text" name="title" id="title" required
+                               value="{{.Guide.Title}}"
+                               class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="Guide title"
+                               oninput="if(!document.getElementById('slug-manual').checked){document.getElementById('slug').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}">
+                    </div>
+
+                    <!-- Slug -->
+                    <div>
+                        <label for="slug" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Slug
+                            <label class="inline-flex items-center ml-2 text-xs text-gray-500">
+                                <input type="checkbox" id="slug-manual" class="mr-1 rounded" {{if .IsEdit}}checked{{end}}>
+                                Manual
+                            </label>
+                        </label>
+                        <input type="text" name="slug" id="slug"
+                               value="{{.Guide.Slug}}"
+                               class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="guide-slug">
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                        <textarea name="description" id="description" rows="2"
+                                  class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="Brief description of the guide">{{.Guide.Description}}</textarea>
+                    </div>
+
+                    <!-- Content -->
+                    <div>
+                        <label for="content" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Content (Markdown)</label>
+                        <textarea name="content" id="content" rows="30" required
+                                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="Write your guide content in Markdown...">{{.Guide.Content}}</textarea>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar -->
+                <div class="space-y-6">
+                    <!-- Publish Settings -->
+                    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Publish Settings</h3>
+
+                        <div class="flex items-center mb-4">
+                            <input type="checkbox" name="is_published" id="is_published"
+                                   {{if .Guide.IsPublished}}checked{{end}}
+                                   class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="is_published" class="ml-2 text-sm text-gray-700 dark:text-gray-300">Published</label>
+                        </div>
+
+                        <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            {{if .IsEdit}}Update Guide{{else}}Create Guide{{end}}
+                        </button>
+                    </div>
+
+                    <!-- Featured Image -->
+                    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Featured Image</h3>
+                        <input type="text" name="featured_image_url" id="featured_image_url"
+                               value="{{.Guide.FeaturedImageURL}}"
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="https://example.com/image.jpg">
+                        <div id="image-preview" class="mt-2">
+                            {{if .Guide.FeaturedImageURL}}
+                            <img src="{{.Guide.FeaturedImageURL}}" alt="Preview" class="w-full rounded-md">
+                            {{end}}
+                        </div>
+                    </div>
+
+                    <!-- Categories -->
+                    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Categories</h3>
+                        <input type="hidden" name="categories" id="categories-input">
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            {{$guideCategories := $.Guide.Categories}}
+                            {{range $cat := $.Categories}}
+                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                <input type="checkbox" class="category-checkbox rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                                       value="{{$cat.ID}}"
+                                       {{range $guideCategories}}{{if eq .ID $cat.ID}}checked{{end}}{{end}}>
+                                {{$cat.Name}}
+                            </label>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Gather checked category IDs into hidden input before form submit
+document.querySelector('form').addEventListener('submit', function() {
+    var ids = [];
+    document.querySelectorAll('.category-checkbox:checked').forEach(function(cb) {
+        ids.push(cb.value);
+    });
+    document.getElementById('categories-input').value = ids.join(',');
+});
+
+// Featured image preview
+var imgInput = document.getElementById('featured_image_url');
+if (imgInput) {
+    imgInput.addEventListener('input', function() {
+        var preview = document.getElementById('image-preview');
+        if (this.value) {
+            preview.innerHTML = '<img src="' + this.value + '" alt="Preview" class="w-full rounded-md" onerror="this.style.display=\'none\'">';
+        } else {
+            preview.innerHTML = '';
+        }
+    });
+}
+</script>
+
+{{template "modern-footer" .}}
