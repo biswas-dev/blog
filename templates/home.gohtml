@@ -98,7 +98,7 @@ function appendPost(post) {
     const cats = post.categories || post.Categories;
     if (cats && cats.length > 0) {
         categoriesHTML = '<span class="sep">&middot;</span><div class="category-pills">' +
-            cats.map(c => `<span class="category-pill">${escapeHTML(c.name || c.Name)}</span>`).join('') +
+            cats.map(c => `<a href="/tags/${encodeURIComponent(c.name || c.Name)}" class="category-pill">${escapeHTML(c.name || c.Name)}</a>`).join('') +
             '</div>';
     }
 
