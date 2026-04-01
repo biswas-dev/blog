@@ -1438,15 +1438,16 @@ func getSlide(ss *models.SlideService) http.HandlerFunc {
 func createSlide(ss *models.SlideService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			UserID      int    `json:"user_id"`
-			Title       string `json:"title"`
-			Slug        string `json:"slug"`
-			Content     string `json:"content"`
-			IsPublished bool   `json:"is_published"`
-			Description string `json:"description"`
-			Metadata    string `json:"metadata"`
-			Password    string `json:"password"`
-			Categories  []int  `json:"categories"`
+			UserID           int    `json:"user_id"`
+			Title            string `json:"title"`
+			Slug             string `json:"slug"`
+			Content          string `json:"content"`
+			IsPublished      bool   `json:"is_published"`
+			Description      string `json:"description"`
+			FeaturedImageURL string `json:"featured_image_url"`
+			Metadata         string `json:"metadata"`
+			Password         string `json:"password"`
+			Categories       []int  `json:"categories"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1459,7 +1460,7 @@ func createSlide(ss *models.SlideService) http.HandlerFunc {
 		if req.Metadata == "" {
 			req.Metadata = "{}"
 		}
-		slide, err := ss.Create(req.UserID, req.Title, req.Slug, req.Content, req.IsPublished, req.Categories, req.Description, req.Metadata, req.Password)
+		slide, err := ss.Create(req.UserID, req.Title, req.Slug, req.Content, req.IsPublished, req.Categories, req.Description, req.Metadata, req.Password, req.FeaturedImageURL)
 		if err != nil {
 			logger.Error().Err(err).Msg("error creating slide")
 			http.Error(w, "Failed to create slide", http.StatusInternalServerError)
@@ -1477,14 +1478,15 @@ func updateSlide(ss *models.SlideService) http.HandlerFunc {
 			return
 		}
 		var req struct {
-			Title       string `json:"title"`
-			Slug        string `json:"slug"`
-			Content     string `json:"content"`
-			IsPublished *bool  `json:"is_published"`
-			Description string `json:"description"`
-			Metadata    string `json:"metadata"`
-			Password    string `json:"password"`
-			Categories  []int  `json:"categories"`
+			Title            string `json:"title"`
+			Slug             string `json:"slug"`
+			Content          string `json:"content"`
+			IsPublished      *bool  `json:"is_published"`
+			Description      string `json:"description"`
+			FeaturedImageURL string `json:"featured_image_url"`
+			Metadata         string `json:"metadata"`
+			Password         string `json:"password"`
+			Categories       []int  `json:"categories"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1517,8 +1519,12 @@ func updateSlide(ss *models.SlideService) http.HandlerFunc {
 		if description == "" {
 			description = existing.Description
 		}
+		featuredImageURL := req.FeaturedImageURL
+		if featuredImageURL == "" {
+			featuredImageURL = existing.FeaturedImageURL
+		}
 
-		if err := ss.Update(slideID, title, slug, content, isPublished, req.Categories, description, req.Metadata, req.Password); err != nil {
+		if err := ss.Update(slideID, title, slug, content, isPublished, req.Categories, description, req.Metadata, req.Password, featuredImageURL); err != nil {
 			logger.Error().Err(err).Msg("error updating slide")
 			http.Error(w, "Failed to update slide", http.StatusInternalServerError)
 			return

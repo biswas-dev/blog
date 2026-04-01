@@ -181,8 +181,9 @@ func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	metadata := r.FormValue("metadata")
 	password := r.FormValue("password")
+	featuredImageURL := r.FormValue("featured_image_url")
 
-	slide, err := s.SlideService.Create(user.UserID, title, slug, content, isPublished, categoryIDs, description, metadata, password)
+	slide, err := s.SlideService.Create(user.UserID, title, slug, content, isPublished, categoryIDs, description, metadata, password, featuredImageURL)
 	if err != nil {
 		log.Printf("Error creating slide: %v", err)
 		http.Error(w, "Failed to create slide", http.StatusInternalServerError)
@@ -310,13 +311,14 @@ func (s Slides) UpdateSlide(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	metadata := r.FormValue("metadata")
 	password := r.FormValue("password")
+	featuredImageURL := r.FormValue("featured_image_url")
 
 	// Create version snapshot before updating
 	if s.SlideVersionService != nil {
 		_ = s.SlideVersionService.MaybeCreateVersion(slideID, user.UserID, title, content)
 	}
 
-	err = s.SlideService.Update(slideID, title, slug, content, isPublished, categoryIDs, description, metadata, password)
+	err = s.SlideService.Update(slideID, title, slug, content, isPublished, categoryIDs, description, metadata, password, featuredImageURL)
 	if err != nil {
 		log.Printf("Error updating slide: %v", err)
 		http.Error(w, "Failed to update slide", http.StatusInternalServerError)
@@ -769,7 +771,7 @@ func (s Slides) ImportPPTX(w http.ResponseWriter, r *http.Request) {
 
 	// Create the slide first to get ID and slug
 	content := strings.Join(sections, "\n")
-	slide, err := s.SlideService.Create(user.UserID, title, slug, content, false, nil, "", `{"source":"pptx"}`, "")
+	slide, err := s.SlideService.Create(user.UserID, title, slug, content, false, nil, "", `{"source":"pptx"}`, "", "")
 	if err != nil {
 		log.Printf("Error creating imported slide: %v", err)
 		http.Error(w, "Failed to create slide", http.StatusInternalServerError)
@@ -872,7 +874,7 @@ func (s Slides) ReimportPPTX(w http.ResponseWriter, r *http.Request) {
 	} else if !strings.Contains(metadata, `"source"`) {
 		metadata = strings.TrimSuffix(metadata, "}") + `,"source":"pptx"}`
 	}
-	err = s.SlideService.Update(slideID, slide.Title, slide.Slug, content, slide.IsPublished, nil, slide.Description, metadata, "")
+	err = s.SlideService.Update(slideID, slide.Title, slide.Slug, content, slide.IsPublished, nil, slide.Description, metadata, "", slide.FeaturedImageURL)
 	if err != nil {
 		log.Printf("Error reimporting slide: %v", err)
 		http.Error(w, "Failed to update slide", http.StatusInternalServerError)

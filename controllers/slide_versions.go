@@ -160,7 +160,7 @@ func (sv *SlideVersions) HandleRestoreVersion(w http.ResponseWriter, r *http.Req
 
 	// Update title in DB
 	if err := sv.SlideService.Update(slideID, version.Title, slide.Slug, version.Content,
-		slide.IsPublished, nil, slide.Description, slide.SlideMetadata, ""); err != nil {
+		slide.IsPublished, nil, slide.Description, slide.SlideMetadata, "", slide.FeaturedImageURL); err != nil {
 		http.Error(w, "Failed to restore version", http.StatusInternalServerError)
 		return
 	}

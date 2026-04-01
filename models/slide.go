@@ -32,6 +32,7 @@ type Slide struct {
 	PasswordHash      string
 	SlideMetadata     string // JSONB stored as string
 	Description       string
+	FeaturedImageURL  string
 	SlideCount        int
 	CreatedAt         string
 	UpdatedAt         string
@@ -72,7 +73,7 @@ func (ss *SlideService) MigrateFileContentToDB() {
 }
 
 // Create creates a new slide with the given parameters
-func (ss *SlideService) Create(userID int, title, slug, content string, isPublished bool, categoryIDs []int, description, metadata, password string) (*Slide, error) {
+func (ss *SlideService) Create(userID int, title, slug, content string, isPublished bool, categoryIDs []int, description, metadata, password, featuredImageURL string) (*Slide, error) {
 	// Generate slug if empty
 	if slug == "" {
 		slug = generateSlug(title)
@@ -103,10 +104,10 @@ func (ss *SlideService) Create(userID int, title, slug, content string, isPublis
 
 	// Insert slide into database (content stored in DB column)
 	var slide Slide
-	err := ss.DB.QueryRow(`INSERT INTO Slides (user_id, title, slug, content_file_path, content, is_published, description, slide_metadata, password_hash, created_at, updated_at)
-			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	err := ss.DB.QueryRow(`INSERT INTO Slides (user_id, title, slug, content_file_path, content, is_published, description, featured_image_url, slide_metadata, password_hash, created_at, updated_at)
+			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 			  RETURNING slide_id, created_at, updated_at`,
-		userID, title, slug, contentPath, content, isPublished, description, metadata, passwordHash).Scan(
+		userID, title, slug, contentPath, content, isPublished, description, featuredImageURL, metadata, passwordHash).Scan(
 		&slide.ID, &slide.CreatedAt, &slide.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create slide: %v", err)
@@ -118,6 +119,7 @@ func (ss *SlideService) Create(userID int, title, slug, content string, isPublis
 	slide.ContentFilePath = contentPath
 	slide.IsPublished = isPublished
 	slide.Description = description
+	slide.FeaturedImageURL = featuredImageURL
 	slide.SlideMetadata = metadata
 	slide.PasswordHash = passwordHash
 
@@ -141,7 +143,7 @@ func (ss *SlideService) GetBySlug(slug string) (*Slide, error) {
 	                 COALESCE(u.profile_picture_url, ''),
 	                 s.title, s.slug, s.content_file_path, s.is_published,
 	                 COALESCE(s.password_hash, ''), COALESCE(s.slide_metadata::text, '{}'),
-	                 COALESCE(s.description, ''), COALESCE(s.slide_count, 0),
+	                 COALESCE(s.description, ''), COALESCE(s.featured_image_url, ''), COALESCE(s.slide_count, 0),
 	                 s.created_at, s.updated_at
 			  FROM Slides s
 			  JOIN Users u ON s.user_id = u.user_id
@@ -153,7 +155,7 @@ func (ss *SlideService) GetBySlug(slug string) (*Slide, error) {
 		&slide.AuthorAvatarURL,
 		&slide.Title, &slide.Slug, &slide.ContentFilePath, &slide.IsPublished,
 		&slide.PasswordHash, &slide.SlideMetadata,
-		&slide.Description, &slide.SlideCount,
+		&slide.Description, &slide.FeaturedImageURL, &slide.SlideCount,
 		&slide.CreatedAt, &slide.UpdatedAt)
 
 	if err != nil {
@@ -182,7 +184,7 @@ func (ss *SlideService) GetByID(id int) (*Slide, error) {
 	                 COALESCE(u.profile_picture_url, ''),
 	                 s.title, s.slug, s.content_file_path, s.is_published,
 	                 COALESCE(s.password_hash, ''), COALESCE(s.slide_metadata::text, '{}'),
-	                 COALESCE(s.description, ''), COALESCE(s.slide_count, 0),
+	                 COALESCE(s.description, ''), COALESCE(s.featured_image_url, ''), COALESCE(s.slide_count, 0),
 	                 s.created_at, s.updated_at
 			  FROM Slides s
 			  JOIN Users u ON s.user_id = u.user_id
@@ -194,7 +196,7 @@ func (ss *SlideService) GetByID(id int) (*Slide, error) {
 		&slide.AuthorAvatarURL,
 		&slide.Title, &slide.Slug, &slide.ContentFilePath, &slide.IsPublished,
 		&slide.PasswordHash, &slide.SlideMetadata,
-		&slide.Description, &slide.SlideCount,
+		&slide.Description, &slide.FeaturedImageURL, &slide.SlideCount,
 		&slide.CreatedAt, &slide.UpdatedAt)
 
 	if err != nil {
@@ -224,7 +226,7 @@ func (ss *SlideService) GetPublishedSlides() (*SlidesList, error) {
 	query := `SELECT s.slide_id, s.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
 	                 COALESCE(u.profile_picture_url, ''),
 	                 s.title, s.slug, s.content_file_path, s.is_published,
-	                 COALESCE(s.password_hash, ''), COALESCE(s.description, ''), COALESCE(s.slide_count, 0),
+	                 COALESCE(s.password_hash, ''), COALESCE(s.description, ''), COALESCE(s.featured_image_url, ''), COALESCE(s.slide_count, 0),
 	                 s.created_at, s.updated_at
 			  FROM Slides s
 			  JOIN Users u ON s.user_id = u.user_id
@@ -241,7 +243,7 @@ func (ss *SlideService) GetPublishedSlides() (*SlidesList, error) {
 		err := rows.Scan(&slide.ID, &slide.UserID, &slide.Username, &slide.AuthorDisplayName,
 			&slide.AuthorAvatarURL,
 			&slide.Title, &slide.Slug, &slide.ContentFilePath, &slide.IsPublished,
-			&slide.PasswordHash, &slide.Description, &slide.SlideCount,
+			&slide.PasswordHash, &slide.Description, &slide.FeaturedImageURL, &slide.SlideCount,
 			&slide.CreatedAt, &slide.UpdatedAt)
 		if err != nil {
 			return &list, fmt.Errorf("failed to scan slide: %v", err)
@@ -265,7 +267,7 @@ func (ss *SlideService) GetPublishedSlidesByCategory(categoryID int) ([]Slide, e
 	query := `SELECT s.slide_id, s.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
 	                 COALESCE(u.profile_picture_url, ''),
 	                 s.title, s.slug, s.content_file_path, s.is_published,
-	                 COALESCE(s.password_hash, ''), COALESCE(s.description, ''), COALESCE(s.slide_count, 0),
+	                 COALESCE(s.password_hash, ''), COALESCE(s.description, ''), COALESCE(s.featured_image_url, ''), COALESCE(s.slide_count, 0),
 	                 s.created_at, s.updated_at
 			  FROM Slides s
 			  JOIN Users u ON s.user_id = u.user_id
@@ -284,7 +286,7 @@ func (ss *SlideService) GetPublishedSlidesByCategory(categoryID int) ([]Slide, e
 		err := rows.Scan(&slide.ID, &slide.UserID, &slide.Username, &slide.AuthorDisplayName,
 			&slide.AuthorAvatarURL,
 			&slide.Title, &slide.Slug, &slide.ContentFilePath, &slide.IsPublished,
-			&slide.PasswordHash, &slide.Description, &slide.SlideCount,
+			&slide.PasswordHash, &slide.Description, &slide.FeaturedImageURL, &slide.SlideCount,
 			&slide.CreatedAt, &slide.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("scan slide by category: %w", err)
@@ -303,7 +305,7 @@ func (ss *SlideService) GetPublishedSlidesByCategory(categoryID int) ([]Slide, e
 // GetPublishedSlidesByUser returns published slides authored by a specific user.
 func (ss *SlideService) GetPublishedSlidesByUser(userID int) ([]Slide, error) {
 	rows, err := ss.DB.Query(`
-		SELECT s.slide_id, s.title, s.slug, COALESCE(s.description, ''), COALESCE(s.slide_count, 0), s.created_at
+		SELECT s.slide_id, s.title, s.slug, COALESCE(s.description, ''), COALESCE(s.featured_image_url, ''), COALESCE(s.slide_count, 0), s.created_at
 		FROM Slides s
 		WHERE s.user_id = $1 AND s.is_published = true
 		ORDER BY s.created_at DESC`, userID)
@@ -314,7 +316,7 @@ func (ss *SlideService) GetPublishedSlidesByUser(userID int) ([]Slide, error) {
 	var slides []Slide
 	for rows.Next() {
 		var s Slide
-		if err := rows.Scan(&s.ID, &s.Title, &s.Slug, &s.Description, &s.SlideCount, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.Title, &s.Slug, &s.Description, &s.FeaturedImageURL, &s.SlideCount, &s.CreatedAt); err != nil {
 			return nil, err
 		}
 		slides = append(slides, s)
@@ -329,7 +331,7 @@ func (ss *SlideService) GetAllSlides() (*SlidesList, error) {
 	query := `SELECT s.slide_id, s.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
 	                 COALESCE(u.profile_picture_url, ''),
 	                 s.title, s.slug, s.content_file_path, s.is_published,
-	                 COALESCE(s.password_hash, ''), COALESCE(s.description, ''), COALESCE(s.slide_count, 0),
+	                 COALESCE(s.password_hash, ''), COALESCE(s.description, ''), COALESCE(s.featured_image_url, ''), COALESCE(s.slide_count, 0),
 	                 s.created_at, s.updated_at
 			  FROM Slides s
 			  JOIN Users u ON s.user_id = u.user_id
@@ -346,7 +348,7 @@ func (ss *SlideService) GetAllSlides() (*SlidesList, error) {
 		err := rows.Scan(&slide.ID, &slide.UserID, &slide.Username, &slide.AuthorDisplayName,
 			&slide.AuthorAvatarURL,
 			&slide.Title, &slide.Slug, &slide.ContentFilePath, &slide.IsPublished,
-			&slide.PasswordHash, &slide.Description, &slide.SlideCount,
+			&slide.PasswordHash, &slide.Description, &slide.FeaturedImageURL, &slide.SlideCount,
 			&slide.CreatedAt, &slide.UpdatedAt)
 		if err != nil {
 			return &list, fmt.Errorf("failed to scan slide: %v", err)
@@ -366,7 +368,7 @@ func (ss *SlideService) GetAllSlides() (*SlidesList, error) {
 }
 
 // Update updates an existing slide
-func (ss *SlideService) Update(slideID int, title, slug, content string, isPublished bool, categoryIDs []int, description, metadata, password string) error {
+func (ss *SlideService) Update(slideID int, title, slug, content string, isPublished bool, categoryIDs []int, description, metadata, password, featuredImageURL string) error {
 	// Get current slide to access file path
 	currentSlide, err := ss.GetByID(slideID)
 	if err != nil {
@@ -404,8 +406,8 @@ func (ss *SlideService) Update(slideID int, title, slug, content string, isPubli
 
 	// Update database record (content stored in DB column)
 	_, err = ss.DB.Exec(`UPDATE Slides SET title = $1, slug = $2, content = $3, is_published = $4, description = $5,
-	          slide_metadata = $6, password_hash = $7, updated_at = CURRENT_TIMESTAMP
-			  WHERE slide_id = $8`, title, slug, content, isPublished, description, metadata, passwordHash, slideID)
+	          featured_image_url = $6, slide_metadata = $7, password_hash = $8, updated_at = CURRENT_TIMESTAMP
+			  WHERE slide_id = $9`, title, slug, content, isPublished, description, featuredImageURL, metadata, passwordHash, slideID)
 	if err != nil {
 		return fmt.Errorf("failed to update slide: %v", err)
 	}

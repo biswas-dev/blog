@@ -233,6 +233,24 @@
       <textarea id="panel-description" class="panel-input" rows="2" placeholder="Brief description">{{.Slide.Description}}</textarea>
     </div>
     <div class="panel-section">
+      <label>Cover Image</label>
+      <input type="text" id="panel-featured-image-url" class="panel-input" placeholder="Featured Image URL" value="{{.Slide.FeaturedImageURL}}">
+      <div class="cover-upload-section mt-2">
+        <div id="slide-cover-preview" style="display: {{if .Slide.FeaturedImageURL}}block{{else}}none{{end}};">
+          <img id="slide-cover-img" src="{{.Slide.FeaturedImageURL}}" alt="Cover image" style="max-width: 100%; border-radius: 6px;">
+          <button type="button" id="slide-remove-cover-btn" class="text-xs text-red-500 hover:text-red-700 mt-1">Remove</button>
+        </div>
+        <div id="slide-cover-drop-zone" style="border: 2px dashed #d1d5db; border-radius: 6px; padding: 0.75rem; text-align: center; cursor: pointer; margin-top: 0.5rem;">
+          <div style="font-size: 12px; color: #6b7280;">Drop image here or click Upload</div>
+        </div>
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <input type="file" id="slide-cover-upload" accept="image/*" style="display:none">
+          <button type="button" id="slide-upload-cover-btn" class="tb-btn" style="font-size: 11px; padding: 4px 8px;">Upload New</button>
+          <button type="button" id="slide-choose-cover-btn" class="tb-btn" style="font-size: 11px; padding: 4px 8px;">Choose Existing</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel-section">
       <label>Categories</label>
       <div class="space-y-1 max-h-24 overflow-y-auto">
         {{range .Categories}}
@@ -301,6 +319,7 @@
   <input type="hidden" name="is_published" id="form-published" value="false">
   <input type="hidden" name="categories" id="form-categories">
   <input type="hidden" name="description" id="form-description">
+  <input type="hidden" name="featured_image_url" id="form-featured-image-url">
   <input type="hidden" name="metadata" id="form-metadata">
   <input type="hidden" name="password" id="form-password">
 </form>
@@ -891,6 +910,7 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
     document.getElementById('form-content').value = content;
     document.getElementById('form-published').value = publish ? 'on' : 'false';
     document.getElementById('form-description').value = document.getElementById('panel-description').value;
+    document.getElementById('form-featured-image-url').value = document.getElementById('panel-featured-image-url').value;
     document.getElementById('form-password').value = document.getElementById('panel-password').value;
 
     // Categories
@@ -918,6 +938,98 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
       removePwdBtn.style.display = 'none';
     });
   }
+
+  // Cover image handling
+  (function() {
+    const featuredURL = document.getElementById('panel-featured-image-url');
+    const coverPreview = document.getElementById('slide-cover-preview');
+    const coverImg = document.getElementById('slide-cover-img');
+    const removeBtn = document.getElementById('slide-remove-cover-btn');
+    const uploadInput = document.getElementById('slide-cover-upload');
+    const uploadBtn = document.getElementById('slide-upload-cover-btn');
+    const chooseBtn = document.getElementById('slide-choose-cover-btn');
+    const dropZone = document.getElementById('slide-cover-drop-zone');
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', function() {
+        featuredURL.value = '';
+        coverPreview.style.display = 'none';
+      });
+    }
+
+    if (uploadBtn) {
+      uploadBtn.addEventListener('click', function() { uploadInput.click(); });
+    }
+
+    if (uploadInput) {
+      uploadInput.addEventListener('change', function() {
+        if (!uploadInput.files.length) return;
+        var fd = new FormData();
+        fd.append('file', uploadInput.files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    if (dropZone) {
+      dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.borderColor = '#6366f1'; });
+      dropZone.addEventListener('dragleave', function() { dropZone.style.borderColor = '#d1d5db'; });
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.style.borderColor = '#d1d5db';
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length || !files[0].type.startsWith('image/')) return;
+        var fd = new FormData();
+        fd.append('file', files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    if (chooseBtn) {
+      chooseBtn.addEventListener('click', function() {
+        fetch('/admin/uploads/list?type=featured')
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            var images = data.images || [];
+            if (images.length === 0) { alert('No existing images found'); return; }
+            var url = prompt('Select image URL from: ' + images.slice(0, 5).map(function(i) { return i.url; }).join(', '));
+            if (url) {
+              featuredURL.value = url;
+              coverImg.src = url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Failed to list images: ' + err.message); });
+      });
+    }
+
+    // Update preview when URL is manually typed
+    featuredURL.addEventListener('change', function() {
+      if (featuredURL.value) {
+        coverImg.src = featuredURL.value;
+        coverPreview.style.display = 'block';
+      } else {
+        coverPreview.style.display = 'none';
+      }
+    });
+  })();
 
   // Autosave (debounced, only in edit mode)
   let autosaveTimer = null;
