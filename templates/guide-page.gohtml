@@ -1,5 +1,4 @@
 {{define "page-title"}}{{.Guide.Title}} | Anshuman Biswas{{end}}
-{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/guides/{{.Guide.Slug}}" />{{end}}
 {{define "meta-description"}}<meta name="description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}} — a comprehensive guide by Anshuman Biswas{{end}}" />{{end}}
 {{define "og-meta"}}
     <meta property="og:type" content="article" />
@@ -14,6 +13,7 @@
     {{if .Guide.FeaturedImageURL}}<meta name="twitter:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
 {{end}}
 {{define "head-extra"}}
+<link rel="canonical" href="https://anshumanbiswas.com/guides/{{.Guide.Slug}}" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",

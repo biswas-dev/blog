@@ -1,4 +1,5 @@
 {{define "head-extra"}}
+<link rel="canonical" href="{{.FullURL}}" />
 {{if .Post.FeaturedImageURL}}<link rel="preload" as="image" href="{{.Post.FeaturedImageURL}}" fetchpriority="high">{{end}}
 <script type="application/ld+json">
 {
@@ -15,7 +16,6 @@
 </script>
 {{end}}
 {{define "page-title"}}{{.Post.Title}} | Anshuman Biswas{{end}}
-{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/blog/{{.Post.Slug}}" />{{end}}
 {{define "meta-description"}}<meta name="description" content="{{.OGDescription}}" />{{end}}
 {{define "og-meta"}}
     <meta property="og:type" content="article" />
