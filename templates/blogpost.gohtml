@@ -1,5 +1,21 @@
-{{define "head-extra"}}{{if .Post.FeaturedImageURL}}<link rel="preload" as="image" href="{{.Post.FeaturedImageURL}}" fetchpriority="high">{{end}}{{end}}
+{{define "head-extra"}}
+{{if .Post.FeaturedImageURL}}<link rel="preload" as="image" href="{{.Post.FeaturedImageURL}}" fetchpriority="high">{{end}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "{{.Post.Title}}",
+  "author": {"@type": "Person", "name": "{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}"},
+  "datePublished": "{{.Post.CreatedAt}}",
+  "dateModified": "{{if .Post.LastEditDate}}{{.Post.LastEditDate}}{{else}}{{.Post.CreatedAt}}{{end}}",
+  "description": "{{.OGDescription}}",
+  "url": "{{.FullURL}}"{{if .OGImage}},
+  "image": "{{.OGImage}}"{{end}}
+}
+</script>
+{{end}}
 {{define "page-title"}}{{.Post.Title}} | Anshuman Biswas{{end}}
+{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/blog/{{.Post.Slug}}" />{{end}}
 {{define "meta-description"}}<meta name="description" content="{{.OGDescription}}" />{{end}}
 {{define "og-meta"}}
     <meta property="og:type" content="article" />

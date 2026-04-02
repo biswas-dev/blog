@@ -1,3 +1,33 @@
+{{define "page-title"}}{{.Guide.Title}} | Anshuman Biswas{{end}}
+{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/guides/{{.Guide.Slug}}" />{{end}}
+{{define "meta-description"}}<meta name="description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}} — a comprehensive guide by Anshuman Biswas{{end}}" />{{end}}
+{{define "og-meta"}}
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anshuman Biswas" />
+    <meta property="og:title" content="{{.Guide.Title}}" />
+    <meta property="og:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
+    {{if .FullURL}}<meta property="og:url" content="{{.FullURL}}" />{{end}}
+    {{if .Guide.FeaturedImageURL}}<meta property="og:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
+    <meta name="twitter:card" content="{{if .Guide.FeaturedImageURL}}summary_large_image{{else}}summary{{end}}" />
+    <meta name="twitter:title" content="{{.Guide.Title}}" />
+    <meta name="twitter:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
+    {{if .Guide.FeaturedImageURL}}<meta name="twitter:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
+{{end}}
+{{define "head-extra"}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{.Guide.Title}}",
+  "author": {"@type": "Person", "name": "{{.Guide.AuthorDisplayName}}"},
+  "datePublished": "{{.Guide.CreatedAt}}",
+  "dateModified": "{{if .Guide.UpdatedAt}}{{.Guide.UpdatedAt}}{{else}}{{.Guide.CreatedAt}}{{end}}",
+  "description": "{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}",
+  "url": "{{.FullURL}}"{{if .Guide.FeaturedImageURL}},
+  "image": "{{.Guide.FeaturedImageURL}}"{{end}}
+}
+</script>
+{{end}}
 {{template "modern-header" .}}
 
 <style>

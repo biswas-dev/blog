@@ -173,6 +173,9 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
+	// robots.txt — crawler directives
+	r.Get("/robots.txt", robotsTxtHandler())
+
 	// Version endpoint — token-protected, rich response matching pingrly format
 	r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
 		tok := os.Getenv("VERSION_TOKEN")
@@ -294,6 +297,9 @@ func main() {
 
 	// Initialize GuideService (early, needed by Users controller)
 	guideService := models.GuideService{DB: DB}
+
+	// sitemap.xml — dynamic XML sitemap (depends on post/slide/guide/category services)
+	r.Get("/sitemap.xml", sitemapHandler(&postService, &slideService, &guideService, &categoryService))
 
 	slideVersionService := &models.SlideVersionService{DB: DB}
 
@@ -639,6 +645,9 @@ func main() {
 	r.Get("/admin/analytics", analyticsC.Dashboard)
 	r.Get("/api/admin/analytics", analyticsC.GetAnalyticsJSON)
 	r.Get("/api/admin/analytics/visitor", analyticsC.GetVisitorDetail)
+
+	// Crawler Analytics Route (admin)
+	r.Get("/api/admin/analytics/crawlers", crawlerStatsHandler(analyticsService, &sessionService))
 
 	// Engagement Management Routes (admin)
 	r.Get("/api/admin/engagement", analyticsC.GetEngagementJSON)
@@ -1765,4 +1774,152 @@ func xmlEscape(s string) string {
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	s = strings.ReplaceAll(s, "'", "&apos;")
 	return s
+}
+
+// robotsTxtHandler returns the robots.txt content for crawlers.
+func robotsTxtHandler() http.HandlerFunc {
+	body := `User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /signin
+Disallow: /signup
+Disallow: /draw/*/edit
+
+Sitemap: https://anshumanbiswas.com/sitemap.xml
+
+# AI Crawlers Welcome
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+`
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(headerContentType, "text/plain; charset=utf-8")
+		w.Header().Set(headerCacheCtrl, "public, max-age=86400")
+		w.Write([]byte(body))
+	}
+}
+
+// sitemapHandler dynamically generates an XML sitemap from published content.
+func sitemapHandler(
+	ps *models.PostService,
+	ss *models.SlideService,
+	gs *models.GuideService,
+	cs *models.CategoryService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const baseURL = "https://anshumanbiswas.com"
+		now := time.Now().Format("2006-01-02")
+
+		w.Header().Set(headerContentType, "application/xml; charset=utf-8")
+		w.Header().Set(headerCacheCtrl, "public, max-age=3600")
+
+		fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+`)
+		// Home page
+		fmt.Fprintf(w, "  <url><loc>%s/</loc><lastmod>%s</lastmod><priority>1.0</priority></url>\n", baseURL, now)
+
+		// Static pages
+		for _, page := range []struct {
+			path     string
+			priority string
+		}{
+			{"/about", "0.6"},
+			{"/guides", "0.7"},
+			{"/slides", "0.7"},
+		} {
+			fmt.Fprintf(w, "  <url><loc>%s%s</loc><lastmod>%s</lastmod><priority>%s</priority></url>\n",
+				baseURL, page.path, now, page.priority)
+		}
+
+		// Published blog posts
+		if posts, err := ps.GetTopPostsWithPagination(1000, 0); err == nil && posts != nil {
+			for _, p := range posts.Posts {
+				if !p.IsPublished {
+					continue
+				}
+				lastmod := p.CreatedAt
+				if p.LastEditDate != "" {
+					lastmod = p.LastEditDate
+				}
+				fmt.Fprintf(w, "  <url><loc>%s/blog/%s</loc><lastmod>%s</lastmod><priority>0.8</priority></url>\n",
+					baseURL, xmlEscape(p.Slug), xmlEscape(lastmod))
+			}
+		}
+
+		// Published slides
+		if slides, err := ss.GetPublishedSlides(); err == nil && slides != nil {
+			for _, s := range slides.Slides {
+				lastmod := s.CreatedAt
+				if s.UpdatedAt != "" {
+					lastmod = s.UpdatedAt
+				}
+				fmt.Fprintf(w, "  <url><loc>%s/slides/%s</loc><lastmod>%s</lastmod><priority>0.7</priority></url>\n",
+					baseURL, xmlEscape(s.Slug), xmlEscape(lastmod))
+			}
+		}
+
+		// Published guides
+		if guides, err := gs.GetPublishedGuides(); err == nil && guides != nil {
+			for _, g := range guides.Guides {
+				lastmod := g.CreatedAt
+				if g.UpdatedAt != "" {
+					lastmod = g.UpdatedAt
+				}
+				fmt.Fprintf(w, "  <url><loc>%s/guides/%s</loc><lastmod>%s</lastmod><priority>0.8</priority></url>\n",
+					baseURL, xmlEscape(g.Slug), xmlEscape(lastmod))
+			}
+		}
+
+		// Tag pages
+		if cats, err := cs.GetAll(); err == nil {
+			for _, c := range cats {
+				fmt.Fprintf(w, "  <url><loc>%s/tags/%s</loc><lastmod>%s</lastmod><priority>0.5</priority></url>\n",
+					baseURL, xmlEscape(c.Name), now)
+			}
+		}
+
+		fmt.Fprint(w, "</urlset>\n")
+	}
+}
+
+// crawlerStatsHandler returns crawler analytics data (admin-only).
+func crawlerStatsHandler(analyticsService *models.AnalyticsService, sessionService *models.SessionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := utils.IsUserLoggedIn(r, sessionService)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !models.CanViewAdminPanel(user.Role) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		period := r.URL.Query().Get("period")
+		if period == "" {
+			period = "30d"
+		}
+
+		stats, err := analyticsService.GetCrawlerStats(period)
+		if err != nil {
+			http.Error(w, "Failed to get crawler stats", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set(headerContentType, "application/json")
+		json.NewEncoder(w).Encode(stats)
+	}
 }

@@ -29,6 +29,7 @@ type PageView struct {
 	Referrer    string
 	UserID      *int
 	ContentType string // "page", "slide", "other"
+	CrawlerType string // e.g. "GoogleBot", "GPTBot", "" for humans
 }
 
 // AnalyticsSummary is the response for the dashboard API
@@ -99,6 +100,14 @@ type BrowserStat struct {
 	Name    string  `json:"name"`
 	Count   int64   `json:"count"`
 	Percent float64 `json:"percent"`
+}
+
+// CrawlerStat represents aggregated stats for a single crawler type
+type CrawlerStat struct {
+	CrawlerType string `json:"crawler_type"`
+	Requests    int64  `json:"requests"`
+	UniquePaths int64  `json:"unique_paths"`
+	LastSeen    string `json:"last_seen"`
 }
 
 // LiveStats returns today's real-time counts
@@ -213,17 +222,17 @@ func (s *AnalyticsService) flushBatch(batch []PageView) {
 	}
 
 	var b strings.Builder
-	b.WriteString("INSERT INTO page_views (viewed_at, ip_address, path, user_agent, referrer, user_id, content_type) VALUES ")
+	b.WriteString("INSERT INTO page_views (viewed_at, ip_address, path, user_agent, referrer, user_id, content_type, crawler_type) VALUES ")
 
-	args := make([]interface{}, 0, len(batch)*7)
+	args := make([]interface{}, 0, len(batch)*8)
 	for i, pv := range batch {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		base := i * 7
-		fmt.Fprintf(&b, "($%d, $%d::inet, $%d, $%d, $%d, $%d, $%d)",
-			base+1, base+2, base+3, base+4, base+5, base+6, base+7)
-		args = append(args, pv.ViewedAt, pv.IPAddress, pv.Path, pv.UserAgent, pv.Referrer, pv.UserID, pv.ContentType)
+		base := i * 8
+		fmt.Fprintf(&b, "($%d, $%d::inet, $%d, $%d, $%d, $%d, $%d, $%d)",
+			base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8)
+		args = append(args, pv.ViewedAt, pv.IPAddress, pv.Path, pv.UserAgent, pv.Referrer, pv.UserID, pv.ContentType, pv.CrawlerType)
 	}
 
 	_, err := s.db.Exec(b.String(), args...)
@@ -857,4 +866,81 @@ func parsePeriodDays(period string) int {
 	default:
 		return 30
 	}
+}
+
+// GetCrawlerStats returns crawler activity stats grouped by crawler_type for the given period
+func (s *AnalyticsService) GetCrawlerStats(period string) ([]CrawlerStat, error) {
+	days := parsePeriodDays(period)
+	since := time.Now().AddDate(0, 0, -days).Format(dateFormat)
+
+	rows, err := s.db.Query(`
+		SELECT crawler_type,
+			COUNT(*) AS requests,
+			COUNT(DISTINCT path) AS unique_paths,
+			MAX(viewed_at)::text AS last_seen
+		FROM page_views
+		WHERE viewed_at >= $1::date
+			AND crawler_type != ''
+		GROUP BY crawler_type
+		ORDER BY requests DESC`, since)
+	if err != nil {
+		return nil, fmt.Errorf("crawler stats query: %w", err)
+	}
+	defer rows.Close()
+
+	var stats []CrawlerStat
+	for rows.Next() {
+		var cs CrawlerStat
+		if err := rows.Scan(&cs.CrawlerType, &cs.Requests, &cs.UniquePaths, &cs.LastSeen); err != nil {
+			return nil, fmt.Errorf("crawler stats scan: %w", err)
+		}
+		stats = append(stats, cs)
+	}
+	return stats, nil
+}
+
+// ClassifyCrawler identifies the crawler type from a User-Agent string.
+// Returns an empty string if the User-Agent does not match any known crawler.
+func ClassifyCrawler(ua string) string {
+	ua = strings.ToLower(ua)
+	// Search engines
+	if strings.Contains(ua, "googlebot") {
+		return "GoogleBot"
+	}
+	if strings.Contains(ua, "bingbot") {
+		return "BingBot"
+	}
+	if strings.Contains(ua, "yandexbot") {
+		return "YandexBot"
+	}
+	if strings.Contains(ua, "baiduspider") {
+		return "BaiduSpider"
+	}
+	if strings.Contains(ua, "duckduckbot") {
+		return "DuckDuckBot"
+	}
+	// LLM crawlers
+	if strings.Contains(ua, "claudebot") || strings.Contains(ua, "anthropic") {
+		return "ClaudeBot"
+	}
+	if strings.Contains(ua, "gptbot") || strings.Contains(ua, "chatgpt") {
+		return "GPTBot"
+	}
+	if strings.Contains(ua, "google-extended") {
+		return "Google-Extended"
+	}
+	if strings.Contains(ua, "perplexitybot") {
+		return "PerplexityBot"
+	}
+	if strings.Contains(ua, "amazonbot") {
+		return "AmazonBot"
+	}
+	if strings.Contains(ua, "cohere-ai") {
+		return "CohereBot"
+	}
+	// Generic bots
+	if strings.Contains(ua, "bot") || strings.Contains(ua, "crawl") || strings.Contains(ua, "spider") || strings.Contains(ua, "scrape") {
+		return "Other Bot"
+	}
+	return ""
 }

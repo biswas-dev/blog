@@ -60,6 +60,7 @@ func TrackingMiddleware(analyticsService *models.AnalyticsService, sessionServic
 				Referrer:    r.Referer(),
 				UserID:      userID,
 				ContentType: models.ContentTypeForPath(path),
+				CrawlerType: models.ClassifyCrawler(r.UserAgent()),
 			}
 
 			analyticsService.Record(pv)
