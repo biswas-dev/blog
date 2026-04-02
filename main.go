@@ -153,12 +153,19 @@ func main() {
 		logger.Error().Err(err).Msg("failed to load IP rules into cache")
 	}
 
+	// Initialize crawler rules service
+	crawlerRuleService, err := models.NewCrawlerRuleService(DB)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to initialize crawler rules service")
+	}
+
 	// BanMiddleware MUST be registered before TrackingMiddleware so banned IPs
 	// are blocked before any page view is recorded.
 	r.Use(authmw.BanMiddleware(ipBanCache))
 
 	// Page view tracking middleware (records after response, zero latency)
-	r.Use(authmw.TrackingMiddleware(analyticsService, &sessionService))
+	// Also enforces crawler blocking rules.
+	r.Use(authmw.TrackingMiddleware(analyticsService, &sessionService, crawlerRuleService))
 
 	// Initialize SystemService (before version endpoint which uses it)
 	systemService := models.NewSystemService(DB, "migrations", startTime)
@@ -648,6 +655,12 @@ func main() {
 
 	// Crawler Analytics Route (admin)
 	r.Get("/api/admin/analytics/crawlers", crawlerStatsHandler(analyticsService, &sessionService))
+
+	// Crawler Rules Management Routes (admin)
+	r.Get("/api/admin/crawlers/rules", crawlerRulesListHandler(crawlerRuleService, &sessionService))
+	r.Post("/api/admin/crawlers/rules", crawlerRulesCreateHandler(crawlerRuleService, &sessionService))
+	r.Put("/api/admin/crawlers/rules/{id}", crawlerRulesUpdateHandler(crawlerRuleService, &sessionService))
+	r.Delete("/api/admin/crawlers/rules/{id}", crawlerRulesDeleteHandler(crawlerRuleService, &sessionService))
 
 	// Engagement Management Routes (admin)
 	r.Get("/api/admin/engagement", analyticsC.GetEngagementJSON)
@@ -1921,5 +1934,154 @@ func crawlerStatsHandler(analyticsService *models.AnalyticsService, sessionServi
 
 		w.Header().Set(headerContentType, "application/json")
 		json.NewEncoder(w).Encode(stats)
+	}
+}
+
+// crawlerRulesListHandler returns all crawler rules (admin-only).
+func crawlerRulesListHandler(service *models.CrawlerRuleService, sessionService *models.SessionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := utils.IsUserLoggedIn(r, sessionService)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !models.CanViewAdminPanel(user.Role) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		rules, err := service.GetAll()
+		if err != nil {
+			http.Error(w, "Failed to get crawler rules", http.StatusInternalServerError)
+			return
+		}
+		if rules == nil {
+			rules = []models.CrawlerRule{}
+		}
+
+		w.Header().Set(headerContentType, "application/json")
+		json.NewEncoder(w).Encode(rules)
+	}
+}
+
+// crawlerRulesCreateHandler creates a new crawler rule (admin-only).
+func crawlerRulesCreateHandler(service *models.CrawlerRuleService, sessionService *models.SessionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := utils.IsUserLoggedIn(r, sessionService)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !models.CanViewAdminPanel(user.Role) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		var body struct {
+			CrawlerPattern string `json:"crawler_pattern"`
+			Action         string `json:"action"`
+			TimeStart      *int   `json:"time_start"`
+			TimeEnd        *int   `json:"time_end"`
+			Reason         string `json:"reason"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if body.CrawlerPattern == "" {
+			http.Error(w, "crawler_pattern is required", http.StatusBadRequest)
+			return
+		}
+		if body.Action == "" {
+			body.Action = "allow"
+		}
+		if body.Action != "allow" && body.Action != "block" && body.Action != "time_restrict" {
+			http.Error(w, "action must be allow, block, or time_restrict", http.StatusBadRequest)
+			return
+		}
+
+		if err := service.Create(body.CrawlerPattern, body.Action, body.TimeStart, body.TimeEnd, body.Reason); err != nil {
+			http.Error(w, "Failed to create rule", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		w.Header().Set(headerContentType, "application/json")
+		fmt.Fprint(w, `{"ok":true}`)
+	}
+}
+
+// crawlerRulesUpdateHandler updates an existing crawler rule (admin-only).
+func crawlerRulesUpdateHandler(service *models.CrawlerRuleService, sessionService *models.SessionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := utils.IsUserLoggedIn(r, sessionService)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !models.CanViewAdminPanel(user.Role) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		idStr := chi.URLParam(r, "id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid ID", http.StatusBadRequest)
+			return
+		}
+
+		var body struct {
+			Action    string `json:"action"`
+			TimeStart *int   `json:"time_start"`
+			TimeEnd   *int   `json:"time_end"`
+			Reason    string `json:"reason"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if body.Action != "allow" && body.Action != "block" && body.Action != "time_restrict" {
+			http.Error(w, "action must be allow, block, or time_restrict", http.StatusBadRequest)
+			return
+		}
+
+		if err := service.Update(id, body.Action, body.TimeStart, body.TimeEnd, body.Reason); err != nil {
+			http.Error(w, "Failed to update rule", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set(headerContentType, "application/json")
+		fmt.Fprint(w, `{"ok":true}`)
+	}
+}
+
+// crawlerRulesDeleteHandler deletes a crawler rule (admin-only).
+func crawlerRulesDeleteHandler(service *models.CrawlerRuleService, sessionService *models.SessionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := utils.IsUserLoggedIn(r, sessionService)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !models.CanViewAdminPanel(user.Role) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		idStr := chi.URLParam(r, "id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid ID", http.StatusBadRequest)
+			return
+		}
+
+		if err := service.Delete(id); err != nil {
+			http.Error(w, "Failed to delete rule", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set(headerContentType, "application/json")
+		fmt.Fprint(w, `{"ok":true}`)
 	}
 }

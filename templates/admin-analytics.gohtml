@@ -656,6 +656,84 @@
             </div>
         </div>
 
+        <!-- Crawlers & Bots -->
+        <div class="sys-card" style="margin-top: 24px; border-color: rgba(139,92,246,0.3);">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-purple">
+                    {{icon "globe" "w-4 h-4"}}
+                </div>
+                <div>
+                    <h3>Crawlers &amp; Bots</h3>
+                    <p style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 0;">Crawler traffic stats and access rules</p>
+                </div>
+            </div>
+            <!-- Tabs -->
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--border-light);padding:0 20px;">
+                <button id="cr-tab-stats" onclick="crShowTab('stats')"
+                    style="padding:10px 16px;border:none;border-bottom:2px solid var(--accent);background:transparent;color:var(--text-primary);font-size:0.8125rem;font-weight:600;cursor:pointer;">
+                    Crawler Stats
+                </button>
+                <button id="cr-tab-rules" onclick="crShowTab('rules')"
+                    style="padding:10px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-secondary);font-size:0.8125rem;font-weight:500;cursor:pointer;">
+                    Access Rules <span id="cr-rules-count" style="font-size:0.75rem;color:var(--text-secondary);margin-left:4px;"></span>
+                </button>
+            </div>
+            <!-- Crawler Stats panel -->
+            <div id="cr-stats-panel" style="padding:0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Crawler</th><th style="text-align:right">Requests</th><th style="text-align:right">Unique Paths</th><th>Last Seen</th></tr></thead>
+                    <tbody id="cr-stats-body">
+                        <tr><td colspan="4" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Crawler Rules panel -->
+            <div id="cr-rules-panel" style="display:none;padding:0;">
+                <!-- Add Rule Form -->
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border-light);display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+                    <div>
+                        <label style="display:block;font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">Crawler Pattern</label>
+                        <input id="cr-new-pattern" type="text" placeholder="e.g. GPTBot, ClaudeBot"
+                            style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;width:160px;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">Action</label>
+                        <select id="cr-new-action" onchange="crToggleTimeInputs()"
+                            style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;">
+                            <option value="allow">Allow</option>
+                            <option value="block">Block</option>
+                            <option value="time_restrict">Time Restrict</option>
+                        </select>
+                    </div>
+                    <div id="cr-time-inputs" style="display:none;">
+                        <label style="display:block;font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">Block Hours (UTC)</label>
+                        <div style="display:flex;gap:4px;align-items:center;">
+                            <input id="cr-new-time-start" type="number" min="0" max="23" placeholder="0"
+                                style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;width:60px;">
+                            <span style="color:var(--text-secondary);font-size:0.8125rem;">to</span>
+                            <input id="cr-new-time-end" type="number" min="0" max="23" placeholder="23"
+                                style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;width:60px;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">Reason</label>
+                        <input id="cr-new-reason" type="text" placeholder="Optional reason"
+                            style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;width:160px;">
+                    </div>
+                    <button onclick="crCreateRule()"
+                        style="padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:0.8125rem;font-weight:600;cursor:pointer;height:32px;">
+                        Add Rule
+                    </button>
+                </div>
+                <table class="analytics-table">
+                    <thead><tr><th>Pattern</th><th>Action</th><th>Time Window</th><th>Reason</th><th style="text-align:right">Actions</th></tr></thead>
+                    <tbody id="cr-rules-body">
+                        <tr><td colspan="5" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Native confirm dialog -->
         <dialog id="susp-confirm-dialog">
             <p id="susp-confirm-msg"></p>
@@ -1100,6 +1178,7 @@
             this.classList.add('active');
             currentPeriod = this.dataset.period;
             loadData(currentPeriod);
+            loadCrawlerData();
         });
     });
 
@@ -1501,6 +1580,158 @@
             alert('Failed to delete record');
         }
     };
+
+    // ─── Crawlers & Bots ───────────────────────────────────────────────
+    function crShowTab(tab) {
+        const statsPanel = document.getElementById('cr-stats-panel');
+        const rulesPanel = document.getElementById('cr-rules-panel');
+        const tabStats = document.getElementById('cr-tab-stats');
+        const tabRules = document.getElementById('cr-tab-rules');
+        if (tab === 'stats') {
+            statsPanel.style.display = '';
+            rulesPanel.style.display = 'none';
+            tabStats.style.borderBottomColor = 'var(--accent)';
+            tabStats.style.color = 'var(--text-primary)';
+            tabStats.style.fontWeight = '600';
+            tabRules.style.borderBottomColor = 'transparent';
+            tabRules.style.color = 'var(--text-secondary)';
+            tabRules.style.fontWeight = '500';
+        } else {
+            statsPanel.style.display = 'none';
+            rulesPanel.style.display = '';
+            tabRules.style.borderBottomColor = 'var(--accent)';
+            tabRules.style.color = 'var(--text-primary)';
+            tabRules.style.fontWeight = '600';
+            tabStats.style.borderBottomColor = 'transparent';
+            tabStats.style.color = 'var(--text-secondary)';
+            tabStats.style.fontWeight = '500';
+        }
+    }
+    window.crShowTab = crShowTab;
+
+    function crToggleTimeInputs() {
+        const action = document.getElementById('cr-new-action').value;
+        document.getElementById('cr-time-inputs').style.display = action === 'time_restrict' ? '' : 'none';
+    }
+    window.crToggleTimeInputs = crToggleTimeInputs;
+
+    function crawlerColor(type) {
+        const t = type.toLowerCase();
+        if (t.includes('google') || t.includes('bing') || t.includes('duckduck') || t.includes('yandex') || t.includes('baidu')) {
+            return '#16a34a'; // green for search engines
+        }
+        if (t.includes('claude') || t.includes('gpt') || t.includes('perplexity') || t.includes('cohere') || t.includes('amazon')) {
+            return '#8b5cf6'; // purple for LLM
+        }
+        return '#6b7280'; // gray for others
+    }
+
+    function actionBadge(action) {
+        const styles = {
+            allow: 'background:rgba(22,163,74,0.1);color:#16a34a;',
+            block: 'background:rgba(239,68,68,0.1);color:#ef4444;',
+            time_restrict: 'background:rgba(217,119,6,0.1);color:#d97706;',
+        };
+        const labels = { allow: 'Allow', block: 'Block', time_restrict: 'Time Restrict' };
+        return '<span style="padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;' + (styles[action] || '') + '">' + (labels[action] || action) + '</span>';
+    }
+
+    function renderCrawlerStats(stats) {
+        const body = document.getElementById('cr-stats-body');
+        if (!stats || stats.length === 0) {
+            body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.8125rem;">No crawler activity found</td></tr>';
+            return;
+        }
+        body.innerHTML = stats.map(s => {
+            const color = crawlerColor(s.crawler_type);
+            return '<tr>'
+                + '<td><span style="color:' + color + ';font-weight:600;">' + s.crawler_type + '</span></td>'
+                + '<td class="num">' + s.requests.toLocaleString() + '</td>'
+                + '<td class="num">' + s.unique_paths.toLocaleString() + '</td>'
+                + '<td style="font-size:0.8rem;color:var(--text-secondary);">' + (s.last_seen || '').replace('T', ' ').substring(0, 19) + '</td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    function renderCrawlerRules(rules) {
+        const body = document.getElementById('cr-rules-body');
+        const countEl = document.getElementById('cr-rules-count');
+        countEl.textContent = rules.length > 0 ? '(' + rules.length + ')' : '';
+        if (!rules || rules.length === 0) {
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.8125rem;">No rules defined — all crawlers allowed by default</td></tr>';
+            return;
+        }
+        body.innerHTML = rules.map(r => {
+            let timeWindow = '—';
+            if (r.action === 'time_restrict' && r.time_start !== null && r.time_end !== null) {
+                timeWindow = r.time_start + ':00 – ' + r.time_end + ':00 UTC';
+            }
+            return '<tr>'
+                + '<td style="font-weight:600;">' + r.crawler_pattern + '</td>'
+                + '<td>' + actionBadge(r.action) + '</td>'
+                + '<td style="font-size:0.8rem;color:var(--text-secondary);">' + timeWindow + '</td>'
+                + '<td style="font-size:0.8rem;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + (r.reason || '—') + '</td>'
+                + '<td style="text-align:right;white-space:nowrap;">'
+                + '<button onclick="crDeleteRule(' + r.id + ')" style="padding:3px 10px;border-radius:5px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;font-size:0.75rem;cursor:pointer;">Delete</button>'
+                + '</td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    async function loadCrawlerData() {
+        try {
+            const [statsResp, rulesResp] = await Promise.all([
+                fetch('/api/admin/analytics/crawlers?period=' + currentPeriod),
+                fetch('/api/admin/crawlers/rules'),
+            ]);
+            if (statsResp.ok) renderCrawlerStats(await statsResp.json());
+            if (rulesResp.ok) renderCrawlerRules(await rulesResp.json());
+        } catch(e) { /* ignore */ }
+    }
+
+    window.crCreateRule = async function() {
+        const pattern = document.getElementById('cr-new-pattern').value.trim();
+        const action = document.getElementById('cr-new-action').value;
+        const reason = document.getElementById('cr-new-reason').value.trim();
+        if (!pattern) { alert('Crawler pattern is required'); return; }
+
+        const body = { crawler_pattern: pattern, action: action, reason: reason };
+        if (action === 'time_restrict') {
+            const startVal = document.getElementById('cr-new-time-start').value;
+            const endVal = document.getElementById('cr-new-time-end').value;
+            if (startVal !== '' && endVal !== '') {
+                body.time_start = parseInt(startVal, 10);
+                body.time_end = parseInt(endVal, 10);
+            }
+        }
+
+        const res = await fetch('/api/admin/crawlers/rules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (res.ok) {
+            document.getElementById('cr-new-pattern').value = '';
+            document.getElementById('cr-new-reason').value = '';
+            document.getElementById('cr-new-time-start').value = '';
+            document.getElementById('cr-new-time-end').value = '';
+            loadCrawlerData();
+        } else {
+            alert('Failed to create rule: ' + await res.text());
+        }
+    };
+
+    window.crDeleteRule = async function(id) {
+        if (!await suspConfirm('Delete this crawler rule?')) return;
+        const res = await fetch('/api/admin/crawlers/rules/' + id, { method: 'DELETE' });
+        if (res.ok) {
+            loadCrawlerData();
+        } else {
+            alert('Failed to delete rule');
+        }
+    };
+
+    loadCrawlerData();
 
     loadEngagement();
     loadSlug404s();
