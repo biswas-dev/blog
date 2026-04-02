@@ -1,18 +1,19 @@
 # CI/CD Pipeline for Blog (anshumanbiswas.com)
 #
-# Supports multiple runner backends, controlled via GitHub repo variables:
-#   CI_RUNNER  — 'self-hosted' (default) or 'ubuntu-latest'
-#   CI_ENABLED — 'true' (default) or 'false' to disable GitHub Actions entirely
+# Native multi-arch builds on self-hosted runners — no cross-compilation.
+# Push to main builds ARM64 + x64 images in parallel, pushes both to Harbor,
+# then auto-deploys staging (ARM64). Promoting to prod uses the already-built
+# x64 image from Harbor (no rebuild needed).
 #
-# When using Travis CI instead, set CI_ENABLED=false and enable Travis from its dashboard.
-# BuildMe can toggle these via GitHub API:
-#   gh variable set CI_RUNNER  --body "self-hosted"    -R anchoo2kewl/blog
-#   gh variable set CI_ENABLED --body "true"           -R anchoo2kewl/blog
+# Runners:
+#   ARM64 runner: Staging server (129.213.82.37) — labels: self-hosted, Linux, ARM64
+#   x64 runner:   Prod server (31.97.102.48) — labels: self-hosted, Linux, X64, prod
+#   x64 runner:   UAT server (92.4.83.28) — labels: self-hosted, Linux, X64, uat
 #
 # Flow:
-#   main push       → test → sonarqube → build image → push Harbor → deploy staging
-#   uat push        → promote staging digest → deploy UAT (optional)
-#   production push → promote staging digest → deploy production
+#   main push       → test → build ARM64 + x64 (parallel) → deploy staging (ARM64)
+#   uat push        → deploy UAT using arm64-latest from Harbor
+#   production push → deploy prod using x64-latest from Harbor
 #
 # Required secrets:
 #   HARBOR_AUTH                   — base64("username:password") for Harbor registry
@@ -137,10 +138,10 @@ jobs:
             -Dsonar.token="$SONAR_TOKEN" \
             -Dsonar.projectVersion="$(git describe --tags --always 2>/dev/null || echo dev)"
 
-  # ── Build & Push Docker Images (main only) ─────────────────────────────
-  build-images:
-    name: "Build & Push Docker Images"
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+  # ── Build ARM64 Image (native on ARM64 runner) ─────────────────────────
+  build-arm64:
+    name: "Build ARM64 Image"
+    runs-on: [self-hosted, Linux, ARM64]
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     outputs:
@@ -149,22 +150,79 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up QEMU for multi-arch builds
-        run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes 2>/dev/null || true
-
-      - name: Build and push
+      - name: Build and push to Harbor
         id: build
         env:
           HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
         run: |
-          bash deployment/scripts/travis-build-images.sh
-          echo "digest=$(cat .image-digest.txt)" >> "$GITHUB_OUTPUT"
+          TAG="arm64-${GITHUB_SHA::7}"
+          IMAGE="harbor.biswas.me/biswas/blog"
 
-  # ── Deploy Staging ─────────────────────────────────────────────────────
+          # Docker login to Harbor
+          echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1 > /tmp/.hu
+          echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2 > /tmp/.hp
+          docker login harbor.biswas.me -u "$(cat /tmp/.hu)" -p "$(cat /tmp/.hp)"
+          rm -f /tmp/.hu /tmp/.hp
+
+          # Native build (no cross-compilation)
+          docker build --cache-from "$IMAGE:arm64-latest" -t "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
+
+          # Capture digest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$TAG" | cut -d@ -f2)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+          # Tag as arm64-latest
+          docker tag "$IMAGE:$TAG" "$IMAGE:arm64-latest"
+          docker push "$IMAGE:arm64-latest"
+
+          echo "Built and pushed $IMAGE:$TAG (ARM64) digest=$DIGEST"
+
+  # ── Build x64 Image (native on x64 runner) ───────────────────────────
+  build-x64:
+    name: "Build x64 Image"
+    runs-on: [self-hosted, Linux, X64, prod]
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push to Harbor
+        id: build
+        env:
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+        run: |
+          TAG="x64-${GITHUB_SHA::7}"
+          IMAGE="harbor.biswas.me/biswas/blog"
+
+          # Docker login to Harbor
+          echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1 > /tmp/.hu
+          echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2 > /tmp/.hp
+          docker login harbor.biswas.me -u "$(cat /tmp/.hu)" -p "$(cat /tmp/.hp)"
+          rm -f /tmp/.hu /tmp/.hp
+
+          # Native build (no cross-compilation)
+          docker build --cache-from "$IMAGE:x64-latest" -t "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
+
+          # Capture digest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$TAG" | cut -d@ -f2)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+          # Tag as x64-latest
+          docker tag "$IMAGE:$TAG" "$IMAGE:x64-latest"
+          docker push "$IMAGE:x64-latest"
+
+          echo "Built and pushed $IMAGE:$TAG (x64) digest=$DIGEST"
+
+  # ── Deploy Staging (ARM64) ─────────────────────────────────────────────
   deploy-staging:
     name: "Deploy to Staging"
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
-    needs: build-images
+    runs-on: [self-hosted, Linux, ARM64]
+    needs: build-arm64
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: staging
 
@@ -173,7 +231,6 @@ jobs:
 
       - name: Deploy to staging
         env:
-          # Pass raw PEM key — travis-deploy.sh auto-detects PEM vs base64
           STAGING_SSH_KEY_BASE64: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
           HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
           BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
@@ -186,14 +243,15 @@ jobs:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          IMAGE_DIGEST: ${{ needs.build-arm64.outputs.digest }}
         run: |
-          echo "${{ needs.build-images.outputs.digest }}" > .image-digest.txt
+          echo "$IMAGE_DIGEST" > .image-digest.txt
           bash deployment/scripts/travis-deploy.sh staging
 
-  # ── Promote & Deploy UAT ───────────────────────────────────────────────
-  promote-deploy-uat:
-    name: "Promote & Deploy to UAT"
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+  # ── Deploy UAT (ARM64, optional) ───────────────────────────────────────
+  deploy-uat:
+    name: "Deploy to UAT"
+    runs-on: [self-hosted, Linux, ARM64]
     if: |
       (vars.CI_ENABLED || 'true') == 'true' &&
       github.ref == 'refs/heads/uat' && github.event_name == 'push'
@@ -202,7 +260,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Promote and deploy
+      - name: Deploy using arm64-latest image from Harbor
         env:
           UAT_SSH_KEY_BASE64: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
           HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
@@ -216,12 +274,14 @@ jobs:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
-        run: bash deployment/scripts/travis-deploy.sh uat
+        run: |
+          # No digest file — deploy script falls back to Harbor API lookup
+          bash deployment/scripts/travis-deploy.sh uat
 
-  # ── Promote & Deploy Production ────────────────────────────────────────
-  promote-deploy-production:
-    name: "Promote & Deploy to Production"
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+  # ── Deploy Production (x64) ────────────────────────────────────────────
+  deploy-production:
+    name: "Deploy to Production"
+    runs-on: [self-hosted, Linux, X64, prod]
     if: |
       (vars.CI_ENABLED || 'true') == 'true' &&
       github.ref == 'refs/heads/production' && github.event_name == 'push'
@@ -230,7 +290,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Promote and deploy
+      - name: Deploy using x64-latest image from Harbor
         env:
           PRODUCTION_SSH_KEY_BASE64: ${{ secrets.SSH_PRIVATE_KEY }}
           HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
@@ -244,4 +304,6 @@ jobs:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
-        run: bash deployment/scripts/travis-deploy.sh production
+        run: |
+          # No digest file — deploy script falls back to Harbor API lookup
+          bash deployment/scripts/travis-deploy.sh production
