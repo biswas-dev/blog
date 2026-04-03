@@ -275,7 +275,13 @@ jobs:
           DD_SITE: ${{ secrets.DD_SITE }}
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
         run: |
-          # No digest file — deploy script falls back to Harbor API lookup
+          # UAT is ARM64 — use arm64-latest digest directly
+          HARBOR_USER=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
+          HARBOR_PASS=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
+          DIGEST=$(curl -sf -u "$HARBOR_USER:$HARBOR_PASS" \
+            "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3Darm64-latest" \
+            | jq -r '.[0].digest')
+          echo "$DIGEST" > .image-digest.txt
           bash deployment/scripts/travis-deploy.sh uat
 
   # ── Deploy Production (x64) ────────────────────────────────────────────
@@ -305,5 +311,11 @@ jobs:
           DD_SITE: ${{ secrets.DD_SITE }}
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
         run: |
-          # No digest file — deploy script falls back to Harbor API lookup
+          # Production is x64 — use x64-latest digest directly
+          HARBOR_USER=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
+          HARBOR_PASS=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
+          DIGEST=$(curl -sf -u "$HARBOR_USER:$HARBOR_PASS" \
+            "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3Dx64-latest" \
+            | jq -r '.[0].digest')
+          echo "$DIGEST" > .image-digest.txt
           bash deployment/scripts/travis-deploy.sh production

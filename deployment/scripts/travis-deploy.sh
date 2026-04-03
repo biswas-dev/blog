@@ -67,20 +67,19 @@ HARBOR_USERNAME=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
 HARBOR_PASSWORD=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
 
 # Determine image digest
-if [ -n "$PROMOTE_FROM" ]; then
+# .image-digest.txt takes priority (set by GHA workflow with correct arch digest)
+if [ -f .image-digest.txt ]; then
+  IMAGE_DIGEST=$(cat .image-digest.txt)
+  echo "Using digest from .image-digest.txt: $IMAGE_DIGEST"
+elif [ -n "$PROMOTE_FROM" ]; then
   # UAT/Production: promote from previous environment
   echo "=== Promoting blog image: $PROMOTE_FROM -> $ENV ==="
   IMAGE_DIGEST=$(bash deployment/scripts/harbor-promote.sh biswas blog "$PROMOTE_FROM" "$ENV")
 else
-  # Staging: use digest from build stage (shared via Travis workspace)
-  if [ -f .image-digest.txt ]; then
-    IMAGE_DIGEST=$(cat .image-digest.txt)
-  else
-    # Fallback: look up staging-latest from Harbor API
-    IMAGE_DIGEST=$(curl -sf -u "$HARBOR_USERNAME:$HARBOR_PASSWORD" \
-      "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3Dstaging-latest" \
-      | jq -r '.[0].digest')
-  fi
+  # Fallback: look up staging-latest from Harbor API
+  IMAGE_DIGEST=$(curl -sf -u "$HARBOR_USERNAME:$HARBOR_PASSWORD" \
+    "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3Dstaging-latest" \
+    | jq -r '.[0].digest')
 fi
 
 if [ -z "$IMAGE_DIGEST" ] || [ "$IMAGE_DIGEST" = "null" ]; then
