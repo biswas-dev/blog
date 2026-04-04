@@ -12,8 +12,8 @@
     <meta name="twitter:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
     {{if .Guide.FeaturedImageURL}}<meta name="twitter:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
 {{end}}
+{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/guides/{{.Guide.Slug}}" />{{end}}
 {{define "head-extra"}}
-<link rel="canonical" href="https://anshumanbiswas.com/guides/{{.Guide.Slug}}" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",

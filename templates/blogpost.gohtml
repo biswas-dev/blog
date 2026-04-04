@@ -1,5 +1,5 @@
+{{define "canonical"}}<link rel="canonical" href="{{.FullURL}}" />{{end}}
 {{define "head-extra"}}
-<link rel="canonical" href="{{.FullURL}}" />
 {{if .Post.FeaturedImageURL}}<link rel="preload" as="image" href="{{.Post.FeaturedImageURL}}" fetchpriority="high">{{end}}
 <script type="application/ld+json">
 {
