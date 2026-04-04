@@ -590,15 +590,7 @@
 
         if (isTyping) return;
 
-        // / — Open search
-        if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
-            e.preventDefault();
-            searchOverlay.classList.add('active');
-            activeResultIdx = -1;
-            setTimeout(function() { searchInput.focus(); }, 50);
-        }
-
-        // H — Toggle navigation
+        // H — Toggle navigation (guide-specific)
         if (e.key === 'h' || e.key === 'H') {
             var nav = document.querySelector('header') || document.querySelector('nav');
             var toc = document.getElementById('guide-toc');
@@ -609,26 +601,8 @@
                 showToast(navHidden ? 'Navigation hidden (H to show)' : 'Navigation visible');
             }
         }
-
-        // J — Next section
-        if (e.key === 'j' || e.key === 'J') {
-            var idx = currentSectionIdx();
-            var next = Math.min(idx + 1, headings.length - 1);
-            if (headings[next]) {
-                headings[next].scrollIntoView({ behavior: 'smooth', block: 'start' });
-                showToast(headings[next].textContent);
-            }
-        }
-
-        // K — Previous section
-        if (e.key === 'k' || e.key === 'K') {
-            var idx = currentSectionIdx();
-            var prev = Math.max(idx - 1, 0);
-            if (headings[prev]) {
-                headings[prev].scrollIntoView({ behavior: 'smooth', block: 'start' });
-                showToast(headings[prev].textContent);
-            }
-        }
+        // Note: /, j, k are handled globally by /static/js/keynav.js
+        //   / = open search  |  j = prev heading  |  k = next heading
     });
 
     // Search input handler
