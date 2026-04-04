@@ -520,20 +520,11 @@
         };
 
         document.getElementById('search-toggle').addEventListener('click', () => {
-            const existing = document.querySelector('.search-modal-overlay');
-            if (existing) { existing.remove(); return; }
+            if (window.openKeynavSearch) { window.openKeynavSearch(); return; }
             Search.open();
         });
 
-        // Keyboard shortcut: Ctrl/Cmd + K (toggle)
-        document.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                const existing = document.querySelector('.search-modal-overlay');
-                if (existing) { existing.remove(); return; }
-                Search.open();
-            }
-        });
+        // Ctrl/Cmd + K is handled by /static/js/keynav.js
 
         // DOMContentLoaded utilities
         document.addEventListener('DOMContentLoaded', () => {

@@ -96,6 +96,8 @@
     gResults.innerHTML = '<div class="keynav-hint">Start typing to search posts, slides, and guides...</div>';
     setTimeout(function() { gInput.focus(); gInput.select(); }, 30);
   }
+  // Expose for header search icon / other triggers
+  window.openKeynavSearch = openGlobal;
 
   function closeGlobal() { if (gOverlay) gOverlay.classList.remove('active'); }
 
