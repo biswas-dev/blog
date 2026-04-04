@@ -1381,6 +1381,11 @@ func (u Users) CreatePost(w http.ResponseWriter, r *http.Request) {
 		// Don't fail the entire request, just log the error
 	}
 
+	// Ping search engines (IndexNow) if the post is published
+	if isPublished {
+		PingIndexNow("https://" + IndexNowHost + "/blog/" + slug)
+	}
+
 	http.Redirect(w, r, "/admin/posts", http.StatusFound)
 }
 
@@ -1523,6 +1528,11 @@ func (u Users) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	if err := u.CategoryService.AssignCategoriesToPost(id, categoryIDs); err != nil {
 		log.Printf("Error updating categories for post: %v", err)
 		// Don't fail the entire request, just log the error
+	}
+
+	// Ping search engines (IndexNow) if the post is published
+	if isPublished {
+		PingIndexNow("https://" + IndexNowHost + "/blog/" + slug)
 	}
 
 	http.Redirect(w, r, "/blog/"+slug, http.StatusFound)

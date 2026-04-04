@@ -183,6 +183,9 @@ func main() {
 	// robots.txt — crawler directives
 	r.Get("/robots.txt", robotsTxtHandler())
 
+	// IndexNow key file — search engines fetch this to verify domain ownership
+	r.Get("/"+controllers.IndexNowKey+".txt", controllers.IndexNowKeyHandler)
+
 	// Version endpoint — token-protected, rich response matching pingrly format
 	r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
 		tok := os.Getenv("VERSION_TOKEN")
