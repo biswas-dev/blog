@@ -127,6 +127,10 @@ func main() {
 	analyticsService := models.NewAnalyticsService(DB)
 	defer analyticsService.Shutdown()
 
+	// Reader engagement tracker
+	engagementService := &models.EngagementService{DB: DB}
+	engagementController := controllers.EngagementController{Service: engagementService}
+
 	userService := models.UserService{
 		DB: DB,
 	}
@@ -185,6 +189,9 @@ func main() {
 
 	// IndexNow key file — search engines fetch this to verify domain ownership
 	r.Get("/"+controllers.IndexNowKey+".txt", controllers.IndexNowKeyHandler)
+
+	// Reader engagement beacon (public, no auth) + admin read endpoint
+	r.Post("/api/engagement", engagementController.Ingest)
 
 	// Version endpoint — token-protected, rich response matching pingrly format
 	r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
@@ -667,6 +674,7 @@ func main() {
 
 	// Engagement Management Routes (admin)
 	r.Get("/api/admin/engagement", analyticsC.GetEngagementJSON)
+	r.Get("/api/admin/engagement-stats", engagementController.GetSummary)
 	r.Delete("/api/admin/engagement/comments/{id}", analyticsC.AdminDeleteComment)
 	r.Delete("/api/admin/engagement/annotations/{id}", analyticsC.AdminDeleteAnnotation)
 

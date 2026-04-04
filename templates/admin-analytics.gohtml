@@ -480,6 +480,44 @@
             </div>
         </div>
 
+        <!-- Reader Engagement -->
+        <div class="sys-card" style="margin-bottom: 24px;">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-blue">
+                    {{icon "chart" "w-4 h-4"}}
+                </div>
+                <h3>Reader Engagement</h3>
+                <div style="margin-left:auto;font-size:12px;color:var(--text-muted);">avg time readers spend on each page</div>
+            </div>
+            <div class="sys-card-body" style="padding: 0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Path</th><th style="text-align:right">Sessions</th><th style="text-align:right">Avg Time</th><th style="text-align:right">Avg Scroll</th><th style="text-align:right">Completion</th><th></th></tr></thead>
+                    <tbody id="engagement-body">
+                        <tr><td colspan="6" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section Attention (drill-down) -->
+        <div class="sys-card" id="engagement-sections-card" style="margin-bottom: 24px; display:none;">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-green">
+                    {{icon "document" "w-4 h-4"}}
+                </div>
+                <h3>Section Attention: <span id="engagement-sections-path" style="color:var(--text-muted);font-weight:normal;"></span></h3>
+                <button id="engagement-sections-close" style="margin-left:auto;font-size:12px;padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-muted);">Close</button>
+            </div>
+            <div class="sys-card-body" style="padding: 0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Section</th><th style="text-align:right">View Rate</th><th style="text-align:right">Avg Time</th></tr></thead>
+                    <tbody id="engagement-sections-body">
+                        <tr><td colspan="3" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Top Visitors -->
         <div class="sys-card" style="margin-bottom: 24px;">
             <div class="sys-card-header">
@@ -1123,10 +1161,86 @@
             // Browser breakdown chart
             initBrowserChart(data.browsers || []);
 
+            // Reader engagement
+            loadEngagement(period);
+
         } catch (err) {
             console.error('Analytics load error:', err);
         }
     }
+
+    function fmtDuration(sec) {
+        sec = Math.round(sec || 0);
+        if (sec < 60) return sec + 's';
+        if (sec < 3600) return Math.floor(sec/60) + 'm ' + (sec%60) + 's';
+        return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm';
+    }
+
+    async function loadEngagement(period) {
+        const days = period === '7d' ? 7 : period === '90d' ? 90 : period === '1y' ? 365 : 30;
+        const tbody = document.getElementById('engagement-body');
+        try {
+            const res = await fetch('/api/admin/engagement-stats?days=' + days);
+            if (!res.ok) throw new Error('failed');
+            const data = await res.json();
+            const rows = data.top_engaged || [];
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="analytics-loading">No engagement data yet. Visit some pages to generate data.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(r =>
+                '<tr>' +
+                '<td><a href="' + r.path + '" target="_blank" style="color:var(--link);">' + r.path + '</a></td>' +
+                '<td style="text-align:right">' + r.sessions + '</td>' +
+                '<td style="text-align:right">' + fmtDuration(r.avg_active_seconds) + '</td>' +
+                '<td style="text-align:right">' + Math.round(r.avg_scroll_pct) + '%</td>' +
+                '<td style="text-align:right">' + Math.round(r.completion_rate) + '%</td>' +
+                '<td><button onclick="loadSectionStats(\'' + r.path.replace(/'/g, "\\'") + '\', ' + days + ')" style="font-size:11px;padding:2px 8px;background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text-muted);">Sections</button></td>' +
+                '</tr>'
+            ).join('');
+        } catch (err) {
+            tbody.innerHTML = '<tr><td colspan="6" class="analytics-loading">Failed to load engagement data.</td></tr>';
+        }
+    }
+
+    async function loadSectionStats(path, days) {
+        const card = document.getElementById('engagement-sections-card');
+        const pathEl = document.getElementById('engagement-sections-path');
+        const tbody = document.getElementById('engagement-sections-body');
+        card.style.display = 'block';
+        pathEl.textContent = path;
+        tbody.innerHTML = '<tr><td colspan="3" class="analytics-loading">Loading...</td></tr>';
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        try {
+            const res = await fetch('/api/admin/engagement-stats?path=' + encodeURIComponent(path) + '&days=' + days);
+            if (!res.ok) throw new Error('failed');
+            const data = await res.json();
+            const secs = data.sections || [];
+            if (secs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="analytics-loading">No section data for this page.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = secs.map(s => {
+                const rate = Math.round(s.view_rate);
+                const barColor = rate >= 75 ? '#22c55e' : rate >= 40 ? '#eab308' : '#ef4444';
+                return '<tr>' +
+                    '<td>' + (s.text || s.id) + '</td>' +
+                    '<td style="text-align:right">' +
+                        '<div style="display:inline-flex;align-items:center;gap:8px;">' +
+                        '<div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">' +
+                        '<div style="width:' + rate + '%;height:100%;background:' + barColor + ';"></div></div>' +
+                        '<span style="min-width:40px;">' + rate + '%</span></div></td>' +
+                    '<td style="text-align:right">' + fmtDuration(s.avg_active_seconds) + '</td>' +
+                    '</tr>';
+            }).join('');
+        } catch (err) {
+            tbody.innerHTML = '<tr><td colspan="3" class="analytics-loading">Failed to load section data.</td></tr>';
+        }
+    }
+
+    document.getElementById('engagement-sections-close').addEventListener('click', function() {
+        document.getElementById('engagement-sections-card').style.display = 'none';
+    });
 
     // IP detail modal
     window.openIPModal = async function(ip) {
