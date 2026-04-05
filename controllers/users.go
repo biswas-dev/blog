@@ -2,9 +2,13 @@ package controllers
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"log"
 	"net/http"
@@ -12,8 +16,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+
+	_ "image/gif"
+
+	"golang.org/x/image/draw"
 	"strconv"
 	"strings"
+	"time"
 
 	"html/template"
 
@@ -85,23 +94,29 @@ func (u Users) Disabled(w http.ResponseWriter, r *http.Request) {
 
 type Users struct {
 	Templates struct {
-		New        Template
-		SignIn     Template
-		Home       Template
-		LoggedIn   Template
-		Profile    Template
-		AdminPosts Template
-		UserPosts  Template
-		APIAccess  Template
-		PostEditor Template
+		New         Template
+		SignIn      Template
+		Home        Template
+		LoggedIn    Template
+		Profile     Template
+		AdminPosts  Template
+		UserPosts   Template
+		APIAccess   Template
+		PostEditor  Template
+		UserProfile Template
 	}
+	DB                   *sql.DB
 	UserService          *models.UserService
 	SessionService       *models.SessionService
 	PostService          *models.PostService
+	PostVersionService   *models.PostVersionService
 	APITokenService      *models.APITokenService
 	CategoryService      *models.CategoryService
 	CloudinaryService    *models.CloudinaryService
 	ImageMetadataService *models.ImageMetadataService
+	UserActivityService  *models.UserActivityService
+	SlideService         *models.SlideService
+	GuideService         *models.GuideService
 	BlogWiki             *gowiki.Wiki
 }
 
@@ -158,6 +173,13 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		if slug != "" {
 			base = filepath.Join(base, slug)
 		}
+	} else if uploadType == "avatar" {
+		base = filepath.Join(base, "avatars")
+	} else if uploadType == "slide" {
+		base = filepath.Join(base, "slide")
+		if slug != "" {
+			base = filepath.Join(base, slug)
+		}
 	} else if slug != "" {
 		base = filepath.Join(base, "post", slug)
 	}
@@ -180,10 +202,120 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		if slug != "" {
 			urlBase += "/" + slug
 		}
+	} else if uploadType == "avatar" {
+		urlBase += "/avatars"
+	} else if uploadType == "slide" {
+		urlBase += "/slide"
+		if slug != "" {
+			urlBase += "/" + slug
+		}
 	} else if slug != "" {
 		urlBase += "/post/" + slug
 	}
-	return urlBase + "/" + name, nil
+	url := urlBase + "/" + name
+
+	// Generate thumbnail for avatar uploads
+	if uploadType == "avatar" {
+		go createThumbnail(fpath, 96)
+	}
+
+	return url, nil
+}
+
+// ThumbURL derives the thumbnail URL from an original image URL.
+// "/static/uploads/avatars/abc123.jpg" → "/static/uploads/avatars/abc123_thumb.jpg"
+func ThumbURL(originalURL string) string {
+	if originalURL == "" {
+		return ""
+	}
+	ext := filepath.Ext(originalURL)
+	return originalURL[:len(originalURL)-len(ext)] + "_thumb" + ext
+}
+
+// createThumbnail generates a square thumbnail of the given size from the source image.
+// It writes to the same directory with _thumb inserted before the extension.
+// Runs in a goroutine — errors are logged but never block the caller.
+func createThumbnail(srcPath string, size int) {
+	ext := strings.ToLower(filepath.Ext(srcPath))
+	thumbPath := srcPath[:len(srcPath)-len(ext)] + "_thumb" + ext
+
+	src, err := os.Open(srcPath)
+	if err != nil {
+		log.Printf("thumbnail: open %s: %v", srcPath, err)
+		return
+	}
+	defer src.Close()
+
+	img, _, err := image.Decode(src)
+	if err != nil {
+		log.Printf("thumbnail: decode %s: %v", srcPath, err)
+		return
+	}
+
+	// Crop to square from center, then scale down
+	bounds := img.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	cropSize := w
+	if h < cropSize {
+		cropSize = h
+	}
+	x0 := (w - cropSize) / 2
+	y0 := (h - cropSize) / 2
+
+	// Create the thumbnail
+	thumb := image.NewRGBA(image.Rect(0, 0, size, size))
+
+	// Use SubImage for cropping, then scale
+	type subImager interface {
+		SubImage(r image.Rectangle) image.Image
+	}
+	cropped := img
+	if si, ok := img.(subImager); ok {
+		cropped = si.SubImage(image.Rect(x0+bounds.Min.X, y0+bounds.Min.Y, x0+bounds.Min.X+cropSize, y0+bounds.Min.Y+cropSize))
+	}
+
+	draw.CatmullRom.Scale(thumb, thumb.Bounds(), cropped, cropped.Bounds(), draw.Over, nil)
+
+	out, err := os.Create(thumbPath)
+	if err != nil {
+		log.Printf("thumbnail: create %s: %v", thumbPath, err)
+		return
+	}
+	defer out.Close()
+
+	switch ext {
+	case ".png":
+		err = png.Encode(out, thumb)
+	default: // .jpg, .jpeg, .gif, .webp → save as JPEG
+		err = jpeg.Encode(out, thumb, &jpeg.Options{Quality: 85})
+	}
+	if err != nil {
+		log.Printf("thumbnail: encode %s: %v", thumbPath, err)
+	}
+}
+
+// BackfillAvatarThumbnails generates thumbnails for all existing avatar images
+// that don't already have a _thumb version. Intended to run once at startup.
+func BackfillAvatarThumbnails() {
+	avatarDir := filepath.Join("static", "uploads", "avatars")
+	entries, err := os.ReadDir(avatarDir)
+	if err != nil {
+		return // no avatars dir yet
+	}
+	for _, e := range entries {
+		if e.IsDir() || strings.Contains(e.Name(), "_thumb") {
+			continue
+		}
+		ext := filepath.Ext(e.Name())
+		thumbName := e.Name()[:len(e.Name())-len(ext)] + "_thumb" + ext
+		thumbPath := filepath.Join(avatarDir, thumbName)
+		if _, err := os.Stat(thumbPath); err == nil {
+			continue // thumb already exists
+		}
+		srcPath := filepath.Join(avatarDir, e.Name())
+		createThumbnail(srcPath, 96)
+		log.Printf("thumbnail: backfilled %s", thumbName)
+	}
 }
 
 // UploadImage handles image uploads (cover or inline). Returns JSON {url}
@@ -498,7 +630,7 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 		data.IsAdmin = false
 		data.Email = ""
 		data.UserPermissions = models.GetPermissions(models.RoleCommenter)
-		w.Header().Set("Cache-Control", "public, max-age=30")
+		w.Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600")
 		u.Templates.Home.Execute(w, r, data)
 		return
 	}
@@ -512,7 +644,7 @@ func (u Users) Home(w http.ResponseWriter, r *http.Request) {
 	data.Description = "Engineering Insights - Anshuman Biswas Blog"
 	data.CurrentPage = "home"
 	data.UserPermissions = models.GetPermissions(user.Role)
-	w.Header().Set("Cache-Control", "public, max-age=30")
+	w.Header().Set("Cache-Control", "private, no-store")
 	u.Templates.Home.Execute(w, r, data)
 }
 
@@ -582,8 +714,17 @@ func (u Users) ProcessSignIn(w http.ResponseWriter, r *http.Request) {
 
 	user, err := u.UserService.Authenticate(data.Email, data.Password)
 	if err != nil {
+		if u.UserActivityService != nil {
+			// Best-effort: look up userID by email to log the failure
+			if existing, lookupErr := u.UserService.GetByEmail(data.Email); lookupErr == nil {
+				u.UserActivityService.Log(existing.UserID, "failed_login", utils.GetClientIP(r), r.UserAgent())
+			}
+		}
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
+	}
+	if u.UserActivityService != nil {
+		u.UserActivityService.Log(user.UserID, "login", utils.GetClientIP(r), r.UserAgent())
 	}
 	session, err := u.SessionService.Create(user.UserID)
 	if err != nil {
@@ -710,6 +851,9 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 		Email           string
 		LoggedIn        bool
 		Username        string
+		FullName        string
+		AvatarURL       string
+		Bio             string
 		IsAdmin         bool
 		SignupDisabled  bool
 		Description     string
@@ -720,6 +864,9 @@ func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	data.Email = user.Email
 	data.Username = user.Username
+	data.FullName = user.FullName
+	data.AvatarURL = user.AvatarURL
+	data.Bio = user.Bio
 	data.LoggedIn = true
 	data.IsAdmin = models.IsAdmin(user.Role)
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
@@ -844,6 +991,90 @@ func (u Users) UpdateEmail(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/users/me?message=Email updated successfully", http.StatusFound)
 }
 
+// UpdateName updates the user's display name.
+// UploadAvatar updates the user's profile picture via file upload or URL.
+func (u Users) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+
+	var avatarURL string
+
+	// Try file upload first.
+	r.Body = http.MaxBytesReader(w, r.Body, 5<<20) // 5 MB
+	if err := r.ParseMultipartForm(5 << 20); err == nil {
+		file, header, ferr := r.FormFile("avatar")
+		if ferr == nil {
+			defer file.Close()
+			url, serr := saveUploadedFile(file, header.Filename, "avatar", fmt.Sprintf("%d", user.UserID))
+			if serr != nil {
+				http.Redirect(w, r, "/users/me?message=Failed to save image", http.StatusFound)
+				return
+			}
+			avatarURL = url
+		}
+	}
+
+	// Fall back to URL field.
+	if avatarURL == "" {
+		raw := strings.TrimSpace(r.FormValue("avatar_url"))
+		if raw != "" && (strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://")) {
+			avatarURL = raw
+		}
+	}
+
+	if avatarURL == "" {
+		http.Redirect(w, r, "/users/me?message=No image provided", http.StatusFound)
+		return
+	}
+
+	if err := u.UserService.UpdateAvatarURL(user.UserID, avatarURL); err != nil {
+		http.Redirect(w, r, "/users/me?message=Failed to update avatar", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/users/me?message=Profile picture updated", http.StatusFound)
+}
+
+func (u Users) UpdateName(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	fullName := strings.TrimSpace(r.FormValue("full_name"))
+	if len(fullName) > 100 {
+		http.Redirect(w, r, "/users/me?message=Name too long (max 100 characters)", http.StatusFound)
+		return
+	}
+	if err := u.UserService.UpdateName(user.UserID, fullName); err != nil {
+		http.Redirect(w, r, "/users/me?message=Failed to update name", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/users/me?message=Name updated successfully", http.StatusFound)
+}
+
+func (u Users) UpdateBio(w http.ResponseWriter, r *http.Request) {
+	user, err := u.isUserLoggedIn(r)
+	if err != nil {
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	bio := strings.TrimSpace(r.FormValue("bio"))
+	if len(bio) > 500 {
+		http.Redirect(w, r, "/users/me?message=Bio too long (max 500 characters)", http.StatusFound)
+		return
+	}
+	if err := u.UserService.UpdateBio(user.UserID, bio); err != nil {
+		http.Redirect(w, r, "/users/me?message=Failed to update bio", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/users/me?message=Bio updated successfully", http.StatusFound)
+}
+
 // AdminPosts shows all posts for admin users
 func (u Users) AdminPosts(w http.ResponseWriter, r *http.Request) {
 	user, err := u.isUserLoggedIn(r)
@@ -852,8 +1083,8 @@ func (u Users) AdminPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is admin
-	if !models.IsAdmin(user.Role) {
+	// Allow admins and editors
+	if !models.CanEditPosts(user.Role) && !models.IsAdmin(user.Role) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -879,7 +1110,7 @@ func (u Users) AdminPosts(w http.ResponseWriter, r *http.Request) {
 	data.Email = user.Email
 	data.Username = user.Username
 	data.LoggedIn = true
-	data.IsAdmin = true
+	data.IsAdmin = models.IsAdmin(user.Role)
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
 	data.Description = "Manage All Posts - Anshuman Biswas Blog"
 	data.CurrentPage = "admin-posts"
@@ -932,6 +1163,25 @@ func (u Users) DeletePosts(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UserComment is a comment made by a user, enriched with post info.
+type UserComment struct {
+	CommentID   int
+	PostTitle   string
+	PostSlug    string
+	Content     string
+	CommentDate time.Time
+}
+
+// UserAnnotation is an annotation made by a user, enriched with post info.
+type UserAnnotation struct {
+	ID           int
+	PostTitle    string
+	PostSlug     string
+	SelectedText string
+	Color        string
+	CreatedAt    time.Time
+}
+
 // UserPosts shows posts for the current user
 func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 	user, err := u.isUserLoggedIn(r)
@@ -946,6 +1196,42 @@ func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch user's comments with post info.
+	var userComments []UserComment
+	commentRows, err := u.DB.QueryContext(r.Context(), `
+		SELECT c.comment_id, p.title, p.slug, c.content, c.comment_date
+		FROM Comments c
+		JOIN Posts p ON p.post_id = c.post_id
+		WHERE c.user_id = $1
+		ORDER BY c.comment_date DESC`, user.UserID)
+	if err == nil {
+		defer commentRows.Close()
+		for commentRows.Next() {
+			var uc UserComment
+			if err := commentRows.Scan(&uc.CommentID, &uc.PostTitle, &uc.PostSlug, &uc.Content, &uc.CommentDate); err == nil {
+				userComments = append(userComments, uc)
+			}
+		}
+	}
+
+	// Fetch user's annotations with post info.
+	var userAnnotations []UserAnnotation
+	annRows, err := u.DB.QueryContext(r.Context(), `
+		SELECT a.id, p.title, p.slug, a.selected_text, a.color, a.created_at
+		FROM post_annotations a
+		JOIN Posts p ON p.post_id = a.post_id
+		WHERE a.author_id = $1
+		ORDER BY a.created_at DESC`, user.UserID)
+	if err == nil {
+		defer annRows.Close()
+		for annRows.Next() {
+			var ua UserAnnotation
+			if err := annRows.Scan(&ua.ID, &ua.PostTitle, &ua.PostSlug, &ua.SelectedText, &ua.Color, &ua.CreatedAt); err == nil {
+				userAnnotations = append(userAnnotations, ua)
+			}
+		}
+	}
+
 	var data struct {
 		Email           string
 		LoggedIn        bool
@@ -956,6 +1242,8 @@ func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 		CurrentPage     string
 		Posts           *models.PostsList
 		UserPermissions models.UserPermissions
+		UserComments    []UserComment
+		UserAnnotations []UserAnnotation
 	}
 
 	data.Email = user.Email
@@ -963,10 +1251,12 @@ func (u Users) UserPosts(w http.ResponseWriter, r *http.Request) {
 	data.LoggedIn = true
 	data.IsAdmin = (user.Role == 2)
 	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
-	data.Description = "My Posts - Anshuman Biswas Blog"
+	data.Description = "My Posts & Comments - Anshuman Biswas Blog"
 	data.CurrentPage = "my-posts"
 	data.Posts = posts
 	data.UserPermissions = models.GetPermissions(user.Role)
+	data.UserComments = userComments
+	data.UserAnnotations = userAnnotations
 
 	u.Templates.UserPosts.Execute(w, r, data)
 }
@@ -1081,10 +1371,19 @@ func (u Users) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if u.PostVersionService != nil {
+		_ = u.PostVersionService.MaybeCreateVersion(post.ID, user.UserID, title, content)
+	}
+
 	// Assign categories to the post
 	if err := u.CategoryService.AssignCategoriesToPost(post.ID, categoryIDs); err != nil {
 		log.Printf("Error assigning categories to post: %v", err)
 		// Don't fail the entire request, just log the error
+	}
+
+	// Ping search engines (IndexNow) if the post is published
+	if isPublished {
+		PingIndexNow("https://" + IndexNowHost + "/blog/" + slug)
 	}
 
 	http.Redirect(w, r, "/admin/posts", http.StatusFound)
@@ -1221,10 +1520,19 @@ func (u Users) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if u.PostVersionService != nil {
+		_ = u.PostVersionService.MaybeCreateVersion(id, user.UserID, title, content)
+	}
+
 	// Update categories for the post
 	if err := u.CategoryService.AssignCategoriesToPost(id, categoryIDs); err != nil {
 		log.Printf("Error updating categories for post: %v", err)
 		// Don't fail the entire request, just log the error
+	}
+
+	// Ping search engines (IndexNow) if the post is published
+	if isPublished {
+		PingIndexNow("https://" + IndexNowHost + "/blog/" + slug)
 	}
 
 	http.Redirect(w, r, "/blog/"+slug, http.StatusFound)
@@ -1637,4 +1945,87 @@ func (u Users) GetImageMetadataBulk(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+// PublicProfile shows the public profile page for a user.
+func (u Users) PublicProfile(w http.ResponseWriter, r *http.Request) {
+	username := chi.URLParam(r, "username")
+
+	profileUser, err := u.UserService.GetByUsername(username)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	authoredPosts, _ := u.PostService.GetPublishedPostsByUser(profileUser.UserID)
+
+	var contributedPosts []models.Post
+	if u.PostVersionService != nil {
+		contributedPosts, _ = u.PostVersionService.GetContributedPosts(profileUser.UserID)
+	}
+
+	var userComments []UserComment
+	commentRows, err := u.DB.QueryContext(r.Context(), `
+		SELECT c.comment_id, p.title, p.slug, c.content, c.comment_date
+		FROM Comments c
+		JOIN Posts p ON p.post_id = c.post_id
+		WHERE c.user_id = $1
+		ORDER BY c.comment_date DESC`, profileUser.UserID)
+	if err == nil {
+		defer commentRows.Close()
+		for commentRows.Next() {
+			var uc UserComment
+			if err := commentRows.Scan(&uc.CommentID, &uc.PostTitle, &uc.PostSlug, &uc.Content, &uc.CommentDate); err == nil {
+				userComments = append(userComments, uc)
+			}
+		}
+	}
+
+	var authoredSlides []models.Slide
+	if u.SlideService != nil {
+		authoredSlides, _ = u.SlideService.GetPublishedSlidesByUser(profileUser.UserID)
+	}
+
+	var authoredGuides []models.Guide
+	if u.GuideService != nil {
+		authoredGuides, _ = u.GuideService.GetPublishedGuidesByUser(profileUser.UserID)
+	}
+
+	var data struct {
+		LoggedIn         bool
+		Email            string
+		Username         string
+		IsAdmin          bool
+		SignupDisabled   bool
+		Description      string
+		CurrentPage      string
+		UserPermissions  models.UserPermissions
+		ProfileUser      *models.User
+		AuthoredPosts    []models.Post
+		ContributedPosts []models.Post
+		AuthoredSlides   []models.Slide
+		AuthoredGuides   []models.Guide
+		UserComments     []UserComment
+	}
+
+	data.Description = profileUser.DisplayName() + " - Anshuman Biswas Blog"
+	data.CurrentPage = "profile"
+	data.ProfileUser = profileUser
+	data.AuthoredPosts = authoredPosts
+	data.ContributedPosts = contributedPosts
+	data.AuthoredSlides = authoredSlides
+	data.AuthoredGuides = authoredGuides
+	data.UserComments = userComments
+	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
+
+	loggedInUser, _ := u.isUserLoggedIn(r)
+	if loggedInUser != nil {
+		data.LoggedIn = true
+		data.Email = loggedInUser.Email
+		data.Username = loggedInUser.Username
+		data.IsAdmin = models.IsAdmin(loggedInUser.Role)
+		data.UserPermissions = models.GetPermissions(loggedInUser.Role)
+	}
+
+	u.Templates.UserProfile.Execute(w, r, data)
 }

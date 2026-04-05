@@ -19,16 +19,17 @@ type Security struct {
 
 // securityDashboardData is the template data for admin-security.gohtml.
 type securityDashboardData struct {
-	Email          string
-	LoggedIn       bool
-	Username       string
-	IsAdmin        bool
-	SignupDisabled bool
-	Description    string
-	CurrentPage    string
-	User           *models.User
-	BannedRules    []models.IPRule
-	AllowedRules   []models.IPRule
+	Email           string
+	LoggedIn        bool
+	Username        string
+	IsAdmin         bool
+	SignupDisabled  bool
+	Description     string
+	CurrentPage     string
+	User            *models.User
+	BannedRules     []models.IPRule
+	AllowedRules    []models.IPRule
+	UserPermissions models.UserPermissions
 }
 
 // Dashboard renders the security admin page (admin-only).
@@ -60,16 +61,17 @@ func (s *Security) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := securityDashboardData{
-		Email:         user.Email,
-		LoggedIn:      true,
-		Username:      user.Username,
-		IsAdmin:       true,
-		SignupDisabled: true,
-		Description:   "Security - Anshuman Biswas Blog",
-		CurrentPage:   "admin-security",
-		User:          user,
-		BannedRules:   banned,
-		AllowedRules:  allowed,
+		Email:           user.Email,
+		LoggedIn:        true,
+		Username:        user.Username,
+		IsAdmin:         models.IsAdmin(user.Role),
+		SignupDisabled:  true,
+		Description:     "Security - Anshuman Biswas Blog",
+		CurrentPage:     "admin-security",
+		User:            user,
+		BannedRules:     banned,
+		AllowedRules:    allowed,
+		UserPermissions: models.GetPermissions(user.Role),
 	}
 
 	s.Templates.Dashboard.Execute(w, r, data)

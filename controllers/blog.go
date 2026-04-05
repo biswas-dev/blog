@@ -2,6 +2,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,11 +15,13 @@ import (
 )
 
 type Blog struct {
+	DB *sql.DB
 	Templates struct {
 		Post Template
 	}
-	BlogService    *models.BlogService
-	SessionService *models.SessionService
+	BlogService        *models.BlogService
+	SessionService     *models.SessionService
+	PostVersionService *models.PostVersionService
 }
 
 func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
@@ -27,6 +30,8 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		Email           string
 		Username        string
 		IsAdmin         bool
+		CanAnnotate     bool
+		UserID          int
 		SignupDisabled  bool
 		Description     string
 		CurrentPage     string
@@ -38,6 +43,7 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 		PrevPost        *models.Post
 		NextPost        *models.Post
 		UserPermissions models.UserPermissions
+		Contributors    []models.User
 	}
 
 	// Extract the slug from the URL
@@ -45,8 +51,20 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 
 	post, err := b.BlogService.GetBlogPostBySlug(slug)
 	if err != nil {
+		if b.DB != nil {
+			go trackSlug404(b.DB, slug)
+		}
 		http.NotFound(w, r)
 		return
+	}
+
+	// If the post is not published, only allow users with CanViewUnpublished permission
+	if !post.IsPublished {
+		user, _ := utils.IsUserLoggedIn(r, b.SessionService)
+		if user == nil || !models.CanViewUnpublished(user.Role) {
+			http.NotFound(w, r)
+			return
+		}
 	}
 
 	// Initialize default data
@@ -138,15 +156,29 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 	}
 	data.OGDescription = ogExcerpt(post.Content, 160)
 
+	if b.PostVersionService != nil {
+		contributors, _ := b.PostVersionService.GetContributors(post.ID)
+		// Filter out the original author from contributors list
+		for _, c := range contributors {
+			if c.UserID != post.UserID {
+				data.Contributors = append(data.Contributors, c)
+			}
+		}
+	}
+
 	user, _ := utils.IsUserLoggedIn(r, b.SessionService)
 	if user != nil {
 		data.LoggedIn = true
 		data.Email = user.Email
 		data.Username = user.Username
+		data.UserID = user.UserID
 		data.IsAdmin = (user.Role == 2) // Administrator role
 		data.UserPermissions = models.GetPermissions(user.Role)
+		data.CanAnnotate = data.UserPermissions.CanComment
+		w.Header().Set("Cache-Control", "private, no-store")
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600")
 	}
-	w.Header().Set("Cache-Control", "public, max-age=60")
 	b.Templates.Post.Execute(w, r, data)
 }
 
@@ -170,6 +202,18 @@ func stripMarkdownLinks(s string) string {
 		s = s[:start] + linkText + s[start+mid+end+1:]
 	}
 	return s
+}
+
+// trackSlug404 upserts a hit count for an unknown slug in slug_404s.
+// Called in a goroutine; errors are silently ignored.
+func trackSlug404(db *sql.DB, slug string) {
+	_, _ = db.Exec(`
+		INSERT INTO slug_404s (slug, hit_count, first_seen, last_seen)
+		VALUES ($1, 1, NOW(), NOW())
+		ON CONFLICT (slug) DO UPDATE SET
+			hit_count = slug_404s.hit_count + 1,
+			last_seen = NOW()
+	`, slug)
 }
 
 // ogExcerpt extracts a plain-text excerpt from markdown content for OG description.

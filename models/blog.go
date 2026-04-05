@@ -25,10 +25,22 @@ func NewBlogService(db *sql.DB) *BlogService {
 func (bs *BlogService) GetBlogPostBySlug(slug string) (*Post, error) {
 	var post Post
 
-	const query = `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE slug = $1 LIMIT 1`
+	const query = `
+		SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
+		       COALESCE(u.profile_picture_url, ''), COALESCE(u.bio, ''),
+		       p.category_id, p.title, p.content, p.slug, p.publication_date,
+		       p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured
+		FROM Posts p
+		JOIN Users u ON u.user_id = p.user_id
+		WHERE p.slug = $1
+		LIMIT 1`
 	err := bs.DB.QueryRow(query, slug).Scan(
 		&post.ID,
 		&post.UserID,
+		&post.Username,
+		&post.AuthorDisplayName,
+		&post.AuthorAvatarURL,
+		&post.AuthorBio,
 		&post.CategoryID,
 		&post.Title,
 		&post.Content,

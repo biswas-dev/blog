@@ -8,25 +8,25 @@ import (
 func TestRoleMatrix(t *testing.T) {
 	// Commenter
 	c := GetPermissions(RoleCommenter)
-	if !c.CanComment || c.CanEditPosts || c.CanManageUsers {
+	if !c.CanComment || c.CanEditPosts || c.CanManageUsers || c.CanViewAdmin {
 		t.Fatalf("commenter perms incorrect: %+v", c)
 	}
 
 	// Viewer
 	v := GetPermissions(RoleViewer)
-	if !v.CanComment || v.CanEditPosts || v.CanManageUsers {
+	if !v.CanComment || v.CanEditPosts || v.CanManageUsers || v.CanViewAdmin {
 		t.Fatalf("viewer perms incorrect: %+v", v)
 	}
 
 	// Editor
 	e := GetPermissions(RoleEditor)
-	if !e.CanEditPosts || e.CanManageUsers {
+	if !e.CanEditPosts || e.CanManageUsers || !e.CanViewAdmin || !e.CanEditSlides {
 		t.Fatalf("editor perms incorrect: %+v", e)
 	}
 
 	// Admin
 	a := GetPermissions(RoleAdministrator)
-	if !(a.CanComment && a.CanEditPosts && a.CanManageUsers && a.CanViewUnpublished) {
+	if !(a.CanComment && a.CanEditPosts && a.CanManageUsers && a.CanViewUnpublished && a.CanViewAdmin && a.CanEditSlides) {
 		t.Fatalf("admin perms incorrect: %+v", a)
 	}
 }
@@ -91,6 +91,38 @@ func TestCanViewUnpublished(t *testing.T) {
 	}
 	if !CanViewUnpublished(RoleAdministrator) {
 		t.Error("Administrator should view unpublished posts")
+	}
+}
+
+// TestCanEditSlides tests the CanEditSlides helper function
+func TestCanEditSlides(t *testing.T) {
+	if CanEditSlides(RoleCommenter) {
+		t.Error("Commenter should not be able to edit slides")
+	}
+	if CanEditSlides(RoleViewer) {
+		t.Error("Viewer should not be able to edit slides")
+	}
+	if !CanEditSlides(RoleEditor) {
+		t.Error("Editor should be able to edit slides")
+	}
+	if !CanEditSlides(RoleAdministrator) {
+		t.Error("Administrator should be able to edit slides")
+	}
+}
+
+// TestCanViewAdminPanel tests the CanViewAdminPanel helper function
+func TestCanViewAdminPanel(t *testing.T) {
+	if CanViewAdminPanel(RoleCommenter) {
+		t.Error("Commenter should not view admin panel")
+	}
+	if CanViewAdminPanel(RoleViewer) {
+		t.Error("Viewer should not view admin panel")
+	}
+	if !CanViewAdminPanel(RoleEditor) {
+		t.Error("Editor should view admin panel")
+	}
+	if !CanViewAdminPanel(RoleAdministrator) {
+		t.Error("Administrator should view admin panel")
 	}
 }
 

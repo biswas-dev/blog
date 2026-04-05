@@ -17,29 +17,69 @@
                 {{range .Slides.Slides}}
                 <div class="rounded-lg overflow-hidden border transition-all" style="background: var(--surface); border-color: var(--border-light);">
                     <!-- Slide Preview/Thumbnail -->
+                    {{if .FeaturedImageURL}}
+                    <div class="h-48 overflow-hidden">
+                        <img src="{{.FeaturedImageURL}}" alt="{{.Title}}" class="w-full h-full object-cover">
+                    </div>
+                    {{else}}
                     <div class="h-48 flex items-center justify-center" style="background: var(--accent);">
                         <div class="text-center text-white">
-                            <svg class="w-16 h-16 mx-auto mb-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"/>
-                            </svg>
+                            {{icon "columns" "w-16 h-16 mx-auto mb-4 opacity-80"}}
                             <p class="text-sm font-medium opacity-90">Presentation</p>
                         </div>
                     </div>
+                    {{end}}
 
                     <!-- Content -->
                     <div class="p-6">
-                        <h3 class="text-xl font-semibold mb-3">
-                            <a href="/slides/{{.Slug}}" class="transition-colors" style="color: var(--text-primary);"
-                               onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">{{.Title}}</a>
-                        </h3>
+                        <div class="flex items-start justify-between mb-2">
+                            <h3 class="text-xl font-semibold">
+                                <a href="/slides/{{.Slug}}" class="transition-colors" style="color: var(--text-primary);"
+                                   onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">{{.Title}}</a>
+                            </h3>
+                            <div class="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                                {{if .PasswordHash}}
+                                <span title="Password protected" class="text-gray-400">{{icon "lock-closed" "w-4 h-4"}}</span>
+                                {{end}}
+                                {{if .SlideCount}}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{{.SlideCount}} slides</span>
+                                {{end}}
+                                {{if contains .SlideMetadata "pptx"}}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">PPTX Import</span>
+                                {{end}}
+                            </div>
+                        </div>
+
+                        {{if .Description}}
+                        <p class="text-sm mb-3" style="color: var(--text-secondary);">{{.Description}}</p>
+                        {{end}}
+
+                        <!-- Author & Contributors -->
+                        <div class="flex items-center gap-2 mb-3">
+                            <a href="/users/{{.Username}}" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                            {{if .AuthorAvatarURL}}
+                            <img src="{{thumbURL .AuthorAvatarURL}}" alt="{{.AuthorDisplayName}}" class="w-6 h-6 rounded-full object-cover" width="24" height="24">
+                            {{end}}
+                            <span class="text-sm" style="color: var(--text-secondary);">{{.AuthorDisplayName}}</span>
+                            </a>
+                            {{if .Contributors}}
+                            <div class="flex -space-x-1.5 ml-1">
+                                {{range .Contributors}}
+                                <span title="{{.FullName}}" class="inline-block w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 overflow-hidden bg-gray-200">
+                                    {{if .AvatarURL}}<img src="{{thumbURL .AvatarURL}}" alt="{{.Username}}" class="w-full h-full object-cover" width="20" height="20">{{end}}
+                                </span>
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
 
                         <!-- Categories -->
                         {{if .Categories}}
                             <div class="flex flex-wrap gap-2 mb-4">
                                 {{range .Categories}}
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium" style="background: rgba(13,148,136,0.1); color: var(--accent);">
+                                    <a href="/tags/{{.Name}}" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors" style="background: rgba(13,148,136,0.1); color: var(--accent);">
                                         {{.Name}}
-                                    </span>
+                                    </a>
                                 {{end}}
                             </div>
                         {{end}}
@@ -47,9 +87,7 @@
                         <!-- Meta Info -->
                         <div class="flex items-center justify-between text-sm mb-4" style="color: var(--text-tertiary);">
                             <div class="flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
+                                {{icon "calendar" "w-4 h-4 mr-1"}}
                                 {{.RelativeTime}}
                             </div>
                             {{if $.IsAdmin}}
@@ -59,9 +97,7 @@
 
                         <!-- Action Button -->
                         <a href="/slides/{{.Slug}}" class="btn btn-primary w-full justify-center">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m2-10v18a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2h8l4 4z"/>
-                            </svg>
+                            {{icon "smiley" "w-4 h-4"}}
                             View Presentation
                         </a>
                     </div>
@@ -72,9 +108,7 @@
             <!-- Empty State -->
             <div class="text-center py-16">
                 <div class="max-w-md mx-auto">
-                    <svg class="mx-auto h-24 w-24" style="color: var(--text-tertiary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"/>
-                    </svg>
+                    {{icon "columns" "mx-auto h-24 w-24"}}
                     <h3 class="mt-6 text-xl font-medium" style="color: var(--text-primary);">
                         No presentations yet
                     </h3>

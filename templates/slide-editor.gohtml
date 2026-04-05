@@ -1,304 +1,1326 @@
+{{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
 {{template "modern-header" .}}
 
-<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Header -->
-        <div class="mb-8">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-                        {{if .IsEdit}}Edit Slide{{else}}Create New Slide{{end}}
-                    </h1>
-                    <p class="text-gray-600 dark:text-gray-400 mt-1">
-                        {{if .IsEdit}}Update your reveal.js presentation{{else}}Create a new reveal.js presentation{{end}}
-                    </p>
-                </div>
-                <div class="flex space-x-3">
-                    {{if .IsEdit}}
-                        <a href="/slides/{{.Slide.Slug}}" target="_blank" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                            </svg>
-                            Preview
-                        </a>
-                    {{end}}
-                    <a href="/admin/slides" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700">
-                        ← Back to Slides
-                    </a>
-                </div>
-            </div>
-        </div>
+<style>
+  /* Editor Layout */
+  .slide-editor-container { display: flex; height: calc(100vh - 64px); overflow: hidden; }
+  .slide-sidebar { width: 200px; min-width: 200px; background: var(--bg-secondary, #f8fafc); border-right: 1px solid var(--border, #e2e8f0); display: flex; flex-direction: column; overflow-y: auto; }
+  .slide-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .slide-toolbar { border-bottom: 1px solid var(--border, #e2e8f0); padding: 6px 12px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; background: var(--bg, #fff); }
+  .slide-editor-area { flex: 1; overflow-y: auto; padding: 24px; }
+  .slide-right-panel { width: 280px; min-width: 280px; border-left: 1px solid var(--border, #e2e8f0); overflow-y: auto; padding: 16px; background: var(--bg-secondary, #f8fafc); }
+  .slide-bottom-bar { border-top: 1px solid var(--border, #e2e8f0); padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; background: var(--bg, #fff); }
 
-        <!-- Form -->
-        <form id="slide-form" action="{{if .IsEdit}}/admin/slides/{{.Slide.ID}}{{else}}/admin/slides{{end}}" method="post" class="space-y-8">
-            {{csrfField}}
-            
-            <!-- Basic Info -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">Basic Information</h3>
-                </div>
-                <div class="px-6 py-4 space-y-6">
-                    <!-- Title -->
-                    <div>
-                        <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Title *
-                        </label>
-                        <input type="text" id="title" name="title" required
-                               value="{{.Slide.Title}}"
-                               class="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:text-white sm:text-sm"
-                               placeholder="Enter slide title">
-                    </div>
+  /* Dark mode */
+  .dark .slide-sidebar, .dark .slide-right-panel { background: #1e293b; border-color: #334155; }
+  .dark .slide-toolbar, .dark .slide-bottom-bar { background: #0f172a; border-color: #334155; }
+  .dark .slide-editor-area { background: #0f172a; }
 
-                    <!-- Slug -->
-                    <div>
-                        <label for="slug" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Slug
-                        </label>
-                        <div class="mt-1 flex rounded-md shadow-sm">
-                            <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400 sm:text-sm">
-                                /slides/
-                            </span>
-                            <input type="text" id="slug" name="slug"
-                                   value="{{.Slide.Slug}}"
-                                   class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border-gray-300 dark:border-slate-600 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:text-white sm:text-sm"
-                                   placeholder="auto-generated-from-title">
-                        </div>
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            Leave empty to auto-generate from title
-                        </p>
-                    </div>
+  /* Slide thumbnails */
+  .slide-thumb { margin: 8px; padding: 4px; border: 2px solid transparent; border-radius: 6px; cursor: pointer; position: relative; }
+  .slide-thumb.active { border-color: #6366f1; }
+  .slide-thumb:hover { border-color: #a5b4fc; }
+  .slide-thumb-preview { width: 100%; aspect-ratio: 16/9; background: #fff; border-radius: 4px; overflow: hidden; font-size: 5px; padding: 4px; pointer-events: none; }
+  .dark .slide-thumb-preview { background: #1e293b; color: #e2e8f0; }
+  .slide-thumb-num { position: absolute; top: 6px; left: 8px; font-size: 10px; font-weight: 600; color: #6b7280; background: rgba(255,255,255,0.8); border-radius: 3px; padding: 0 4px; }
+  .slide-thumb-delete { position: absolute; top: 6px; right: 8px; font-size: 10px; color: #ef4444; cursor: pointer; display: none; background: rgba(255,255,255,0.9); border-radius: 3px; padding: 0 4px; }
+  .slide-thumb:hover .slide-thumb-delete { display: block; }
 
-                    <!-- Categories -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                            Categories
-                        </label>
-                        <div class="space-y-2 max-h-32 overflow-y-auto">
-                            {{range .Categories}}
-                                {{$catID := .ID}}
-                                <label class="inline-flex items-center mr-6">
-                                    <input type="checkbox" name="categories" value="{{.ID}}" 
-                                           {{range $.Slide.Categories}}{{if eq .ID $catID}}checked{{end}}{{end}}
-                                           class="rounded border-gray-300 dark:border-slate-600 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-slate-700">
-                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">{{.Name}}</span>
-                                </label>
-                            {{end}}
-                            {{if not .Categories}}
-                                <p class="text-sm text-gray-500 dark:text-gray-400">
-                                    No categories available. <a href="/admin/categories" class="text-indigo-600 hover:text-indigo-500">Create some categories</a> first.
-                                </p>
-                            {{end}}
-                        </div>
-                    </div>
+  /* Toolbar buttons */
+  .tb-btn { padding: 4px 8px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; font-size: 13px; background: transparent; color: #374151; transition: all 0.15s; }
+  .dark .tb-btn { color: #d1d5db; }
+  .tb-btn:hover { background: #f3f4f6; border-color: #d1d5db; }
+  .dark .tb-btn:hover { background: #334155; border-color: #475569; }
+  .tb-btn.active { background: #e0e7ff; color: #4338ca; border-color: #a5b4fc; }
+  .dark .tb-btn.active { background: #312e81; color: #a5b4fc; border-color: #4338ca; }
+  .tb-sep { width: 1px; height: 20px; background: #d1d5db; margin: 0 4px; }
+  .dark .tb-sep { background: #475569; }
+  .tb-select { padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; background: #fff; cursor: pointer; }
+  .dark .tb-select { background: #1e293b; border-color: #475569; color: #d1d5db; }
 
-                    <!-- Publish Status -->
-                    <div>
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="is_published" name="is_published" type="checkbox" 
-                                       {{if .Slide.IsPublished}}checked{{end}}
-                                       class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 dark:border-slate-600 rounded dark:bg-slate-700">
-                            </div>
-                            <div class="ml-3 text-sm">
-                                <label for="is_published" class="font-medium text-gray-700 dark:text-gray-300">
-                                    Publish immediately
-                                </label>
-                                <p class="text-gray-500 dark:text-gray-400">
-                                    Make this slide visible to the public
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  /* TipTap editor */
+  .tiptap-editor { min-height: 400px; max-width: 960px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .dark .tiptap-editor { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  .tiptap-editor .ProseMirror { outline: none; min-height: 350px; }
+  .tiptap-editor .ProseMirror h1 { font-size: 2em; font-weight: 700; margin: 0.5em 0; }
+  .tiptap-editor .ProseMirror h2 { font-size: 1.5em; font-weight: 600; margin: 0.5em 0; }
+  .tiptap-editor .ProseMirror h3 { font-size: 1.25em; font-weight: 600; margin: 0.5em 0; }
+  .tiptap-editor .ProseMirror p { margin: 0.5em 0; }
+  .tiptap-editor .ProseMirror ul, .tiptap-editor .ProseMirror ol { padding-left: 1.5em; margin: 0.5em 0; }
+  .tiptap-editor .ProseMirror li { margin: 0.25em 0; }
+  .tiptap-editor .ProseMirror img { max-width: 100%; height: auto; border-radius: 4px; }
+  .tiptap-editor .ProseMirror pre { background: #1e1e2e; color: #cdd6f4; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
+  .tiptap-editor .ProseMirror blockquote { border-left: 3px solid #6366f1; padding-left: 16px; margin: 1em 0; color: #6b7280; }
+  .tiptap-editor .ProseMirror .is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: #9ca3af; pointer-events: none; height: 0; }
+  .tiptap-editor .ProseMirror .fragment-wrapper { border: 2px dashed #6366f1; border-radius: 4px; padding: 2px 4px; display: inline; }
 
-            <!-- Content Editor -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Slide Content (HTML)</h3>
-                        <div class="flex space-x-3">
-                            <button type="button" id="preview-btn" class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                </svg>
-                                Preview
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="px-6 py-4">
-                    <div class="mb-4">
-                        <label for="content" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Reveal.js HTML Content *
-                        </label>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                            Enter the HTML content for your reveal.js presentation. Use <code>&lt;section&gt;</code> tags for slides.
-                        </p>
-                        <textarea id="content" name="content" required rows="20"
-                                  class="block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:text-white sm:text-sm font-mono"
-                                  placeholder='<section>
-    <h1>Welcome to My Presentation</h1>
-    <p>This is the first slide</p>
-</section>
+  /* CodeMirror override */
+  .cm-editor { min-height: 400px; max-width: 960px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+  .dark .cm-editor { border-color: #334155; }
 
-<section>
-    <h2>Second Slide</h2>
-    <p>Add your content here</p>
-</section>'>{{.Slide.ContentHTML}}</textarea>
-                    </div>
+  /* Right panel sections */
+  .panel-section { margin-bottom: 16px; }
+  .panel-section label { display: block; font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .dark .panel-section label { color: #9ca3af; }
+  .panel-input { width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; background: #fff; }
+  .dark .panel-input { background: #0f172a; border-color: #475569; color: #e2e8f0; }
 
-                    <!-- Help Text -->
-                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">
-                                    Reveal.js Tips
-                                </h3>
-                                <div class="mt-2 text-sm text-blue-700 dark:text-blue-300">
-                                    <ul class="list-disc list-inside space-y-1">
-                                        <li>Each <code>&lt;section&gt;</code> creates a new slide</li>
-                                        <li>Use <code>&lt;section&gt;&lt;section&gt;...&lt;/section&gt;&lt;/section&gt;</code> for vertical slides</li>
-                                        <li>Add <code>data-background-color="#ff0000"</code> to change slide background</li>
-                                        <li>Use <code>class="fragment"</code> for step-by-step reveals</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  /* Autosave indicator */
+  .autosave-indicator { font-size: 12px; color: #6b7280; }
+  .autosave-indicator.saving { color: #f59e0b; }
+  .autosave-indicator.saved { color: #22c55e; }
+  .autosave-indicator.error { color: #ef4444; }
 
-            <!-- Actions -->
-            <div class="flex items-center justify-end space-x-3">
-                <a href="/admin/slides" class="bg-white dark:bg-slate-800 py-2 px-4 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Cancel
-                </a>
-                <button type="submit" class="bg-indigo-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    {{if .IsEdit}}Update Slide{{else}}Create Slide{{end}}
-                </button>
-            </div>
-        </form>
+  /* Mode toggle */
+  .mode-toggle { display: inline-flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; }
+  .dark .mode-toggle { border-color: #475569; }
+  .mode-toggle button { padding: 4px 12px; font-size: 12px; font-weight: 500; border: none; cursor: pointer; background: transparent; color: #6b7280; }
+  .mode-toggle button.active { background: #6366f1; color: #fff; }
+</style>
+
+<div class="slide-editor-container" id="editor-root">
+  <!-- Left Sidebar: Slide Thumbnails -->
+  <div class="slide-sidebar" id="slide-sidebar">
+    <div class="p-3 border-b border-gray-200 dark:border-slate-700">
+      <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Slides</span>
     </div>
+    <div id="slide-thumb-list" class="flex-1 overflow-y-auto">
+      <!-- Thumbnails rendered by JS -->
+    </div>
+    <div class="p-2 border-t border-gray-200 dark:border-slate-700">
+      <button id="add-slide-btn" class="w-full text-xs font-medium py-2 px-3 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+        + Add Slide
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Editor Area -->
+  <div class="slide-main">
+    <!-- Toolbar -->
+    <div class="slide-toolbar" id="editor-toolbar">
+      <!-- Text formatting -->
+      <button class="tb-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button class="tb-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button class="tb-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+      <button class="tb-btn" data-cmd="strike" title="Strikethrough"><s>S</s></button>
+      <div class="tb-sep"></div>
+
+      <!-- Headings -->
+      <button class="tb-btn" data-cmd="h1" title="Heading 1">H1</button>
+      <button class="tb-btn" data-cmd="h2" title="Heading 2">H2</button>
+      <button class="tb-btn" data-cmd="h3" title="Heading 3">H3</button>
+      <div class="tb-sep"></div>
+
+      <!-- Lists -->
+      <button class="tb-btn" data-cmd="bulletList" title="Bullet List">&#8226; List</button>
+      <button class="tb-btn" data-cmd="orderedList" title="Ordered List">1. List</button>
+      <div class="tb-sep"></div>
+
+      <!-- Alignment -->
+      <button class="tb-btn" data-cmd="alignLeft" title="Align Left">&#8676;</button>
+      <button class="tb-btn" data-cmd="alignCenter" title="Align Center">&#8596;</button>
+      <button class="tb-btn" data-cmd="alignRight" title="Align Right">&#8677;</button>
+      <div class="tb-sep"></div>
+
+      <!-- Color -->
+      <label class="tb-btn" title="Text Color" style="position:relative">
+        A<span id="color-indicator" style="display:inline-block;width:12px;height:3px;background:#000;vertical-align:bottom;margin-left:2px"></span>
+        <input type="color" id="text-color-picker" style="position:absolute;opacity:0;width:0;height:0" value="#000000">
+      </label>
+
+      <!-- Font size -->
+      <select class="tb-select" id="font-size-select" title="Font Size">
+        <option value="">Size</option>
+        <option value="14px">Small</option>
+        <option value="18px">Normal</option>
+        <option value="24px">Large</option>
+        <option value="36px">XL</option>
+        <option value="48px">2XL</option>
+      </select>
+      <div class="tb-sep"></div>
+
+      <!-- Insert -->
+      <button class="tb-btn" data-cmd="image" title="Insert Image">Img</button>
+      <button class="tb-btn" data-cmd="codeBlock" title="Code Block">&lt;/&gt;</button>
+      <button class="tb-btn" data-cmd="blockquote" title="Blockquote">&ldquo;</button>
+      <button class="tb-btn" data-cmd="table" title="Insert Table">Table</button>
+      <button class="tb-btn" data-cmd="mermaid" title="Insert Mermaid Diagram">Mermaid</button>
+      <button class="tb-btn" data-cmd="drawing" title="Insert Drawing (go-draw)">Draw</button>
+      <div class="tb-sep"></div>
+
+      <!-- Layout -->
+      <select class="tb-select" id="layout-select" title="Slide Layout">
+        <option value="">Layout</option>
+        <option value="title">Title Slide</option>
+        <option value="two-col">Two Column</option>
+        <option value="content-image">Content + Image</option>
+        <option value="section-header">Section Header</option>
+        <option value="blank">Blank</option>
+      </select>
+
+      <!-- Fragment -->
+      <select class="tb-select" id="fragment-select" title="Fragment Animation">
+        <option value="">Fragment</option>
+        <option value="fade-in">Fade In</option>
+        <option value="fade-out">Fade Out</option>
+        <option value="fade-up">Fade Up</option>
+        <option value="highlight-red">Highlight Red</option>
+        <option value="highlight-blue">Highlight Blue</option>
+        <option value="grow">Grow</option>
+        <option value="shrink">Shrink</option>
+        <option value="strike">Strike</option>
+      </select>
+      <div class="tb-sep"></div>
+
+      <!-- Import/Export -->
+      <label class="tb-btn" title="Import PPTX" style="cursor:pointer">
+        Import
+        <input type="file" id="import-pptx-input" accept=".pptx" style="display:none">
+      </label>
+      <button class="tb-btn" id="export-pptx-btn" title="Export as PPTX">Export</button>
+      <div class="tb-sep"></div>
+
+      <!-- Mode toggle -->
+      <div class="mode-toggle">
+        <button id="mode-wysiwyg" class="active">WYSIWYG</button>
+        <button id="mode-code">Code</button>
+        <button id="mode-preview">Preview</button>
+      </div>
+    </div>
+
+    <!-- Editor Content Area -->
+    <div class="slide-editor-area" id="editor-area">
+      <div id="tiptap-container" class="tiptap-editor">
+        <!-- TipTap mounts here -->
+      </div>
+      <div id="codemirror-container" style="display:none">
+        <!-- CodeMirror mounts here -->
+      </div>
+      <div id="preview-container" style="display:none;width:100%;height:100%;position:relative">
+        <iframe id="preview-iframe" style="width:100%;height:100%;border:none;border-radius:8px;background:#000"></iframe>
+      </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="slide-bottom-bar">
+      <div class="flex items-center gap-3">
+        <span class="autosave-indicator" id="autosave-status">Ready</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="/admin/slides" class="tb-btn">Cancel</a>
+        {{if .IsEdit}}
+        <a href="/slides/{{.Slide.Slug}}" target="_blank" class="tb-btn">Preview</a>
+        {{end}}
+        <button type="button" id="save-draft-btn" class="tb-btn" style="background:#f0fdf4;color:#16a34a;border-color:#bbf7d0">Save Draft</button>
+        <button type="button" id="publish-btn" class="tb-btn" style="background:#6366f1;color:#fff">
+          {{if .IsEdit}}Update{{else}}Create{{end}} &amp; Publish
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Slide Properties -->
+  <div class="slide-right-panel" id="right-panel">
+    <div class="panel-section">
+      <label for="panel-title">Title</label>
+      <input type="text" id="panel-title" class="panel-input" value="{{.Slide.Title}}" placeholder="Presentation title">
+    </div>
+    <div class="panel-section">
+      <label for="panel-slug">Slug</label>
+      <input type="text" id="panel-slug" class="panel-input" value="{{.Slide.Slug}}" placeholder="auto-generated">
+    </div>
+    <div class="panel-section">
+      <label for="panel-description">Description</label>
+      <textarea id="panel-description" class="panel-input" rows="2" placeholder="Brief description">{{.Slide.Description}}</textarea>
+    </div>
+    <div class="panel-section">
+      <label>Cover Image</label>
+      <input type="text" id="panel-featured-image-url" class="panel-input" placeholder="Featured Image URL" value="{{.Slide.FeaturedImageURL}}">
+      <div class="cover-upload-section mt-2">
+        <div id="slide-cover-preview" style="display: {{if .Slide.FeaturedImageURL}}block{{else}}none{{end}};">
+          <img id="slide-cover-img" src="{{.Slide.FeaturedImageURL}}" alt="Cover image" style="max-width: 100%; border-radius: 6px;">
+          <button type="button" id="slide-remove-cover-btn" class="text-xs text-red-500 hover:text-red-700 mt-1">Remove</button>
+        </div>
+        <div id="slide-cover-drop-zone" style="border: 2px dashed #d1d5db; border-radius: 6px; padding: 0.75rem; text-align: center; cursor: pointer; margin-top: 0.5rem;">
+          <div style="font-size: 12px; color: #6b7280;">Drop image here or click Upload</div>
+        </div>
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <input type="file" id="slide-cover-upload" accept="image/*" style="display:none">
+          <button type="button" id="slide-upload-cover-btn" class="tb-btn" style="font-size: 11px; padding: 4px 8px;">Upload New</button>
+          <button type="button" id="slide-choose-cover-btn" class="tb-btn" style="font-size: 11px; padding: 4px 8px;">Choose Existing</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <label>Categories</label>
+      <div class="space-y-1 max-h-24 overflow-y-auto">
+        {{range .Categories}}
+        {{$catID := .ID}}
+        <label class="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+          <input type="checkbox" class="cat-checkbox rounded" value="{{.ID}}"
+                 {{range $.Slide.Categories}}{{if eq .ID $catID}}checked{{end}}{{end}}>
+          {{.Name}}
+        </label>
+        {{end}}
+      </div>
+    </div>
+    <div class="panel-section">
+      <label for="panel-password">Password Protection</label>
+      <input type="password" id="panel-password" class="panel-input" placeholder="Leave empty for no password">
+      {{if .Slide.PasswordHash}}
+      <button type="button" id="remove-password-btn" class="text-xs text-red-500 hover:text-red-700 mt-1">Remove password</button>
+      {{end}}
+    </div>
+
+    {{if .IsEdit}}
+    <hr class="my-4 border-gray-200 dark:border-slate-700">
+    <div class="panel-section">
+      <label>Version History</label>
+      <div id="version-list" class="space-y-1 max-h-48 overflow-y-auto text-xs">
+        <span class="text-gray-400">Loading...</span>
+      </div>
+    </div>
+    {{end}}
+
+    <hr class="my-4 border-gray-200 dark:border-slate-700">
+
+    <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Current Slide</div>
+    <div class="panel-section">
+      <label for="slide-bg-color">Background Color</label>
+      <input type="color" id="slide-bg-color" class="panel-input" value="#ffffff" style="height:32px;padding:2px">
+    </div>
+    <div class="panel-section">
+      <label for="slide-bg-image">Background Image</label>
+      <input type="text" id="slide-bg-image" class="panel-input" placeholder="URL or upload">
+      <label class="text-xs text-indigo-500 cursor-pointer hover:text-indigo-700 mt-1 inline-block">
+        Upload image
+        <input type="file" id="slide-bg-upload" accept="image/*" style="display:none">
+      </label>
+    </div>
+    <div class="panel-section">
+      <label for="slide-transition">Transition</label>
+      <select id="slide-transition" class="panel-input">
+        <option value="slide">Slide</option>
+        <option value="fade">Fade</option>
+        <option value="convex">Convex</option>
+        <option value="concave">Concave</option>
+        <option value="zoom">Zoom</option>
+        <option value="none">None</option>
+      </select>
+    </div>
+  </div>
 </div>
 
-<!-- Preview Modal -->
-<div id="preview-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white dark:bg-slate-800">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Slide Preview</h3>
-            <button id="close-preview" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        <div id="preview-content" class="bg-white rounded-lg overflow-hidden" style="height: 500px;">
-            <!-- Preview content will be loaded here -->
-        </div>
+<!-- Hidden form for actual submission -->
+<form id="slide-form" action="{{if .IsEdit}}/admin/slides/{{.Slide.ID}}{{else}}/admin/slides{{end}}" method="post" style="display:none">
+  {{csrfField}}
+  <input type="hidden" name="title" id="form-title">
+  <input type="hidden" name="slug" id="form-slug">
+  <input type="hidden" name="content" id="form-content">
+  <input type="hidden" name="is_published" id="form-published" value="false">
+  <input type="hidden" name="categories" id="form-categories">
+  <input type="hidden" name="description" id="form-description">
+  <input type="hidden" name="featured_image_url" id="form-featured-image-url">
+  <input type="hidden" name="metadata" id="form-metadata">
+  <input type="hidden" name="password" id="form-password">
+</form>
+
+<!-- Mermaid Modal -->
+<div id="mermaid-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg">
+    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Insert Mermaid Diagram</h3>
+    <textarea id="mermaid-input" class="w-full h-48 border rounded p-3 font-mono text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-gray-200" placeholder="graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[OK]
+    B -->|No| D[End]"></textarea>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="mermaid-cancel" class="tb-btn">Cancel</button>
+      <button id="mermaid-insert" class="tb-btn" style="background:#6366f1;color:#fff">Insert</button>
     </div>
+  </div>
 </div>
 
+<!-- Image Upload Modal -->
+<div id="image-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Insert Image</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Image</label>
+        <input type="file" id="image-upload-input" accept="image/*" class="text-sm">
+      </div>
+      <div class="text-center text-gray-400 text-sm">or</div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Image URL</label>
+        <input type="text" id="image-url-input" class="panel-input" placeholder="https://...">
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="image-cancel" class="tb-btn">Cancel</button>
+      <button id="image-insert" class="tb-btn" style="background:#6366f1;color:#fff">Insert</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drawing (go-draw) Modal -->
+<div id="drawing-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-4xl" style="height:80vh;display:flex;flex-direction:column">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Insert Drawing</h3>
+      <div class="flex gap-2">
+        <button id="drawing-insert" class="tb-btn" style="background:#6366f1;color:#fff">Insert Selected</button>
+        <button id="drawing-cancel" class="tb-btn">Cancel</button>
+      </div>
+    </div>
+    <div style="flex:1;overflow:hidden">
+      <iframe id="drawing-iframe" src="" style="width:100%;height:100%;border:none"></iframe>
+    </div>
+    <div class="px-6 py-3 border-t border-gray-200 dark:border-slate-700 text-xs text-gray-500 dark:text-gray-400">
+      Click a drawing to select it, or create a new one. Then click "Insert Selected".
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/tiptap-bundle.js"></script>
+<script src="/static/js/codemirror-bundle.js"></script>
+<script src="/static/js/pptxgen-bundle.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-generate slug from title
-    const titleInput = document.getElementById('title');
-    const slugInput = document.getElementById('slug');
-    
-    titleInput.addEventListener('input', function() {
-        if (!slugInput.dataset.userModified) {
-            const slug = this.value.toLowerCase()
-                .replace(/[^\w\s-]/g, '')
-                .replace(/\s+/g, '-')
-                .replace(/-+/g, '-')
-                .trim('-');
-            slugInput.value = slug;
-        }
-    });
-    
-    slugInput.addEventListener('input', function() {
-        slugInput.dataset.userModified = 'true';
-    });
+(function() {
+  'use strict';
 
-    // Preview functionality
-    const previewBtn = document.getElementById('preview-btn');
-    const previewModal = document.getElementById('preview-modal');
-    const closePreview = document.getElementById('close-preview');
-    const previewContent = document.getElementById('preview-content');
+  const isEdit = {{if .IsEdit}}true{{else}}false{{end}};
+  const slideID = {{if .IsEdit}}{{.Slide.ID}}{{else}}0{{end}};
+  const csrfToken = document.querySelector('input[name="gorilla.csrf.Token"]')?.value || '';
+  const slideSlug = document.getElementById('panel-slug').value;
 
-    previewBtn.addEventListener('click', function() {
-        const content = document.getElementById('content').value;
-        if (!content.trim()) {
-            alert('Please enter some content to preview');
-            return;
-        }
+  // Editor state
+  const editorState = {
+    slides: [],
+    currentSlideIndex: 0,
+    mode: 'wysiwyg',
+    dirty: false,
+  };
 
-        // Show modal
-        previewModal.classList.remove('hidden');
-        
-        // Load preview content
-        previewContent.innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div><p class="mt-2 text-sm text-gray-500">Loading preview...</p></div>';
-        
-        // Get CSRF token
-        const csrfToken = document.querySelector('input[name="gorilla.csrf.Token"]')?.value || '';
-        
-        // Send content to preview endpoint
-        fetch('/admin/slides/preview', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'content=' + encodeURIComponent(content) + '&gorilla.csrf.Token=' + encodeURIComponent(csrfToken)
-        })
-        .then(response => response.text())
-        .then(html => {
-            // Create an iframe to display the full HTML preview
-            const iframe = document.createElement('iframe');
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.border = 'none';
-            iframe.srcdoc = html;
-            previewContent.innerHTML = '';
-            previewContent.appendChild(iframe);
-        })
-        .catch(error => {
-            previewContent.innerHTML = '<div class="text-red-600 dark:text-red-400 text-center py-8">Error loading preview: ' + error.message + '</div>';
+  // Parse existing content into slides
+  function parseContentToSlides(html) {
+    if (!html || !html.trim()) {
+      return [{ content: '<h1>New Presentation</h1><p>Click to edit</p>', background: '#ffffff', backgroundImage: '', transition: 'slide', layout: '' }];
+    }
+
+    const slides = [];
+    // Split by <section> tags
+    const parser = new DOMParser();
+    const doc = parser.parseFromString('<div>' + html + '</div>', 'text/html');
+    const sections = doc.querySelectorAll('section');
+
+    if (sections.length === 0) {
+      // No sections found, wrap everything in one slide
+      slides.push({ content: html, background: '#ffffff', backgroundImage: '', transition: 'slide', layout: '' });
+    } else {
+      sections.forEach(section => {
+        const isPptx = section.classList.contains('pptx-slide');
+        slides.push({
+          content: section.innerHTML.trim(),
+          background: section.getAttribute('data-background-color') || '#ffffff',
+          backgroundImage: section.getAttribute('data-background-image') || '',
+          transition: section.getAttribute('data-transition') || 'slide',
+          layout: (section.className || '').replace('layout-', '').replace('pptx-slide', '').trim() || '',
+          pptxSlide: isPptx,
         });
-    });
+      });
+    }
+    return slides;
+  }
 
-    closePreview.addEventListener('click', function() {
-        previewModal.classList.add('hidden');
-    });
+  // Initialize content
+  const rawContent = {{if .IsEdit}}`{{.Slide.ContentHTML}}`{{else}}''{{end}};
+  editorState.slides = parseContentToSlides(rawContent);
 
-    // Close modal when clicking outside
-    previewModal.addEventListener('click', function(e) {
-        if (e.target === previewModal) {
-            previewModal.classList.add('hidden');
+  // TipTap Editor
+  const { Editor, StarterKit, Image: TipTapImage, TextAlign, Color, TextStyle, Placeholder, Underline, Table, TableRow, TableCell, TableHeader, CodeBlockLowlight, lowlight } = window.TipTap;
+
+  const editor = new Editor({
+    element: document.getElementById('tiptap-container'),
+    extensions: [
+      StarterKit.configure({ codeBlock: false }),
+      TipTapImage.configure({ inline: true, allowBase64: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Color,
+      TextStyle,
+      Placeholder.configure({ placeholder: 'Start typing your slide content...' }),
+      Underline,
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      CodeBlockLowlight.configure({ lowlight }),
+    ],
+    content: editorState.slides[0]?.content || '',
+    onUpdate: () => {
+      editorState.dirty = true;
+      editorState.slides[editorState.currentSlideIndex].content = editor.getHTML();
+      updateThumbPreview(editorState.currentSlideIndex);
+      scheduleAutosave();
+    },
+  });
+
+  // CodeMirror instance (lazy init)
+  let cmView = null;
+  function initCodeMirror(content) {
+    const { EditorView, EditorState: CMState, basicSetup, html: htmlLang, oneDark } = window.CodeMirrorBundle;
+    const container = document.getElementById('codemirror-container');
+    container.innerHTML = '';
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const extensions = [basicSetup, htmlLang()];
+    if (isDark) extensions.push(oneDark);
+
+    cmView = new EditorView({
+      state: CMState.create({ doc: content, extensions }),
+      parent: container,
+    });
+  }
+
+  // Mode toggle
+  function setEditorMode(mode) {
+    const tiptap = document.getElementById('tiptap-container');
+    const codemirror = document.getElementById('codemirror-container');
+    const preview = document.getElementById('preview-container');
+    const btnW = document.getElementById('mode-wysiwyg');
+    const btnC = document.getElementById('mode-code');
+    const btnP = document.getElementById('mode-preview');
+
+    // Save current content before switching
+    const currentSlide = editorState.slides[editorState.currentSlideIndex];
+    if (currentSlide && !currentSlide.pptxSlide) {
+      if (editorState.mode === 'wysiwyg') {
+        currentSlide.content = editor.getHTML();
+      } else if (editorState.mode === 'code' && cmView) {
+        currentSlide.content = cmView.state.doc.toString();
+      }
+    }
+
+    editorState.mode = mode;
+    tiptap.style.display = 'none';
+    codemirror.style.display = 'none';
+    preview.style.display = 'none';
+    btnW.classList.remove('active');
+    btnC.classList.remove('active');
+    btnP.classList.remove('active');
+
+    if (mode === 'wysiwyg') {
+      tiptap.style.display = '';
+      btnW.classList.add('active');
+      editor.commands.setContent(currentSlide.content);
+    } else if (mode === 'code') {
+      codemirror.style.display = '';
+      btnC.classList.add('active');
+      initCodeMirror(currentSlide.content);
+    } else if (mode === 'preview') {
+      preview.style.display = '';
+      btnP.classList.add('active');
+      updatePreviewIframe();
+    }
+  }
+
+  function updatePreviewIframe() {
+    const slide = editorState.slides[editorState.currentSlideIndex];
+    const bg = slide.background && slide.background !== '#ffffff' ? ` data-background-color="${slide.background}"` : '';
+    const cls = slide.pptxSlide ? ' class="pptx-slide"' : '';
+    const sectionHTML = `<section${cls}${bg}>\n${slide.content}\n</section>`;
+
+    const html = `<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/white.css">
+<style>
+html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important}
+.reveal .slides{text-align:left}
+.reveal .slides section{max-width:1100px!important;margin:0 auto!important;padding:40px!important;overflow:visible!important;box-sizing:border-box!important}
+.reveal .slides section.pptx-slide{padding:0!important;max-width:100%!important;width:100%!important;height:100%!important;overflow:hidden!important}
+.reveal .slides section.pptx-slide p,.reveal .slides section.pptx-slide h1,.reveal .slides section.pptx-slide h3,.reveal .slides section.pptx-slide li{margin:0;line-height:1.3}
+.reveal h1,.reveal h2,.reveal h3{color:#111;line-height:1.08}
+</style></head><body>
+<div class="reveal"><div class="slides">${sectionHTML}</div></div>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"><\/script>
+<script>Reveal.initialize({width:1280,height:800,margin:0.04,minScale:0.2,maxScale:1.5,controls:false,progress:false,slideNumber:false,center:false,transition:'none'});<\/script>
+</body></html>`;
+
+    const iframe = document.getElementById('preview-iframe');
+    iframe.srcdoc = html;
+  }
+
+  document.getElementById('mode-wysiwyg').addEventListener('click', () => setEditorMode('wysiwyg'));
+  document.getElementById('mode-code').addEventListener('click', () => setEditorMode('code'));
+  document.getElementById('mode-preview').addEventListener('click', () => setEditorMode('preview'));
+
+  // Slide thumbnail management
+  function renderThumbs() {
+    const list = document.getElementById('slide-thumb-list');
+    list.innerHTML = '';
+    editorState.slides.forEach((slide, i) => {
+      const thumb = document.createElement('div');
+      thumb.className = 'slide-thumb' + (i === editorState.currentSlideIndex ? ' active' : '');
+      thumb.draggable = true;
+      thumb.dataset.index = i;
+
+      thumb.innerHTML = `
+        <span class="slide-thumb-num">${i + 1}</span>
+        <span class="slide-thumb-delete" title="Delete slide">&times;</span>
+        <div class="slide-thumb-preview" id="thumb-preview-${i}">${slide.content.substring(0, 200)}</div>
+      `;
+
+      thumb.addEventListener('click', (e) => {
+        if (e.target.classList.contains('slide-thumb-delete')) {
+          if (editorState.slides.length > 1) {
+            deleteSlide(i);
+          }
+          return;
         }
+        switchToSlide(i);
+      });
+
+      // Drag and drop
+      thumb.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', i); });
+      thumb.addEventListener('dragover', (e) => { e.preventDefault(); thumb.style.borderTopColor = '#6366f1'; });
+      thumb.addEventListener('dragleave', () => { thumb.style.borderTopColor = ''; });
+      thumb.addEventListener('drop', (e) => {
+        e.preventDefault();
+        thumb.style.borderTopColor = '';
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+        const toIdx = i;
+        if (fromIdx !== toIdx) reorderSlide(fromIdx, toIdx);
+      });
+
+      list.appendChild(thumb);
+    });
+  }
+
+  function updateThumbPreview(index) {
+    const el = document.getElementById('thumb-preview-' + index);
+    if (el) el.innerHTML = editorState.slides[index].content.substring(0, 200);
+  }
+
+  function switchToSlide(index) {
+    // Save current slide content (skip for pptx slides in wysiwyg mode)
+    const currentSlide = editorState.slides[editorState.currentSlideIndex];
+    if (currentSlide && !currentSlide.pptxSlide) {
+      if (editorState.mode === 'wysiwyg') {
+        currentSlide.content = editor.getHTML();
+      } else if (editorState.mode === 'code' && cmView) {
+        currentSlide.content = cmView.state.doc.toString();
+      }
+    }
+
+    editorState.currentSlideIndex = index;
+    const slide = editorState.slides[index];
+
+    // Load new slide content
+    if (editorState.mode === 'wysiwyg') {
+      editor.commands.setContent(slide.content);
+    } else if (editorState.mode === 'code' && cmView) {
+      initCodeMirror(slide.content);
+    } else if (editorState.mode === 'preview') {
+      updatePreviewIframe();
+    }
+
+    // Update right panel
+    document.getElementById('slide-bg-color').value = slide.background || '#ffffff';
+    document.getElementById('slide-bg-image').value = slide.backgroundImage || '';
+    document.getElementById('slide-transition').value = slide.transition || 'slide';
+
+    renderThumbs();
+  }
+
+  function addSlide(layout) {
+    let content = '<p></p>';
+    switch (layout) {
+      case 'title': content = '<h1>Title</h1><p>Subtitle</p>'; break;
+      case 'two-col': content = '<div class="two-col"><div><h2>Left</h2><p>Content</p></div><div><h2>Right</h2><p>Content</p></div></div>'; break;
+      case 'content-image': content = '<div class="two-col" style="grid-template-columns:3fr 2fr"><div><h2>Content</h2><p>Text here</p></div><div><p>Image here</p></div></div>'; break;
+      case 'section-header': content = '<h1 style="text-align:center">Section Title</h1>'; break;
+    }
+    editorState.slides.push({ content, background: '#ffffff', backgroundImage: '', transition: 'slide', layout: layout || '' });
+    switchToSlide(editorState.slides.length - 1);
+    editorState.dirty = true;
+  }
+
+  function deleteSlide(index) {
+    editorState.slides.splice(index, 1);
+    if (editorState.currentSlideIndex >= editorState.slides.length) {
+      editorState.currentSlideIndex = editorState.slides.length - 1;
+    }
+    switchToSlide(editorState.currentSlideIndex);
+    editorState.dirty = true;
+  }
+
+  function reorderSlide(from, to) {
+    const [removed] = editorState.slides.splice(from, 1);
+    editorState.slides.splice(to, 0, removed);
+    if (editorState.currentSlideIndex === from) {
+      editorState.currentSlideIndex = to;
+    } else if (from < editorState.currentSlideIndex && to >= editorState.currentSlideIndex) {
+      editorState.currentSlideIndex--;
+    } else if (from > editorState.currentSlideIndex && to <= editorState.currentSlideIndex) {
+      editorState.currentSlideIndex++;
+    }
+    renderThumbs();
+    editorState.dirty = true;
+  }
+
+  document.getElementById('add-slide-btn').addEventListener('click', () => addSlide(''));
+
+  // Layout select
+  document.getElementById('layout-select').addEventListener('change', function() {
+    if (this.value) {
+      const slide = editorState.slides[editorState.currentSlideIndex];
+      slide.layout = this.value;
+      let content = '';
+      switch (this.value) {
+        case 'title': content = '<h1>Title</h1><p>Subtitle</p>'; break;
+        case 'two-col': content = '<div class="two-col"><div><h2>Left</h2><p>Content</p></div><div><h2>Right</h2><p>Content</p></div></div>'; break;
+        case 'content-image': content = '<div class="two-col" style="grid-template-columns:3fr 2fr"><div><h2>Content</h2><p>Text here</p></div><div><p>Image here</p></div></div>'; break;
+        case 'section-header': content = '<h1 style="text-align:center">Section Title</h1>'; break;
+        case 'blank': content = '<p></p>'; break;
+      }
+      editor.commands.setContent(content);
+      slide.content = content;
+      updateThumbPreview(editorState.currentSlideIndex);
+      this.value = '';
+    }
+  });
+
+  // Toolbar commands
+  document.querySelectorAll('[data-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmd = btn.dataset.cmd;
+      switch (cmd) {
+        case 'bold': editor.chain().focus().toggleBold().run(); break;
+        case 'italic': editor.chain().focus().toggleItalic().run(); break;
+        case 'underline': editor.chain().focus().toggleUnderline().run(); break;
+        case 'strike': editor.chain().focus().toggleStrike().run(); break;
+        case 'h1': editor.chain().focus().toggleHeading({ level: 1 }).run(); break;
+        case 'h2': editor.chain().focus().toggleHeading({ level: 2 }).run(); break;
+        case 'h3': editor.chain().focus().toggleHeading({ level: 3 }).run(); break;
+        case 'bulletList': editor.chain().focus().toggleBulletList().run(); break;
+        case 'orderedList': editor.chain().focus().toggleOrderedList().run(); break;
+        case 'alignLeft': editor.chain().focus().setTextAlign('left').run(); break;
+        case 'alignCenter': editor.chain().focus().setTextAlign('center').run(); break;
+        case 'alignRight': editor.chain().focus().setTextAlign('right').run(); break;
+        case 'codeBlock': editor.chain().focus().toggleCodeBlock().run(); break;
+        case 'blockquote': editor.chain().focus().toggleBlockquote().run(); break;
+        case 'image': document.getElementById('image-modal').style.display = 'flex'; break;
+        case 'mermaid': document.getElementById('mermaid-modal').style.display = 'flex'; break;
+        case 'drawing': openDrawingPicker(); break;
+        case 'table': editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); break;
+      }
+    });
+  });
+
+  // Text color
+  document.getElementById('text-color-picker').addEventListener('input', function() {
+    editor.chain().focus().setColor(this.value).run();
+    document.getElementById('color-indicator').style.background = this.value;
+  });
+
+  // Fragment select
+  document.getElementById('fragment-select').addEventListener('change', function() {
+    if (this.value && !editor.state.selection.empty) {
+      const { from, to } = editor.state.selection;
+      const selectedText = editor.state.doc.textBetween(from, to);
+      const fragmentHTML = `<span class="fragment ${this.value}">${selectedText}</span>`;
+      editor.chain().focus().deleteSelection().insertContent(fragmentHTML).run();
+    }
+    this.value = '';
+  });
+
+  // Right panel bindings
+  document.getElementById('slide-bg-color').addEventListener('input', function() {
+    editorState.slides[editorState.currentSlideIndex].background = this.value;
+    editorState.dirty = true;
+  });
+  document.getElementById('slide-bg-image').addEventListener('change', function() {
+    editorState.slides[editorState.currentSlideIndex].backgroundImage = this.value;
+    editorState.dirty = true;
+  });
+  document.getElementById('slide-transition').addEventListener('change', function() {
+    editorState.slides[editorState.currentSlideIndex].transition = this.value;
+    editorState.dirty = true;
+  });
+
+  // Background image upload
+  document.getElementById('slide-bg-upload').addEventListener('change', function() {
+    if (!this.files[0]) return;
+    const formData = new FormData();
+    formData.append('image', this.files[0]);
+    formData.append('slug', document.getElementById('panel-slug').value || 'general');
+    fetch('/admin/slides/upload-image?gorilla.csrf.Token=' + encodeURIComponent(csrfToken), {
+      method: 'POST', body: formData, headers: { 'X-CSRF-Token': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('slide-bg-image').value = data.url;
+      editorState.slides[editorState.currentSlideIndex].backgroundImage = data.url;
+    });
+  });
+
+  // Image modal
+  document.getElementById('image-cancel').addEventListener('click', () => {
+    document.getElementById('image-modal').style.display = 'none';
+  });
+  document.getElementById('image-insert').addEventListener('click', () => {
+    const urlInput = document.getElementById('image-url-input');
+    const fileInput = document.getElementById('image-upload-input');
+
+    if (fileInput.files[0]) {
+      const formData = new FormData();
+      formData.append('image', fileInput.files[0]);
+      formData.append('slug', document.getElementById('panel-slug').value || 'general');
+      fetch('/admin/slides/upload-image?gorilla.csrf.Token=' + encodeURIComponent(csrfToken), {
+        method: 'POST', body: formData, headers: { 'X-CSRF-Token': csrfToken },
+      })
+      .then(r => r.json())
+      .then(data => {
+        editor.chain().focus().setImage({ src: data.url }).run();
+        document.getElementById('image-modal').style.display = 'none';
+        fileInput.value = '';
+        urlInput.value = '';
+      });
+    } else if (urlInput.value) {
+      editor.chain().focus().setImage({ src: urlInput.value }).run();
+      document.getElementById('image-modal').style.display = 'none';
+      urlInput.value = '';
+    }
+  });
+
+  // Mermaid modal
+  document.getElementById('mermaid-cancel').addEventListener('click', () => {
+    document.getElementById('mermaid-modal').style.display = 'none';
+  });
+  document.getElementById('mermaid-insert').addEventListener('click', () => {
+    const syntax = document.getElementById('mermaid-input').value;
+    if (syntax.trim()) {
+      editor.chain().focus().insertContent(`<div class="mermaid">${syntax}</div><p></p>`).run();
+    }
+    document.getElementById('mermaid-modal').style.display = 'none';
+    document.getElementById('mermaid-input').value = '';
+  });
+
+  // Drawing (go-draw) picker
+  let selectedDrawingId = null;
+
+  function openDrawingPicker() {
+    selectedDrawingId = null;
+    const iframe = document.getElementById('drawing-iframe');
+    iframe.src = '/draw/';
+    document.getElementById('drawing-modal').style.display = 'flex';
+
+    // Listen for clicks inside the iframe to detect drawing selection
+    iframe.onload = () => {
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        // Watch for navigation to a specific drawing (URL changes to /draw/{id})
+        const checkUrl = () => {
+          try {
+            const path = iframe.contentWindow.location.pathname;
+            const match = path.match(/^\/draw\/([a-zA-Z0-9_-]+)\/?$/);
+            if (match && match[1] !== '') {
+              selectedDrawingId = match[1];
+              document.getElementById('drawing-insert').style.opacity = '1';
+            }
+          } catch(e) { /* cross-origin, ignore */ }
+        };
+        // Poll for URL changes (iframe navigation doesn't trigger parent events)
+        const urlPoll = setInterval(checkUrl, 500);
+        iframe.dataset.pollId = urlPoll;
+      } catch(e) { /* cross-origin iframe, ignore */ }
+    };
+  }
+
+  document.getElementById('drawing-cancel').addEventListener('click', () => {
+    const iframe = document.getElementById('drawing-iframe');
+    clearInterval(parseInt(iframe.dataset.pollId));
+    iframe.src = '';
+    document.getElementById('drawing-modal').style.display = 'none';
+  });
+
+  document.getElementById('drawing-insert').addEventListener('click', () => {
+    const iframe = document.getElementById('drawing-iframe');
+    // Try to get the current drawing ID from the iframe URL
+    try {
+      const path = iframe.contentWindow.location.pathname;
+      const match = path.match(/^\/draw\/([a-zA-Z0-9_-]+)/);
+      if (match) {
+        selectedDrawingId = match[1];
+      }
+    } catch(e) { /* cross-origin */ }
+
+    if (selectedDrawingId) {
+      // Insert go-draw embed div (view-only for presentations)
+      const embedHtml = `<div class="godraw-embed" data-src="/draw/${selectedDrawingId}" style="width:100%;min-height:300px"></div><p></p>`;
+      editor.chain().focus().insertContent(embedHtml).run();
+    } else {
+      alert('Please select or create a drawing first. Navigate to a drawing in the picker.');
+      return;
+    }
+
+    clearInterval(parseInt(iframe.dataset.pollId));
+    iframe.src = '';
+    document.getElementById('drawing-modal').style.display = 'none';
+  });
+
+  // Build final HTML content
+  function buildFinalContent() {
+    // Save current editor state (skip WYSIWYG for pptx slides to preserve styling)
+    const currentSlide = editorState.slides[editorState.currentSlideIndex];
+    if (currentSlide && !currentSlide.pptxSlide) {
+      if (editorState.mode === 'wysiwyg') {
+        currentSlide.content = editor.getHTML();
+      } else if (cmView) {
+        currentSlide.content = cmView.state.doc.toString();
+      }
+    }
+
+    return editorState.slides.map(slide => {
+      let attrs = '';
+      if (slide.background && slide.background !== '#ffffff') {
+        attrs += ` data-background-color="${slide.background}"`;
+      }
+      if (slide.backgroundImage) {
+        attrs += ` data-background-image="${slide.backgroundImage}"`;
+      }
+      if (slide.transition && slide.transition !== 'slide') {
+        attrs += ` data-transition="${slide.transition}"`;
+      }
+      let cls = '';
+      if (slide.pptxSlide) {
+        cls = ' class="pptx-slide"';
+      } else if (slide.layout) {
+        cls = ` class="layout-${slide.layout}"`;
+      }
+      return `<section${cls}${attrs}>\n${slide.content}\n</section>`;
+    }).join('\n\n');
+  }
+
+  // Save functions
+  function doSave(publish) {
+    const content = buildFinalContent();
+    const form = document.getElementById('slide-form');
+    document.getElementById('form-title').value = document.getElementById('panel-title').value;
+    document.getElementById('form-slug').value = document.getElementById('panel-slug').value;
+    document.getElementById('form-content').value = content;
+    document.getElementById('form-published').value = publish ? 'on' : 'false';
+    document.getElementById('form-description').value = document.getElementById('panel-description').value;
+    document.getElementById('form-featured-image-url').value = document.getElementById('panel-featured-image-url').value;
+    document.getElementById('form-password').value = document.getElementById('panel-password').value;
+
+    // Categories
+    const catIds = Array.from(document.querySelectorAll('.cat-checkbox:checked')).map(cb => cb.value);
+    document.getElementById('form-categories').value = catIds.join(',');
+
+    // Metadata
+    const metadata = {
+      slideCount: editorState.slides.length,
+      slides: editorState.slides.map(s => ({ background: s.background, backgroundImage: s.backgroundImage, transition: s.transition, layout: s.layout })),
+    };
+    document.getElementById('form-metadata').value = JSON.stringify(metadata);
+
+    form.submit();
+  }
+
+  document.getElementById('save-draft-btn').addEventListener('click', () => doSave(false));
+  document.getElementById('publish-btn').addEventListener('click', () => doSave(true));
+
+  // Remove password
+  const removePwdBtn = document.getElementById('remove-password-btn');
+  if (removePwdBtn) {
+    removePwdBtn.addEventListener('click', () => {
+      document.getElementById('panel-password').value = '__remove__';
+      removePwdBtn.style.display = 'none';
+    });
+  }
+
+  // Cover image handling
+  (function() {
+    const featuredURL = document.getElementById('panel-featured-image-url');
+    const coverPreview = document.getElementById('slide-cover-preview');
+    const coverImg = document.getElementById('slide-cover-img');
+    const removeBtn = document.getElementById('slide-remove-cover-btn');
+    const uploadInput = document.getElementById('slide-cover-upload');
+    const uploadBtn = document.getElementById('slide-upload-cover-btn');
+    const chooseBtn = document.getElementById('slide-choose-cover-btn');
+    const dropZone = document.getElementById('slide-cover-drop-zone');
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', function() {
+        featuredURL.value = '';
+        coverPreview.style.display = 'none';
+      });
+    }
+
+    if (uploadBtn) {
+      uploadBtn.addEventListener('click', function() { uploadInput.click(); });
+    }
+
+    if (uploadInput) {
+      uploadInput.addEventListener('change', function() {
+        if (!uploadInput.files.length) return;
+        var fd = new FormData();
+        fd.append('file', uploadInput.files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    if (dropZone) {
+      dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.borderColor = '#6366f1'; });
+      dropZone.addEventListener('dragleave', function() { dropZone.style.borderColor = '#d1d5db'; });
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.style.borderColor = '#d1d5db';
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length || !files[0].type.startsWith('image/')) return;
+        var fd = new FormData();
+        fd.append('file', files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    if (chooseBtn) {
+      chooseBtn.addEventListener('click', function() {
+        fetch('/admin/uploads/list?type=featured')
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            var images = data.images || [];
+            if (images.length === 0) { alert('No existing images found'); return; }
+            var url = prompt('Select image URL from: ' + images.slice(0, 5).map(function(i) { return i.url; }).join(', '));
+            if (url) {
+              featuredURL.value = url;
+              coverImg.src = url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Failed to list images: ' + err.message); });
+      });
+    }
+
+    // Update preview when URL is manually typed
+    featuredURL.addEventListener('change', function() {
+      if (featuredURL.value) {
+        coverImg.src = featuredURL.value;
+        coverPreview.style.display = 'block';
+      } else {
+        coverPreview.style.display = 'none';
+      }
+    });
+  })();
+
+  // Autosave (debounced, only in edit mode)
+  let autosaveTimer = null;
+  function scheduleAutosave() {
+    if (!isEdit || slideID === 0) return;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(doAutosave, 3000);
+  }
+
+  function doAutosave() {
+    const status = document.getElementById('autosave-status');
+    status.textContent = 'Saving...';
+    status.className = 'autosave-indicator saving';
+
+    const content = buildFinalContent();
+    fetch(`/api/admin/slides/${slideID}/autosave`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({
+        content: content,
+        title: document.getElementById('panel-title').value,
+        metadata: JSON.stringify({ slideCount: editorState.slides.length }),
+      }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      status.textContent = 'Saved' + (data.version ? ' (v' + data.version + ')' : '');
+      status.className = 'autosave-indicator saved';
+      editorState.dirty = false;
+    })
+    .catch(() => {
+      status.textContent = 'Save failed';
+      status.className = 'autosave-indicator error';
+    });
+  }
+
+  // Import PPTX (new slide or re-import into existing)
+  document.getElementById('import-pptx-input').addEventListener('change', function() {
+    if (!this.files[0]) return;
+    const formData = new FormData();
+    formData.append('pptx', this.files[0]);
+
+    let url;
+    if (isEdit && slideID > 0) {
+      // Re-import: replace current slide content with new PPTX
+      if (!confirm('This will replace all slide content with the imported PPTX. Continue?')) {
+        this.value = '';
+        return;
+      }
+      url = '/api/admin/slides/' + slideID + '/reimport-pptx';
+    } else {
+      // New import
+      formData.append('title', document.getElementById('panel-title').value || 'Imported');
+      formData.append('slug', document.getElementById('panel-slug').value || '');
+      url = '/api/admin/slides/import-pptx';
+    }
+
+    fetch(url + '?gorilla.csrf.Token=' + encodeURIComponent(csrfToken), {
+      method: 'POST', body: formData, headers: { 'X-CSRF-Token': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+      window.location.href = '/admin/slides/' + data.slideID + '/edit';
+    })
+    .catch(err => alert('Import failed: ' + err.message));
+    this.value = '';
+  });
+
+  // Version history
+  function loadVersions() {
+    if (!isEdit || slideID === 0) return;
+    fetch(`/api/slides/${slideID}/versions`, { headers: { 'X-CSRF-Token': csrfToken } })
+    .then(r => r.json())
+    .then(versions => {
+      const list = document.getElementById('version-list');
+      if (!list) return;
+      if (!versions || versions.length === 0) {
+        list.innerHTML = '<span class="text-gray-400">No versions yet</span>';
+        return;
+      }
+      list.innerHTML = versions.map(v => {
+        const date = new Date(v.CreatedAt).toLocaleString();
+        return `<div class="flex items-center justify-between py-1 px-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700">
+          <div>
+            <span class="font-medium text-gray-700 dark:text-gray-300">v${v.VersionNumber}</span>
+            <span class="text-gray-400 ml-1">${v.CreatedByName}</span>
+            <div class="text-gray-400">${date}</div>
+          </div>
+          <div class="flex gap-1">
+            <button class="text-indigo-500 hover:text-indigo-700" onclick="viewVersion(${v.VersionNumber})" title="View">View</button>
+            <button class="text-green-500 hover:text-green-700" onclick="restoreVersion(${v.VersionNumber})" title="Restore">Restore</button>
+          </div>
+        </div>`;
+      }).join('');
+    })
+    .catch(() => {
+      const list = document.getElementById('version-list');
+      if (list) list.innerHTML = '<span class="text-gray-400">Failed to load</span>';
+    });
+  }
+
+  window.viewVersion = function(versionNum) {
+    fetch(`/api/slides/${slideID}/versions/${versionNum}`, { headers: { 'X-CSRF-Token': csrfToken } })
+    .then(r => r.json())
+    .then(v => {
+      // Show in a simple modal
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:center;justify-content:center';
+      modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;max-width:800px;width:90%;max-height:80vh;overflow-y:auto" class="dark:bg-slate-800">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="font-size:18px;font-weight:600" class="text-gray-900 dark:text-white">Version ${v.VersionNumber}: ${v.Title}</h3>
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="font-size:20px;cursor:pointer;color:#6b7280">&times;</button>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:12px">By ${v.CreatedByName} on ${new Date(v.CreatedAt).toLocaleString()}</div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;white-space:pre-wrap;max-height:50vh;overflow-y:auto" class="dark:bg-slate-900 dark:border-slate-700">${v.Content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+      </div>`;
+      modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+      document.body.appendChild(modal);
+    });
+  };
+
+  window.restoreVersion = function(versionNum) {
+    if (!confirm('Restore this version? Current content will be saved as a new version first.')) return;
+    fetch(`/api/slides/${slideID}/versions/${versionNum}/restore`, {
+      method: 'POST', headers: { 'X-CSRF-Token': csrfToken },
+    })
+    .then(r => r.json())
+    .then(() => { window.location.reload(); });
+  };
+
+  if (isEdit) {
+    loadVersions();
+  }
+
+  // Auto-switch to Preview mode if any slide is a PPTX import
+  if (editorState.slides.some(s => s.pptxSlide)) {
+    setEditorMode('preview');
+  }
+
+  // Export PPTX
+  document.getElementById('export-pptx-btn').addEventListener('click', () => {
+    if (!window.PptxGenJS) { alert('Export library not loaded'); return; }
+    const pptx = new PptxGenJS();
+    const title = document.getElementById('panel-title').value || 'Presentation';
+    pptx.title = title;
+
+    editorState.slides.forEach((slide, i) => {
+      const pptSlide = pptx.addSlide();
+      if (slide.background && slide.background !== '#ffffff') {
+        pptSlide.background = { fill: slide.background.replace('#', '') };
+      }
+
+      // Parse HTML to extract text content
+      const parser = new DOMParser();
+      const doc = parser.parseFromString('<div>' + slide.content + '</div>', 'text/html');
+
+      // Check if this is a PPTX-imported slide (absolutely positioned divs)
+      const positionedDivs = doc.querySelectorAll('div[style*="position:absolute"]');
+      if (positionedDivs.length > 0) {
+        // Rich positioned export: preserve positions, colors, sizes
+        positionedDivs.forEach(div => {
+          const style = div.getAttribute('style') || '';
+          // Parse position percentages from style
+          const leftMatch = style.match(/left:([\d.]+)%/);
+          const topMatch = style.match(/top:([\d.]+)%/);
+          const widthMatch = style.match(/width:([\d.]+)%/);
+          const heightMatch = style.match(/height:([\d.]+)%/);
+
+          const x = leftMatch ? parseFloat(leftMatch[1]) / 100 * 10 : 0.5;
+          const y = topMatch ? parseFloat(topMatch[1]) / 100 * 5.63 : 0.5;
+          const w = widthMatch ? parseFloat(widthMatch[1]) / 100 * 10 : 9;
+          const h = heightMatch ? parseFloat(heightMatch[1]) / 100 * 5.63 : 0.5;
+
+          // Check if decorative shape (no text, has background)
+          const bgMatch = style.match(/background:#([0-9A-Fa-f]{6})/);
+          if (bgMatch && !div.textContent.trim()) {
+            pptSlide.addShape(pptx.ShapeType.rect, {
+              x, y, w, h, fill: { color: bgMatch[1] }, line: { color: bgMatch[1] }
+            });
+            return;
+          }
+
+          // Text shape - extract styled text runs
+          const textEls = div.querySelectorAll('p, h1, h3, li');
+          textEls.forEach(el => {
+            const runs = [];
+            el.childNodes.forEach(node => {
+              if (node.nodeType === 3) {
+                // Text node
+                const text = node.textContent;
+                if (text.trim()) runs.push({ text, options: { fontSize: 18, color: '333333' } });
+              } else if (node.tagName === 'SPAN') {
+                const spanStyle = node.getAttribute('style') || '';
+                const opts = {};
+                const colorM = spanStyle.match(/color:#([0-9A-Fa-f]{6})/);
+                if (colorM) opts.color = colorM[1];
+                const sizeM = spanStyle.match(/font-size:([\d.]+)em/);
+                if (sizeM) opts.fontSize = Math.round(parseFloat(sizeM[1]) * 30);
+                if (spanStyle.includes('font-weight:bold')) opts.bold = true;
+                if (spanStyle.includes('font-style:italic')) opts.italic = true;
+                const spacingM = spanStyle.match(/letter-spacing:([\d.]+)pt/);
+                if (spacingM) opts.charSpacing = parseFloat(spacingM[1]) * 100;
+                runs.push({ text: node.textContent, options: opts });
+              } else if (node.tagName === 'STRONG') {
+                runs.push({ text: node.textContent, options: { bold: true } });
+              } else if (node.tagName === 'EM') {
+                runs.push({ text: node.textContent, options: { italic: true } });
+              }
+            });
+            if (runs.length > 0) {
+              pptSlide.addText(runs, { x, y, w, h, valign: 'middle', fontFace: 'Calibri' });
+            }
+          });
+        });
+      } else {
+        // Legacy export: simple flow-based layout
+        let yPos = 0.5;
+        doc.querySelectorAll('h1, h2, h3, p, li, pre').forEach(el => {
+          const tag = el.tagName.toLowerCase();
+          const text = el.textContent.trim();
+          if (!text) return;
+
+          let fontSize = 18;
+          let bold = false;
+          if (tag === 'h1') { fontSize = 36; bold = true; }
+          else if (tag === 'h2') { fontSize = 28; bold = true; }
+          else if (tag === 'h3') { fontSize = 22; bold = true; }
+          else if (tag === 'pre') { fontSize = 12; }
+          else if (tag === 'li') { fontSize = 16; }
+
+          pptSlide.addText(text, {
+            x: 0.5, y: yPos, w: '90%', fontSize, bold,
+            fontFace: tag === 'pre' ? 'Courier New' : 'Arial',
+            color: '333333',
+            bullet: tag === 'li' ? { type: 'bullet' } : undefined,
+          });
+          yPos += (fontSize / 72) * 1.5 + 0.1;
+        });
+
+        // Extract images
+        doc.querySelectorAll('img').forEach(img => {
+          const src = img.getAttribute('src');
+          if (src && !src.startsWith('data:')) {
+            try {
+              pptSlide.addImage({ path: window.location.origin + src, x: 1, y: yPos, w: 4, h: 3 });
+              yPos += 3.2;
+            } catch(e) { /* skip images that fail */ }
+          }
+        });
+      }
     });
 
-    // Collect selected categories
-    const form = document.getElementById('slide-form');
-    form.addEventListener('submit', function(e) {
-        const checkboxes = document.querySelectorAll('input[name="categories"]:checked');
-        const categoryIds = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Create hidden input for categories
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = 'categories';
-        hiddenInput.value = categoryIds.join(',');
-        form.appendChild(hiddenInput);
+    pptx.writeFile({ fileName: title.replace(/[^a-zA-Z0-9]/g, '_') + '.pptx' });
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (isEdit) doAutosave(); else doSave(false);
+    }
+  });
+
+  // Auto-generate slug from title
+  const titleInput = document.getElementById('panel-title');
+  const slugInput = document.getElementById('panel-slug');
+  if (!isEdit) {
+    titleInput.addEventListener('input', function() {
+      if (!slugInput.dataset.userModified) {
+        slugInput.value = this.value.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      }
     });
-});
+    slugInput.addEventListener('input', function() { this.dataset.userModified = 'true'; });
+  }
+
+  // Initialize
+  renderThumbs();
+  if (editorState.slides[0]) {
+    document.getElementById('slide-bg-color').value = editorState.slides[0].background || '#ffffff';
+    document.getElementById('slide-transition').value = editorState.slides[0].transition || 'slide';
+  }
+
+  // Warn before leaving with unsaved changes
+  window.addEventListener('beforeunload', (e) => {
+    if (editorState.dirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+})();
 </script>
 
 {{template "modern-footer" .}}

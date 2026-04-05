@@ -39,10 +39,88 @@ func isAjaxRequest(r *http.Request) bool {
 
 type Categories struct {
 	CategoryService *models.CategoryService
+	PostService     *models.PostService
+	SlideService    *models.SlideService
+	GuideService    *models.GuideService
 	SessionService  *models.SessionService
 	Templates       struct {
-		Manage views.Template
+		Manage  views.Template
+		TagPage views.Template
 	}
+}
+
+// TagPage displays all posts and slides for a given tag/category name.
+func (c *Categories) TagPage(w http.ResponseWriter, r *http.Request) {
+	tagName := chi.URLParam(r, "name")
+	if tagName == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	category, err := c.CategoryService.GetByName(tagName)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	posts, err := c.PostService.GetPublishedPostsByCategory(category.ID)
+	if err != nil {
+		log.Printf("Failed to get posts for tag %q: %v", tagName, err)
+		posts = nil
+	}
+
+	slides, err := c.SlideService.GetPublishedSlidesByCategory(category.ID)
+	if err != nil {
+		log.Printf("Failed to get slides for tag %q: %v", tagName, err)
+		slides = nil
+	}
+
+	var guides []models.Guide
+	if c.GuideService != nil {
+		guides, err = c.GuideService.GetPublishedGuidesByCategory(category.ID)
+		if err != nil {
+			log.Printf("Failed to get guides for tag %q: %v", tagName, err)
+			guides = nil
+		}
+	}
+
+	user, _ := utils.IsUserLoggedIn(r, c.SessionService)
+
+	var data struct {
+		TagName         string
+		Posts           []models.Post
+		Slides          []models.Slide
+		Guides          []models.Guide
+		PostCount       int
+		SlideCount      int
+		GuideCount      int
+		TotalCount      int
+		LoggedIn        bool
+		IsAdmin         bool
+		Username        string
+		Description     string
+		CurrentPage     string
+		UserPermissions models.UserPermissions
+	}
+	data.TagName = category.Name
+	data.Posts = posts
+	data.Slides = slides
+	data.Guides = guides
+	data.PostCount = len(posts)
+	data.SlideCount = len(slides)
+	data.GuideCount = len(guides)
+	data.TotalCount = len(posts) + len(slides) + len(guides)
+	data.Description = fmt.Sprintf("Posts, presentations, and guides tagged with %q", category.Name)
+	data.CurrentPage = "tags"
+
+	if user != nil {
+		data.LoggedIn = true
+		data.Username = user.Username
+		data.IsAdmin = models.IsAdmin(user.Role)
+		data.UserPermissions = models.GetPermissions(user.Role)
+	}
+
+	c.Templates.TagPage.Execute(w, r, data)
 }
 
 // Admin Category Management Page
@@ -53,8 +131,8 @@ func (c *Categories) Manage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is admin
-	if !models.IsAdmin(user.Role) {
+	// Check if user can view admin panel (admin or editor)
+	if !models.CanViewAdminPanel(user.Role) {
 		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return
 	}
@@ -225,7 +303,7 @@ func (c *Categories) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 }
 
 // requireAdminOrRedirect checks that the request is authenticated and from an admin
-// user. On failure it writes the appropriate HTTP response and returns (nil, false).
+// or editor user. On failure it writes the appropriate HTTP response and returns (nil, false).
 func requireAdminOrRedirect(w http.ResponseWriter, r *http.Request, ss *models.SessionService, ajax bool) (*models.User, bool) {
 	user, err := utils.IsUserLoggedIn(r, ss)
 	if err != nil || user == nil {
@@ -236,7 +314,7 @@ func requireAdminOrRedirect(w http.ResponseWriter, r *http.Request, ss *models.S
 		}
 		return nil, false
 	}
-	if !models.IsAdmin(user.Role) {
+	if !models.CanViewAdminPanel(user.Role) {
 		http.Error(w, errForbiddenAdmin, http.StatusForbidden)
 		return nil, false
 	}

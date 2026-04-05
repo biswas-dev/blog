@@ -96,13 +96,13 @@ func (ss *SessionService) User(token string, email string) (*User, error) {
 	}
 
 	row := ss.DB.QueryRow(`
-		SELECT s.id, s.token_hash, u.user_id, u.username, u.role_id
+		SELECT s.id, s.token_hash, u.user_id, u.username, u.full_name, u.role_id, COALESCE(u.profile_picture_url, ''), COALESCE(u.bio, '')
 		FROM users AS u
 		INNER JOIN sessions AS s ON u.user_id = s.user_id
 		WHERE u.email = $1`, email)
 
 	var dbUserID int
-	err := row.Scan(&session.ID, &session.TokenHash, &dbUserID, &user.Username, &user.Role)
+	err := row.Scan(&session.ID, &session.TokenHash, &dbUserID, &user.Username, &user.FullName, &user.Role, &user.AvatarURL, &user.Bio)
 	if err != nil {
 		return nil, fmt.Errorf("session, email incorrect: %w", err)
 	}

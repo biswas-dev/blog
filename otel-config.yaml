@@ -15,6 +15,15 @@ receivers:
 
 processors:
   batch:
+    send_batch_max_size: 100
+    send_batch_size: 10
+    timeout: 10s
+
+# datadog/connector computes APM stats (p50/p75/p95/p99 latencies, error rates,
+# hit rates) from trace spans and forwards them as metrics to the metrics pipeline.
+# Without this, Datadog does not recognise the service as instrumented for APM.
+connectors:
+  datadog/connector:
 
 exporters:
   datadog:
@@ -26,5 +35,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog, datadog/connector]
+    metrics:
+      receivers: [otlp, datadog/connector]
       processors: [batch]
       exporters: [datadog]

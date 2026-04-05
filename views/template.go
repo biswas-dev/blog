@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 
+	"anshumanbiswas.com/blog/icons"
 	"github.com/gorilla/csrf"
 )
 
@@ -37,8 +38,18 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 				return strings.Contains(s, substr)
 			},
 			"upper": func(s string) string { return strings.ToUpper(s) },
+			"icon": func(name, class string) template.HTML {
+				return icons.Icon(name, class)
+			},
 			"add": func(a, b int) int {
 				return a + b
+			},
+			"thumbURL": func(url string) string {
+				if url == "" {
+					return ""
+				}
+				ext := filepath.Ext(url)
+				return url[:len(url)-len(ext)] + "_thumb" + ext
 			},
 			"initial": func(s string) string {
 				if s == "" {

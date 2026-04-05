@@ -1,0 +1,173 @@
+{{template "modern-header" .}}
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-10">
+        <div class="flex items-center gap-3 mb-2">
+            <span class="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium" style="background: rgba(13,148,136,0.15); color: var(--accent);">
+                {{icon "tag" "w-4 h-4"}}
+                {{.TagName}}
+            </span>
+            <span class="text-sm" style="color: var(--text-tertiary);">{{.TotalCount}} {{if eq .TotalCount 1}}item{{else}}items{{end}}</span>
+        </div>
+        <h1 class="text-3xl font-bold sm:text-4xl" style="color: var(--text-primary);">
+            Tagged: {{.TagName}}
+        </h1>
+    </div>
+
+    <!-- Posts Section -->
+    {{if .Posts}}
+    <section class="mb-12">
+        <h2 class="text-xl font-semibold mb-6 flex items-center gap-2" style="color: var(--text-primary);">
+            {{icon "document" "w-5 h-5"}}
+            Posts
+            <span class="text-sm font-normal" style="color: var(--text-tertiary);">({{.PostCount}})</span>
+        </h2>
+        <div class="space-y-6">
+            {{range .Posts}}
+            <article class="post-item" data-href="/blog/{{.Slug}}">
+                <div class="post-item-inner">
+                    <div class="post-item-text">
+                        <div class="post-item-meta">
+                            <time class="relative-time" datetime="{{.CreatedAt}}">{{.PublicationDate}}</time>
+                            <span class="sep">&middot;</span>
+                            <span class="reading-time">{{.ReadingTime}} min read</span>
+                            {{if .AuthorDisplayName}}
+                            <span class="sep">&middot;</span>
+                            <a href="/users/{{.Username}}" class="post-author-link">{{.AuthorDisplayName}}</a>
+                            {{end}}
+                            {{if .Featured}}
+                            <span class="sep">&middot;</span>
+                            <span class="featured-badge">
+                                {{icon "star" "w-4 h-4"}}
+                                Featured
+                            </span>
+                            {{end}}
+                            {{if .Categories}}
+                            <span class="sep">&middot;</span>
+                            <div class="category-pills">
+                                {{range .Categories}}
+                                <a href="/tags/{{.Name}}" class="category-pill">{{.Name}}</a>
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
+                        <h3 class="post-item-title"><a href="/blog/{{.Slug}}">{{.Title}}</a></h3>
+                        <div class="post-item-excerpt">
+                            {{if .ContentHTML}}{{.ContentHTML}}{{else}}{{.Content}}{{end}}
+                        </div>
+                    </div>
+                    {{if .FeaturedImageURL}}
+                    <div class="post-item-image">
+                        <img src="{{.FeaturedImageURL}}" alt="{{.Title}}" loading="lazy" />
+                    </div>
+                    {{end}}
+                </div>
+            </article>
+            {{end}}
+        </div>
+    </section>
+    {{end}}
+
+    <!-- Slides Section -->
+    {{if .Slides}}
+    <section class="mb-12">
+        <h2 class="text-xl font-semibold mb-6 flex items-center gap-2" style="color: var(--text-primary);">
+            {{icon "columns" "w-5 h-5"}}
+            Presentations
+            <span class="text-sm font-normal" style="color: var(--text-tertiary);">({{.SlideCount}})</span>
+        </h2>
+        <div class="grid gap-6 md:grid-cols-2">
+            {{range .Slides}}
+            <div class="rounded-lg overflow-hidden border transition-all" style="background: var(--surface); border-color: var(--border-light);">
+                <div class="p-5">
+                    <h3 class="text-lg font-semibold mb-2">
+                        <a href="/slides/{{.Slug}}" class="transition-colors" style="color: var(--text-primary);"
+                           onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">{{.Title}}</a>
+                    </h3>
+                    {{if .Description}}
+                    <p class="text-sm mb-3" style="color: var(--text-secondary);">{{.Description}}</p>
+                    {{end}}
+                    <div class="flex items-center gap-3 text-sm" style="color: var(--text-tertiary);">
+                        <div class="flex items-center gap-1.5">
+                            {{if .AuthorAvatarURL}}
+                            <img src="{{.AuthorAvatarURL}}" alt="{{.AuthorDisplayName}}" class="w-5 h-5 rounded-full object-cover" width="20" height="20">
+                            {{end}}
+                            <span>{{.AuthorDisplayName}}</span>
+                        </div>
+                        <span>&middot;</span>
+                        <time class="relative-time" datetime="{{.CreatedAt}}">{{.CreatedAt}}</time>
+                        {{if .SlideCount}}
+                        <span>&middot;</span>
+                        <span>{{.SlideCount}} slides</span>
+                        {{end}}
+                    </div>
+                    {{if .Categories}}
+                    <div class="flex flex-wrap gap-1.5 mt-3">
+                        {{range .Categories}}
+                        <a href="/tags/{{.Name}}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors" style="background: rgba(13,148,136,0.1); color: var(--accent);">{{.Name}}</a>
+                        {{end}}
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </section>
+    {{end}}
+
+    <!-- Guides Section -->
+    {{if .Guides}}
+    <section class="mb-12">
+        <h2 class="text-xl font-semibold mb-6 flex items-center gap-2" style="color: var(--text-primary);">
+            {{icon "document" "w-5 h-5"}}
+            Guides
+            <span class="text-sm font-normal" style="color: var(--text-tertiary);">({{.GuideCount}})</span>
+        </h2>
+        <div class="grid gap-6 md:grid-cols-2">
+            {{range .Guides}}
+            <div class="rounded-lg overflow-hidden border transition-all" style="background: var(--surface); border-color: var(--border-light);">
+                <div class="p-5">
+                    <h3 class="text-lg font-semibold mb-2">
+                        <a href="/guides/{{.Slug}}" class="transition-colors" style="color: var(--text-primary);"
+                           onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">{{.Title}}</a>
+                    </h3>
+                    {{if .Description}}
+                    <p class="text-sm mb-3" style="color: var(--text-secondary);">{{.Description}}</p>
+                    {{end}}
+                    <div class="flex items-center gap-3 text-sm" style="color: var(--text-tertiary);">
+                        <div class="flex items-center gap-1.5">
+                            {{if .AuthorAvatarURL}}
+                            <img src="{{.AuthorAvatarURL}}" alt="{{.AuthorDisplayName}}" class="w-5 h-5 rounded-full object-cover" width="20" height="20">
+                            {{end}}
+                            <span>{{.AuthorDisplayName}}</span>
+                        </div>
+                        <span>&middot;</span>
+                        <span>{{.ReadingTime}} min read</span>
+                        <span>&middot;</span>
+                        <span>{{.PublicationDate}}</span>
+                    </div>
+                    {{if .Categories}}
+                    <div class="flex flex-wrap gap-1.5 mt-3">
+                        {{range .Categories}}
+                        <a href="/tags/{{.Name}}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors" style="background: rgba(13,148,136,0.1); color: var(--accent);">{{.Name}}</a>
+                        {{end}}
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </section>
+    {{end}}
+
+    {{if and (not .Posts) (not .Slides) (not .Guides)}}
+    <div class="text-center py-16">
+        {{icon "tag" "w-16 h-16 mx-auto mb-4" "color: var(--text-tertiary)"}}
+        <h3 class="text-xl font-semibold mb-2" style="color: var(--text-primary);">No content yet</h3>
+        <p style="color: var(--text-secondary);">No posts, presentations, or guides have been tagged with "{{.TagName}}" yet.</p>
+    </div>
+    {{end}}
+</div>
+
+{{template "modern-footer" .}}

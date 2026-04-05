@@ -1,0 +1,10 @@
+# Harbor image overlay for Blog
+# Usage: docker compose -f docker-compose.yml -f docker-compose.hub.yml pull
+#        docker compose -f docker-compose.yml -f docker-compose.hub.yml up -d --no-build
+#
+# Set IMAGE_DIGEST to the full sha256 digest (e.g. sha256:abc123...)
+
+services:
+  app:
+    image: harbor.biswas.me/biswas/blog@${IMAGE_DIGEST}
+    build: !reset null

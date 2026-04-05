@@ -28,6 +28,7 @@ type SearchResponse struct {
 	TotalCount int            `json:"total_count"`
 	Posts      []SearchResult `json:"posts"`
 	Slides     []SearchResult `json:"slides"`
+	Guides     []SearchResult `json:"guides"`
 }
 
 // SearchService provides full-text search across posts and slides
@@ -35,31 +36,35 @@ type SearchService struct {
 	DB *sql.DB
 }
 
-// Search performs a parallel full-text search across posts and slides
+// Search performs a parallel full-text search across posts, slides, and guides
 func (ss *SearchService) Search(ctx context.Context, query string, limit int) (*SearchResponse, error) {
 	if query == "" {
-		return &SearchResponse{Query: query, Posts: []SearchResult{}, Slides: []SearchResult{}}, nil
+		return &SearchResponse{Query: query, Posts: []SearchResult{}, Slides: []SearchResult{}, Guides: []SearchResult{}}, nil
 	}
 
 	var (
 		posts  []SearchResult
 		slides []SearchResult
-		postErr, slideErr error
+		guides []SearchResult
+		postErr, slideErr, guideErr error
 		wg sync.WaitGroup
 	)
 
-	wg.Add(2)
+	wg.Add(3)
 
-	// Search posts in parallel
 	go func() {
 		defer wg.Done()
 		posts, postErr = ss.searchPosts(ctx, query, limit)
 	}()
 
-	// Search slides in parallel
 	go func() {
 		defer wg.Done()
 		slides, slideErr = ss.searchSlides(ctx, query, limit)
+	}()
+
+	go func() {
+		defer wg.Done()
+		guides, guideErr = ss.searchGuides(ctx, query, limit)
 	}()
 
 	wg.Wait()
@@ -70,20 +75,57 @@ func (ss *SearchService) Search(ctx context.Context, query string, limit int) (*
 	if slideErr != nil {
 		return nil, fmt.Errorf("search slides: %w", slideErr)
 	}
+	if guideErr != nil {
+		return nil, fmt.Errorf("search guides: %w", guideErr)
+	}
 
-	if posts == nil {
-		posts = []SearchResult{}
-	}
-	if slides == nil {
-		slides = []SearchResult{}
-	}
+	if posts == nil { posts = []SearchResult{} }
+	if slides == nil { slides = []SearchResult{} }
+	if guides == nil { guides = []SearchResult{} }
 
 	return &SearchResponse{
 		Query:      query,
-		TotalCount: len(posts) + len(slides),
+		TotalCount: len(posts) + len(slides) + len(guides),
 		Posts:      posts,
 		Slides:     slides,
+		Guides:     guides,
 	}, nil
+}
+
+// searchGuides searches published guides using ILIKE on title and content
+func (ss *SearchService) searchGuides(ctx context.Context, query string, limit int) ([]SearchResult, error) {
+	pattern := "%" + query + "%"
+	sqlQuery := `
+		SELECT
+			title,
+			slug,
+			COALESCE(LEFT(content, 200), '') AS excerpt,
+			COALESCE(updated_at::text, created_at::text) AS date
+		FROM Guides
+		WHERE is_published = true
+			AND (title ILIKE $1 OR content ILIKE $1)
+		ORDER BY
+			CASE WHEN title ILIKE $1 THEN 0 ELSE 1 END,
+			updated_at DESC
+		LIMIT $2
+	`
+	rows, err := ss.DB.QueryContext(ctx, sqlQuery, pattern, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var r SearchResult
+		r.Type = "guide"
+		if err := rows.Scan(&r.Title, &r.Slug, &r.Excerpt, &r.Date); err != nil {
+			return nil, err
+		}
+		r.Rank = 0.5
+		results = append(results, r)
+	}
+	return results, rows.Err()
 }
 
 // searchPosts searches published posts using full-text search

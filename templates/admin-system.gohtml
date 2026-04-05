@@ -1,3 +1,4 @@
+{{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
 {{template "modern-header" .}}
 
 <style>
@@ -423,7 +424,7 @@
                 <p>Application and infrastructure dashboard</p>
             </div>
             <a href="/admin/posts" class="sys-back-btn">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                {{icon "chevron-left" "w-4 h-4"}}
                 Back to Posts
             </a>
         </div>
@@ -444,9 +445,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-teal">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                        </svg>
+                        {{icon "server" "w-4 h-4"}}
                     </div>
                     <h3>Application</h3>
                 </div>
@@ -478,11 +477,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-green">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z"/>
-                            <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z"/>
-                            <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z"/>
-                        </svg>
+                        {{icon "database" "w-4 h-4"}}
                     </div>
                     <h3>Database</h3>
                 </div>
@@ -532,9 +527,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-amber">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
-                        </svg>
+                        {{icon "question-circle" "w-4 h-4"}}
                     </div>
                     <h3>Environment</h3>
                 </div>
@@ -558,9 +551,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-blue">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"/>
-                        </svg>
+                        {{icon "archive" "w-4 h-4"}}
                     </div>
                     <h3>Deployment</h3>
                 </div>
@@ -586,9 +577,7 @@
             <div class="sys-section-header">
                 <div class="sys-section-header-left">
                     <div class="sys-icon sys-icon-red">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"/>
-                        </svg>
+                        {{icon "check-sm" "w-4 h-4"}}
                     </div>
                     <div>
                         <h3>Database Backup & Restore</h3>
@@ -603,9 +592,7 @@
                         <h4 style="font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">Export Database</h4>
                         <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 12px;">Download a complete SQL dump.</p>
                         <button onclick="exportDatabase()" id="export-btn" class="sys-btn-primary">
-                            <svg id="export-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                            </svg>
+                            {{icon "arrow-up" "w-4 h-4"}}
                             <svg id="export-spinner" class="hidden animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -625,9 +612,7 @@
                                    accept=".sql"
                                    style="font-size: 0.8125rem; color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; background: var(--bg-tertiary);">
                             <button type="submit" id="import-btn" class="sys-btn-danger">
-                                <svg id="import-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                                </svg>
+                                {{icon "arrow-up" "w-4 h-4"}}
                                 <svg id="import-spinner" class="hidden animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -648,9 +633,7 @@
             <div class="sys-section-header">
                 <div class="sys-section-header-left">
                     <div class="sys-icon sys-icon-teal">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
-                        </svg>
+                        {{icon "users" "w-4 h-4"}}
                     </div>
                     <div>
                         <h3>External Blog Systems</h3>
@@ -658,9 +641,7 @@
                     </div>
                 </div>
                 <button onclick="openAddSystemModal()" class="sys-btn-primary">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
+                    {{icon "plus" "w-4 h-4"}}
                     Add System
                 </button>
             </div>
@@ -679,9 +660,7 @@
             <div class="sys-section-header">
                 <div class="sys-section-header-left">
                     <div class="sys-icon sys-icon-teal">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M5.5 17a4.5 4.5 0 01-1.44-8.765 4.5 4.5 0 018.302-3.046 3.5 3.5 0 014.504 4.272A4 4 0 0115 17H5.5zm3.75-2.75a.75.75 0 001.5 0V9.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0l-3.25 3.5a.75.75 0 101.1 1.02l1.95-2.1v4.59z" clip-rule="evenodd"/>
-                        </svg>
+                        {{icon "cloud" "w-4 h-4"}}
                     </div>
                     <div>
                         <h3>Cloudinary Image Storage</h3>
@@ -689,15 +668,75 @@
                     </div>
                 </div>
                 <button onclick="openCloudinaryModal()" class="sys-btn-outline">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
+                    {{icon "settings" "w-4 h-4"}}
                     Configure
                 </button>
             </div>
             <div class="sys-section-body">
                 <div id="cloudinary-status" style="text-align: center; padding: 12px 0; color: var(--text-secondary); font-size: 0.8125rem;">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Brevo Email Service Section -->
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-blue">
+                        {{icon "email" "w-4 h-4"}}
+                    </div>
+                    <div>
+                        <h3>Brevo Email Service</h3>
+                        <p>Transactional email for invitations and notifications</p>
+                    </div>
+                </div>
+                <button onclick="openBrevoModal()" class="sys-btn-outline">
+                    {{icon "settings" "w-4 h-4"}}
+                    Configure
+                </button>
+            </div>
+            <div class="sys-section-body">
+                <div id="brevo-status" style="text-align: center; padding: 12px 0; color: var(--text-secondary); font-size: 0.8125rem;">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Brevo Settings Modal -->
+        <div id="brevo-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeBrevoModal()"></div>
+                <div class="sys-modal relative max-w-lg w-full p-6">
+                    <h3 class="sys-modal-title">Brevo Email Settings</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="sys-modal-label">API Key</label>
+                            <input type="password" id="brevo-api-key" placeholder="xkeysib-..." class="sys-input w-full px-3 py-2">
+                            <p class="sys-hint">Encrypted at rest. Leave blank when editing to keep the existing key.</p>
+                        </div>
+                        <div>
+                            <label class="sys-modal-label">From Email</label>
+                            <input type="email" id="brevo-from-email" placeholder="noreply@yourdomain.com" class="sys-input w-full px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="sys-modal-label">From Name</label>
+                            <input type="text" id="brevo-from-name" placeholder="Blog" class="sys-input w-full px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="sys-modal-label">Send Test Email To (optional)</label>
+                            <input type="email" id="brevo-test-email" placeholder="your@email.com" class="sys-input w-full px-3 py-2">
+                            <p class="sys-hint">If provided, a test email will be sent when you click "Test Connection".</p>
+                        </div>
+                        <div id="brevo-test-result" class="hidden rounded-md p-3 text-sm"></div>
+                    </div>
+                    <div class="mt-6 flex justify-between">
+                        <button onclick="deleteBrevo()" id="brevo-delete-btn" class="hidden sys-btn-remove">
+                            Remove
+                        </button>
+                        <div class="flex space-x-3 ml-auto">
+                            <button onclick="closeBrevoModal()" class="sys-btn-cancel">Cancel</button>
+                            <button onclick="testBrevo()" class="sys-btn-test-teal">Test Connection</button>
+                            <button onclick="saveBrevo()" class="sys-btn-primary">Save</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1497,9 +1536,159 @@ async function deleteCloudinary() {
     }
 }
 
+// --- Brevo Email Settings ---
+
+async function loadBrevoStatus() {
+    const container = document.getElementById('brevo-status');
+    try {
+        const resp = await fetch('/api/admin/brevo');
+        if (!resp.ok) throw new Error('Failed to load');
+        const data = await resp.json();
+        if (!data.configured) {
+            container.innerHTML = `
+                <p class="sys-text-muted">Not configured</p>
+                <p class="text-sm sys-text-muted mt-1">Click Configure to set up Brevo for transactional email (invitations, notifications).</p>`;
+        } else {
+            const s = data.settings;
+            const statusClass = s.status === 'healthy' ? 'sys-status-success' : s.status === 'error' ? 'sys-status-error' : 'sys-status-warning';
+            container.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="sys-badge ${statusClass}">
+                            ${escapeHtml(s.status)}
+                        </span>
+                        <span class="text-sm sys-text-secondary">From: <strong>${escapeHtml(s.from_name)}</strong> &lt;${escapeHtml(s.from_email)}&gt;</span>
+                    </div>
+                    <span class="text-xs sys-text-muted">${s.last_checked_at ? 'Last checked: ' + new Date(s.last_checked_at).toLocaleString() : 'Not tested yet'}</span>
+                </div>`;
+        }
+    } catch (e) {
+        container.innerHTML = '<p class="text-red-500">Failed to load Brevo status</p>';
+    }
+}
+
+function openBrevoModal() {
+    const modal = document.getElementById('brevo-modal');
+    const deleteBtn = document.getElementById('brevo-delete-btn');
+    const testResult = document.getElementById('brevo-test-result');
+    testResult.classList.add('hidden');
+
+    fetch('/api/admin/brevo')
+        .then(r => r.json())
+        .then(data => {
+            if (data.configured) {
+                document.getElementById('brevo-api-key').value = '';
+                document.getElementById('brevo-api-key').placeholder = 'Leave blank to keep existing';
+                document.getElementById('brevo-from-email').value = data.settings.from_email;
+                document.getElementById('brevo-from-name').value = data.settings.from_name;
+                deleteBtn.classList.remove('hidden');
+            } else {
+                document.getElementById('brevo-api-key').value = '';
+                document.getElementById('brevo-api-key').placeholder = 'xkeysib-...';
+                document.getElementById('brevo-from-email').value = '';
+                document.getElementById('brevo-from-name').value = '';
+                deleteBtn.classList.add('hidden');
+            }
+        });
+
+    document.getElementById('brevo-test-email').value = '';
+    modal.classList.remove('hidden');
+}
+
+function closeBrevoModal() {
+    document.getElementById('brevo-modal').classList.add('hidden');
+}
+
+async function saveBrevo() {
+    const apiKey = document.getElementById('brevo-api-key').value;
+    const fromEmail = document.getElementById('brevo-from-email').value.trim();
+    const fromName = document.getElementById('brevo-from-name').value.trim();
+
+    if (!fromEmail) {
+        showMessage('From email is required', 'error');
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/admin/brevo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey, from_email: fromEmail, from_name: fromName })
+        });
+        if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text);
+        }
+        closeBrevoModal();
+        showMessage('Brevo settings saved successfully');
+        loadBrevoStatus();
+    } catch (e) {
+        showMessage('Failed to save: ' + e.message, 'error');
+    }
+}
+
+async function testBrevo() {
+    const resultDiv = document.getElementById('brevo-test-result');
+    resultDiv.className = 'rounded-md p-3 text-sm sys-result-loading';
+    resultDiv.textContent = 'Testing connection...';
+    resultDiv.classList.remove('hidden');
+
+    // Save first if fields have values
+    const apiKey = document.getElementById('brevo-api-key').value;
+    const fromEmail = document.getElementById('brevo-from-email').value.trim();
+    const fromName = document.getElementById('brevo-from-name').value.trim();
+    if (fromEmail) {
+        const saveResp = await fetch('/api/admin/brevo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey, from_email: fromEmail, from_name: fromName })
+        });
+        if (!saveResp.ok) {
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
+            resultDiv.textContent = 'Failed to save settings before testing';
+            return;
+        }
+    }
+
+    try {
+        const testEmail = document.getElementById('brevo-test-email').value.trim();
+        const resp = await fetch('/api/admin/brevo/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ send_test_to: testEmail })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-success';
+            resultDiv.textContent = data.message;
+        } else {
+            resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
+            resultDiv.textContent = 'Connection failed: ' + data.message;
+        }
+        loadBrevoStatus();
+    } catch (e) {
+        resultDiv.className = 'rounded-md p-3 text-sm sys-result-error';
+        resultDiv.textContent = 'Error: ' + e.message;
+    }
+}
+
+async function deleteBrevo() {
+    if (!confirm('Remove Brevo settings? Email features (invitations, notifications) will be disabled.')) return;
+    try {
+        const resp = await fetch('/api/admin/brevo', { method: 'DELETE' });
+        if (!resp.ok) throw new Error('Failed to delete');
+        closeBrevoModal();
+        showMessage('Brevo settings removed');
+        loadBrevoStatus();
+    } catch (e) {
+        showMessage('Failed to remove: ' + e.message, 'error');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     loadExternalSystems();
     loadCloudinaryStatus();
+    loadBrevoStatus();
 });
 
 document.getElementById('import-form').addEventListener('submit', async function(e) {

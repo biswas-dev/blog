@@ -8,11 +8,18 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/lib/pq"
 )
+
+// renderCache caches the rendered HTML output of RenderContent keyed by content hash.
+// This avoids re-running the markdown pipeline on every request.
+// Entries are never evicted (blog posts are stable after publish); the cache
+// stays small — one entry per unique post body.
+var renderCache sync.Map // map[string]string — content → rendered HTML
 
 const friendlyDateFormat = "January 2, 2006"
 
@@ -21,21 +28,26 @@ type PostsList struct {
 }
 
 type Post struct {
-	ID               int
-	UserID           int // Added UserID field
-	Username         string // Username of the author
-	CategoryID       int // Legacy field, kept for backward compatibility
-	Title            string
-	Content          string
-	ContentHTML      template.HTML
-	Slug             string
-	PublicationDate  string
-	LastEditDate     string
-	IsPublished      bool
-	Featured         bool   // Boolean field to mark posts as featured
-	FeaturedImageURL string
-	CreatedAt        string
-	Categories       []Category `json:"categories,omitempty"` // New many-to-many categories
+	ID                  int
+	UserID              int // Added UserID field
+	Username            string // Username of the author
+	AuthorDisplayName   string // COALESCE(full_name, username) of the author
+	AuthorAvatarURL     string // profile_picture_url of the author
+	AuthorBio           string // bio of the author
+	CategoryID          int // Legacy field, kept for backward compatibility
+	Title               string
+	Content             string
+	ContentHTML         template.HTML
+	Slug                string
+	PublicationDate     string
+	LastEditDate        string
+	IsPublished         bool
+	Featured            bool   // Boolean field to mark posts as featured
+	FeaturedImageURL    string
+	CreatedAt           string
+	ReadingTime         int        `json:"reading_time,omitempty"` // Estimated minutes to read
+	Categories          []Category `json:"categories,omitempty"`   // New many-to-many categories
+	Contributors        []User     `json:"-"`                      // All users who have edited this post
 }
 
 type PostService struct {
@@ -52,7 +64,7 @@ type PostService struct {
 func (pp *PostService) GetTopPosts() (*PostsList, error) {
 	list := PostsList{}
 
-	query := `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE is_published = true ORDER BY created_at DESC LIMIT 5`
+	query := `SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username), p.category_id, p.title, p.content, p.slug, p.publication_date, p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured FROM posts p JOIN users u ON p.user_id = u.user_id WHERE p.is_published = true ORDER BY p.created_at DESC LIMIT 5`
 	rows, err := pp.DB.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("query top posts: %w", err)
@@ -61,7 +73,7 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.AuthorDisplayName, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
 			return nil, fmt.Errorf("scan top posts: %w", err)
 		}
@@ -79,8 +91,13 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 		return nil, fmt.Errorf("load categories: %w", err)
 	}
 
-	// Render previews
+	// Calculate reading time and render previews
 	for i := range list.Posts {
+		wordCount := len(strings.Fields(list.Posts[i].Content))
+		list.Posts[i].ReadingTime = (wordCount + 199) / 200
+		if list.Posts[i].ReadingTime < 1 {
+			list.Posts[i].ReadingTime = 1
+		}
 		preview := previewContentRaw(list.Posts[i].Content)
 		list.Posts[i].ContentHTML = template.HTML(RenderContent(preview))
 	}
@@ -91,7 +108,7 @@ func (pp *PostService) GetTopPosts() (*PostsList, error) {
 func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsList, error) {
 	list := PostsList{}
 
-	query := `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE is_published = true ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	query := `SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username), p.category_id, p.title, p.content, p.slug, p.publication_date, p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured FROM posts p JOIN users u ON p.user_id = u.user_id WHERE p.is_published = true ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`
 	rows, err := pp.DB.Query(query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("query paginated posts: %w", err)
@@ -100,7 +117,7 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.AuthorDisplayName, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
 			return nil, fmt.Errorf("scan paginated posts: %w", err)
 		}
@@ -118,8 +135,13 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 		return nil, fmt.Errorf("load categories: %w", err)
 	}
 
-	// Render previews
+	// Calculate reading time and render previews
 	for i := range list.Posts {
+		wordCount := len(strings.Fields(list.Posts[i].Content))
+		list.Posts[i].ReadingTime = (wordCount + 199) / 200
+		if list.Posts[i].ReadingTime < 1 {
+			list.Posts[i].ReadingTime = 1
+		}
 		preview := previewContentRaw(list.Posts[i].Content)
 		list.Posts[i].ContentHTML = template.HTML(RenderContent(preview))
 	}
@@ -127,12 +149,60 @@ func (pp *PostService) GetTopPostsWithPagination(limit int, offset int) (*PostsL
 	return &list, nil
 }
 
+// GetPublishedPostsByCategory returns published posts that belong to a specific category.
+func (pp *PostService) GetPublishedPostsByCategory(categoryID int) ([]Post, error) {
+	query := `SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
+	                 COALESCE(u.profile_picture_url, ''),
+	                 p.category_id, p.title, p.content, p.slug,
+	                 p.publication_date, p.last_edit_date, p.is_published,
+	                 p.featured_image_url, p.created_at, p.featured
+			  FROM posts p
+			  JOIN users u ON p.user_id = u.user_id
+			  JOIN post_categories pc ON p.post_id = pc.post_id
+			  WHERE pc.category_id = $1 AND p.is_published = true
+			  ORDER BY p.created_at DESC`
+	rows, err := pp.DB.Query(query, categoryID)
+	if err != nil {
+		return nil, fmt.Errorf("query posts by category: %w", err)
+	}
+	defer rows.Close()
+
+	var posts []Post
+	for rows.Next() {
+		var post Post
+		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.AuthorDisplayName,
+			&post.AuthorAvatarURL,
+			&post.CategoryID, &post.Title, &post.Content, &post.Slug,
+			&post.PublicationDate, &post.LastEditDate, &post.IsPublished,
+			&post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		if err != nil {
+			return nil, fmt.Errorf("scan post by category: %w", err)
+		}
+		formatPostDates(&post)
+		wordCount := len(strings.Fields(post.Content))
+		post.ReadingTime = (wordCount + 199) / 200
+		if post.ReadingTime < 1 {
+			post.ReadingTime = 1
+		}
+		preview := previewContentRaw(post.Content)
+		post.ContentHTML = template.HTML(RenderContent(preview))
+		posts = append(posts, post)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate posts by category: %w", err)
+	}
+	if err := pp.loadCategoriesForPosts(posts); err != nil {
+		return nil, fmt.Errorf("load categories: %w", err)
+	}
+	return posts, nil
+}
+
 func (pp *PostService) GetAllPosts() (*PostsList, error) {
 	list := PostsList{}
 
-	query := `SELECT p.post_id, p.user_id, u.username, p.category_id, p.title, p.content, p.slug, p.publication_date, p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured 
-			  FROM posts p 
-			  JOIN users u ON p.user_id = u.user_id 
+	query := `SELECT p.post_id, p.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username), p.category_id, p.title, p.content, p.slug, p.publication_date, p.last_edit_date, p.is_published, p.featured_image_url, p.created_at, p.featured
+			  FROM posts p
+			  JOIN users u ON p.user_id = u.user_id
 			  ORDER BY p.created_at DESC`
 	rows, err := pp.DB.Query(query)
 	if err != nil {
@@ -142,7 +212,7 @@ func (pp *PostService) GetAllPosts() (*PostsList, error) {
 
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		err := rows.Scan(&post.ID, &post.UserID, &post.Username, &post.AuthorDisplayName, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
 		if err != nil {
 			return nil, err
 		}
@@ -154,6 +224,14 @@ func (pp *PostService) GetAllPosts() (*PostsList, error) {
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("get all posts: %w", err)
+	}
+
+	if err := pp.loadCategoriesForPosts(list.Posts); err != nil {
+		return nil, fmt.Errorf("load categories: %w", err)
+	}
+
+	if err := pp.loadContributorsForPosts(list.Posts); err != nil {
+		return nil, fmt.Errorf("load contributors: %w", err)
 	}
 
 	return &list, nil
@@ -186,6 +264,28 @@ func (pp *PostService) GetPostsByUser(userID int) (*PostsList, error) {
 	}
 
 	return &list, nil
+}
+
+func (pp *PostService) GetPublishedPostsByUser(userID int) ([]Post, error) {
+	query := `SELECT post_id, user_id, category_id, title, content, slug, publication_date, last_edit_date, is_published, featured_image_url, created_at, featured FROM posts WHERE user_id = $1 AND is_published = true ORDER BY created_at DESC`
+	rows, err := pp.DB.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []Post
+	for rows.Next() {
+		var post Post
+		err := rows.Scan(&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.Slug, &post.PublicationDate, &post.LastEditDate, &post.IsPublished, &post.FeaturedImageURL, &post.CreatedAt, &post.Featured)
+		if err != nil {
+			return nil, err
+		}
+		formatPostDates(&post)
+		post.Content = trimContent(post.Content)
+		posts = append(posts, post)
+	}
+	return posts, rows.Err()
 }
 
 // fenceRe matches fenced code blocks for stripping during content trimming.
@@ -465,8 +565,15 @@ func stripDrawEditMode(html string) string {
 
 // RenderContent converts markdown content to HTML using the default renderer.
 // Draw embeds are forced to view-only mode for published content.
+// Results are memoized in renderCache to avoid re-running the markdown
+// pipeline on repeated requests for the same content.
 func RenderContent(content string) string {
-	return stripDrawEditMode(defaultWiki.RenderContent(content))
+	if v, ok := renderCache.Load(content); ok {
+		return v.(string)
+	}
+	result := stripDrawEditMode(defaultWiki.RenderContent(content))
+	renderCache.Store(content, result)
+	return result
 }
 
 // loadCategoriesForPosts batch-loads categories for all posts in a single query,
@@ -500,6 +607,43 @@ func (pp *PostService) loadCategoriesForPosts(posts []Post) error {
 		}
 		for _, idx := range idIdx[postID] {
 			posts[idx].Categories = append(posts[idx].Categories, cat)
+		}
+	}
+	return rows.Err()
+}
+
+// loadContributorsForPosts batch-loads contributors for all posts in a single query.
+func (pp *PostService) loadContributorsForPosts(posts []Post) error {
+	if len(posts) == 0 {
+		return nil
+	}
+	ids := make([]int, len(posts))
+	idIdx := make(map[int][]int)
+	for i, p := range posts {
+		ids[i] = p.ID
+		idIdx[p.ID] = append(idIdx[p.ID], i)
+	}
+
+	rows, err := pp.DB.Query(`
+		SELECT pc.post_id, u.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username)
+		FROM post_contributors pc
+		JOIN Users u ON u.user_id = pc.user_id
+		WHERE pc.post_id = ANY($1)
+		ORDER BY pc.first_contributed_at ASC
+	`, pq.Array(ids))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var postID int
+		var u User
+		if err := rows.Scan(&postID, &u.UserID, &u.Username, &u.FullName); err != nil {
+			return err
+		}
+		for _, idx := range idIdx[postID] {
+			posts[idx].Contributors = append(posts[idx].Contributors, u)
 		}
 	}
 	return rows.Err()

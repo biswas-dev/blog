@@ -1,3 +1,4 @@
+{{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
 {{template "modern-header" .}}
 
 <style>
@@ -338,7 +339,7 @@
                 <p>Visitor traffic and page view insights</p>
             </div>
             <a href="/admin/system" class="sys-back-btn">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                {{icon "chevron-left" "w-4 h-4"}}
                 System
             </a>
         </div>
@@ -412,7 +413,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-teal">
-                        <svg fill="currentColor" viewBox="0 0 20 20"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V15"/></svg>
+                        {{icon "fire" "w-4 h-4"}}
                     </div>
                     <h3>Top Pages</h3>
                 </div>
@@ -428,7 +429,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-blue">
-                        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/></svg>
+                        {{icon "link" "w-4 h-4"}}
                     </div>
                     <h3>Top Referrers</h3>
                 </div>
@@ -448,7 +449,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-green">
-                        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+                        {{icon "document" "w-4 h-4"}}
                     </div>
                     <h3>Top Blog Posts</h3>
                 </div>
@@ -464,7 +465,7 @@
             <div class="sys-card">
                 <div class="sys-card-header">
                     <div class="sys-icon sys-icon-purple">
-                        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clip-rule="evenodd"/></svg>
+                        {{icon "chat" "w-4 h-4"}}
                     </div>
                     <h3>Top Slides</h3>
                 </div>
@@ -479,11 +480,49 @@
             </div>
         </div>
 
+        <!-- Reader Engagement -->
+        <div class="sys-card" style="margin-bottom: 24px;">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-blue">
+                    {{icon "chart" "w-4 h-4"}}
+                </div>
+                <h3>Reader Engagement</h3>
+                <div style="margin-left:auto;font-size:12px;color:var(--text-muted);">avg time readers spend on each page</div>
+            </div>
+            <div class="sys-card-body" style="padding: 0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Path</th><th style="text-align:right">Sessions</th><th style="text-align:right">Avg Time</th><th style="text-align:right">Avg Scroll</th><th style="text-align:right">Completion</th><th></th></tr></thead>
+                    <tbody id="engagement-body">
+                        <tr><td colspan="6" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section Attention (drill-down) -->
+        <div class="sys-card" id="engagement-sections-card" style="margin-bottom: 24px; display:none;">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-green">
+                    {{icon "document" "w-4 h-4"}}
+                </div>
+                <h3>Section Attention: <span id="engagement-sections-path" style="color:var(--text-muted);font-weight:normal;"></span></h3>
+                <button id="engagement-sections-close" style="margin-left:auto;font-size:12px;padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-muted);">Close</button>
+            </div>
+            <div class="sys-card-body" style="padding: 0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Section</th><th style="text-align:right">View Rate</th><th style="text-align:right">Avg Time</th></tr></thead>
+                    <tbody id="engagement-sections-body">
+                        <tr><td colspan="3" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Top Visitors -->
         <div class="sys-card" style="margin-bottom: 24px;">
             <div class="sys-card-header">
                 <div class="sys-icon sys-icon-purple">
-                    <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+                    {{icon "user" "w-4 h-4"}}
                 </div>
                 <h3>Top Visitors</h3>
             </div>
@@ -501,7 +540,7 @@
         <div class="sys-card" style="margin-bottom: 24px; border-color: rgba(217,119,6,0.3);">
             <div class="sys-card-header">
                 <div class="sys-icon sys-icon-amber">
-                    <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                    {{icon "exclamation" "w-4 h-4"}}
                 </div>
                 <div>
                     <h3>Suspicious Visitors</h3>
@@ -571,7 +610,7 @@
         <div class="sys-card" style="margin-top: 24px; border-color: rgba(217,119,6,0.3);">
             <div class="sys-card-header">
                 <div class="sys-icon sys-icon-amber">
-                    <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    {{icon "globe" "w-4 h-4"}}
                 </div>
                 <div>
                     <h3>Suspicious / Attack Requests</h3>
@@ -583,6 +622,151 @@
                     <thead><tr><th>Path</th><th style="text-align:right">Views</th></tr></thead>
                     <tbody id="suspicious-requests-body">
                         <tr><td colspan="2" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Engagement Management -->
+        <div class="sys-card" style="margin-top: 24px;">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-teal">
+                    {{icon "chat" "w-4 h-4"}}
+                </div>
+                <div>
+                    <h3>Engagement Management</h3>
+                    <p style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 0;">Manage comments and annotations across all posts</p>
+                </div>
+            </div>
+            <!-- Tabs -->
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--border-light);padding:0 20px;">
+                <button id="eng-tab-comments" onclick="engShowTab('comments')"
+                    style="padding:10px 16px;border:none;border-bottom:2px solid var(--accent);background:transparent;color:var(--text-primary);font-size:0.8125rem;font-weight:600;cursor:pointer;">
+                    Comments <span id="eng-comments-count" style="font-size:0.75rem;color:var(--text-secondary);margin-left:4px;"></span>
+                </button>
+                <button id="eng-tab-annotations" onclick="engShowTab('annotations')"
+                    style="padding:10px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-secondary);font-size:0.8125rem;font-weight:500;cursor:pointer;">
+                    Annotations <span id="eng-annotations-count" style="font-size:0.75rem;color:var(--text-secondary);margin-left:4px;"></span>
+                </button>
+            </div>
+            <!-- Comments table -->
+            <div id="eng-comments-panel" style="padding:0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Post</th><th>Author</th><th>Comment</th><th>Date</th><th style="text-align:right">Action</th></tr></thead>
+                    <tbody id="eng-comments-body">
+                        <tr><td colspan="5" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Annotations table -->
+            <div id="eng-annotations-panel" style="display:none;padding:0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Post</th><th>Author</th><th>Selected Text</th><th>Replies</th><th>Date</th><th style="text-align:right">Action</th></tr></thead>
+                    <tbody id="eng-annotations-body">
+                        <tr><td colspan="6" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Unknown Slugs (404s) -->
+        <div class="sys-card" style="margin-top: 24px; border-color: rgba(239,68,68,0.3);">
+            <div class="sys-card-header">
+                <div class="sys-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">
+                    {{icon "ban" "w-4 h-4"}}
+                </div>
+                <div>
+                    <h3>Unknown Slugs (404s)</h3>
+                    <p style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 0;">Blog URLs that returned 404 — possible typos, scrapers, or deleted posts</p>
+                </div>
+            </div>
+            <div style="padding:0;">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Slug</th><th style="text-align:right">Hits</th><th>First Seen</th><th>Last Seen</th><th>Status</th><th style="text-align:right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slug-404s-body">
+                        <tr><td colspan="6" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Crawlers & Bots -->
+        <div class="sys-card" style="margin-top: 24px; border-color: rgba(139,92,246,0.3);">
+            <div class="sys-card-header">
+                <div class="sys-icon sys-icon-purple">
+                    {{icon "globe" "w-4 h-4"}}
+                </div>
+                <div>
+                    <h3>Crawlers &amp; Bots</h3>
+                    <p style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 0;">Crawler traffic stats and access rules</p>
+                </div>
+            </div>
+            <!-- Tabs -->
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--border-light);padding:0 20px;">
+                <button id="cr-tab-stats" onclick="crShowTab('stats')"
+                    style="padding:10px 16px;border:none;border-bottom:2px solid var(--accent);background:transparent;color:var(--text-primary);font-size:0.8125rem;font-weight:600;cursor:pointer;">
+                    Crawler Stats
+                </button>
+                <button id="cr-tab-rules" onclick="crShowTab('rules')"
+                    style="padding:10px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-secondary);font-size:0.8125rem;font-weight:500;cursor:pointer;">
+                    Access Rules <span id="cr-rules-count" style="font-size:0.75rem;color:var(--text-secondary);margin-left:4px;"></span>
+                </button>
+            </div>
+            <!-- Crawler Stats panel -->
+            <div id="cr-stats-panel" style="padding:0;">
+                <table class="analytics-table">
+                    <thead><tr><th>Crawler</th><th style="text-align:right">Requests</th><th style="text-align:right">Unique Paths</th><th>Last Seen</th></tr></thead>
+                    <tbody id="cr-stats-body">
+                        <tr><td colspan="4" class="analytics-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Crawler Rules panel -->
+            <div id="cr-rules-panel" style="display:none;padding:0;">
+                <!-- Add Rule Form -->
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border-light);display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+                    <div>
+                        <label style="display:block;font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">Crawler Pattern</label>
+                        <input id="cr-new-pattern" type="text" placeholder="e.g. GPTBot, ClaudeBot"
+                            style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;width:160px;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">Action</label>
+                        <select id="cr-new-action" onchange="crToggleTimeInputs()"
+                            style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;">
+                            <option value="allow">Allow</option>
+                            <option value="block">Block</option>
+                            <option value="time_restrict">Time Restrict</option>
+                        </select>
+                    </div>
+                    <div id="cr-time-inputs" style="display:none;">
+                        <label style="display:block;font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">Block Hours (UTC)</label>
+                        <div style="display:flex;gap:4px;align-items:center;">
+                            <input id="cr-new-time-start" type="number" min="0" max="23" placeholder="0"
+                                style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;width:60px;">
+                            <span style="color:var(--text-secondary);font-size:0.8125rem;">to</span>
+                            <input id="cr-new-time-end" type="number" min="0" max="23" placeholder="23"
+                                style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;width:60px;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">Reason</label>
+                        <input id="cr-new-reason" type="text" placeholder="Optional reason"
+                            style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8125rem;width:160px;">
+                    </div>
+                    <button onclick="crCreateRule()"
+                        style="padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:0.8125rem;font-weight:600;cursor:pointer;height:32px;">
+                        Add Rule
+                    </button>
+                </div>
+                <table class="analytics-table">
+                    <thead><tr><th>Pattern</th><th>Action</th><th>Time Window</th><th>Reason</th><th style="text-align:right">Actions</th></tr></thead>
+                    <tbody id="cr-rules-body">
+                        <tr><td colspan="5" class="analytics-loading">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -977,10 +1161,86 @@
             // Browser breakdown chart
             initBrowserChart(data.browsers || []);
 
+            // Reader engagement
+            loadReaderEngagement(period);
+
         } catch (err) {
             console.error('Analytics load error:', err);
         }
     }
+
+    function fmtDuration(sec) {
+        sec = Math.round(sec || 0);
+        if (sec < 60) return sec + 's';
+        if (sec < 3600) return Math.floor(sec/60) + 'm ' + (sec%60) + 's';
+        return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm';
+    }
+
+    async function loadReaderEngagement(period) {
+        const days = period === '7d' ? 7 : period === '90d' ? 90 : period === '1y' ? 365 : 30;
+        const tbody = document.getElementById('engagement-body');
+        try {
+            const res = await fetch('/api/admin/engagement-summary?days=' + days);
+            if (!res.ok) throw new Error('failed');
+            const data = await res.json();
+            const rows = data.top_engaged || [];
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="analytics-loading">No engagement data yet. Visit some pages to generate data.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(r =>
+                '<tr>' +
+                '<td><a href="' + r.path + '" target="_blank" style="color:var(--link);">' + r.path + '</a></td>' +
+                '<td style="text-align:right">' + r.sessions + '</td>' +
+                '<td style="text-align:right">' + fmtDuration(r.avg_active_seconds) + '</td>' +
+                '<td style="text-align:right">' + Math.round(r.avg_scroll_pct) + '%</td>' +
+                '<td style="text-align:right">' + Math.round(r.completion_rate) + '%</td>' +
+                '<td><button onclick="loadSectionStats(\'' + r.path.replace(/'/g, "\\'") + '\', ' + days + ')" style="font-size:11px;padding:2px 8px;background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text-muted);">Sections</button></td>' +
+                '</tr>'
+            ).join('');
+        } catch (err) {
+            tbody.innerHTML = '<tr><td colspan="6" class="analytics-loading">Failed to load engagement data.</td></tr>';
+        }
+    }
+
+    window.loadSectionStats = async function(path, days) {
+        const card = document.getElementById('engagement-sections-card');
+        const pathEl = document.getElementById('engagement-sections-path');
+        const tbody = document.getElementById('engagement-sections-body');
+        card.style.display = 'block';
+        pathEl.textContent = path;
+        tbody.innerHTML = '<tr><td colspan="3" class="analytics-loading">Loading...</td></tr>';
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        try {
+            const res = await fetch('/api/admin/engagement-summary?path=' + encodeURIComponent(path) + '&days=' + days);
+            if (!res.ok) throw new Error('failed');
+            const data = await res.json();
+            const secs = data.sections || [];
+            if (secs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="analytics-loading">No section data for this page.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = secs.map(s => {
+                const rate = Math.round(s.view_rate);
+                const barColor = rate >= 75 ? '#22c55e' : rate >= 40 ? '#eab308' : '#ef4444';
+                return '<tr>' +
+                    '<td>' + (s.text || s.id) + '</td>' +
+                    '<td style="text-align:right">' +
+                        '<div style="display:inline-flex;align-items:center;gap:8px;">' +
+                        '<div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">' +
+                        '<div style="width:' + rate + '%;height:100%;background:' + barColor + ';"></div></div>' +
+                        '<span style="min-width:40px;">' + rate + '%</span></div></td>' +
+                    '<td style="text-align:right">' + fmtDuration(s.avg_active_seconds) + '</td>' +
+                    '</tr>';
+            }).join('');
+        } catch (err) {
+            tbody.innerHTML = '<tr><td colspan="3" class="analytics-loading">Failed to load section data.</td></tr>';
+        }
+    };
+
+    document.getElementById('engagement-sections-close').addEventListener('click', function() {
+        document.getElementById('engagement-sections-card').style.display = 'none';
+    });
 
     // IP detail modal
     window.openIPModal = async function(ip) {
@@ -1032,6 +1292,7 @@
             this.classList.add('active');
             currentPeriod = this.dataset.period;
             loadData(currentPeriod);
+            loadCrawlerData();
         });
     });
 
@@ -1247,6 +1508,348 @@
         const search = document.getElementById('susp-search');
         window.filterSuspVisitors(search ? search.value : '');
     };
+
+    // ---- Engagement Management ----
+    let engagementData = null;
+
+    function engShowTab(tab) {
+        const commentsPanel = document.getElementById('eng-comments-panel');
+        const annotationsPanel = document.getElementById('eng-annotations-panel');
+        const tabComments = document.getElementById('eng-tab-comments');
+        const tabAnnotations = document.getElementById('eng-tab-annotations');
+        if (tab === 'comments') {
+            commentsPanel.style.display = '';
+            annotationsPanel.style.display = 'none';
+            tabComments.style.borderBottomColor = 'var(--accent)';
+            tabComments.style.color = 'var(--text-primary)';
+            tabComments.style.fontWeight = '600';
+            tabAnnotations.style.borderBottomColor = 'transparent';
+            tabAnnotations.style.color = 'var(--text-secondary)';
+            tabAnnotations.style.fontWeight = '500';
+        } else {
+            commentsPanel.style.display = 'none';
+            annotationsPanel.style.display = '';
+            tabAnnotations.style.borderBottomColor = 'var(--accent)';
+            tabAnnotations.style.color = 'var(--text-primary)';
+            tabAnnotations.style.fontWeight = '600';
+            tabComments.style.borderBottomColor = 'transparent';
+            tabComments.style.color = 'var(--text-secondary)';
+            tabComments.style.fontWeight = '500';
+        }
+    }
+    window.engShowTab = engShowTab;
+
+    function fmtEngDate(iso) {
+        try { return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }); } catch(e) { return iso; }
+    }
+    function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + '…' : (s || ''); }
+
+    function renderEngagement(data) {
+        engagementData = data;
+        const cb = document.getElementById('eng-comments-body');
+        const ab = document.getElementById('eng-annotations-body');
+
+        document.getElementById('eng-comments-count').textContent = '(' + (data.comments || []).length + ')';
+        document.getElementById('eng-annotations-count').textContent = '(' + (data.annotations || []).length + ')';
+
+        if (!data.comments || data.comments.length === 0) {
+            cb.innerHTML = '<tr><td colspan="5" class="analytics-loading">No comments yet</td></tr>';
+        } else {
+            cb.innerHTML = data.comments.map(c => `
+                <tr>
+                    <td><a href="/blog/${encodeURIComponent(c.post_slug)}" target="_blank" style="color:var(--accent);">${escEngHTML(c.post_title)}</a></td>
+                    <td style="white-space:nowrap;">${escEngHTML(c.author_name)}</td>
+                    <td class="path" title="${escEngHTML(c.content)}">${escEngHTML(truncate(c.content, 80))}</td>
+                    <td style="white-space:nowrap;">${fmtEngDate(c.comment_date)}</td>
+                    <td style="text-align:right;">
+                        <button onclick="deleteEngComment(${c.comment_id})"
+                            style="padding:3px 10px;border-radius:6px;border:none;background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;font-weight:600;cursor:pointer;">Delete</button>
+                    </td>
+                </tr>`).join('');
+        }
+
+        if (!data.annotations || data.annotations.length === 0) {
+            ab.innerHTML = '<tr><td colspan="6" class="analytics-loading">No annotations yet</td></tr>';
+        } else {
+            ab.innerHTML = data.annotations.map(a => `
+                <tr>
+                    <td><a href="/blog/${encodeURIComponent(a.post_slug)}" target="_blank" style="color:var(--accent);">${escEngHTML(a.post_title)}</a></td>
+                    <td style="white-space:nowrap;">${escEngHTML(a.author_name)}</td>
+                    <td class="path" title="${escEngHTML(a.selected_text)}">
+                        <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${escEngHTML(a.color)};margin-right:4px;vertical-align:middle;"></span>
+                        ${escEngHTML(truncate(a.selected_text, 60))}
+                    </td>
+                    <td class="num">${a.comment_count}</td>
+                    <td style="white-space:nowrap;">${fmtEngDate(a.created_at)}</td>
+                    <td style="text-align:right;">
+                        <button onclick="deleteEngAnnotation(${a.id})"
+                            style="padding:3px 10px;border-radius:6px;border:none;background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;font-weight:600;cursor:pointer;">Delete</button>
+                    </td>
+                </tr>`).join('');
+        }
+    }
+
+    function escEngHTML(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function loadEngagement() {
+        try {
+            const res = await fetch('/api/admin/engagement');
+            if (res.ok) renderEngagement(await res.json());
+        } catch(e) { /* ignore */ }
+    }
+
+    window.deleteEngComment = async function(id) {
+        if (!await suspConfirm('Delete this comment? This cannot be undone.')) return;
+        const res = await fetch('/api/admin/engagement/comments/' + id, { method: 'DELETE' });
+        if (res.ok) {
+            engagementData.comments = engagementData.comments.filter(c => c.comment_id !== id);
+            renderEngagement(engagementData);
+        } else {
+            alert('Failed to delete comment');
+        }
+    };
+
+    window.deleteEngAnnotation = async function(id) {
+        if (!await suspConfirm('Delete this annotation and all its replies? This cannot be undone.')) return;
+        const res = await fetch('/api/admin/engagement/annotations/' + id, { method: 'DELETE' });
+        if (res.ok) {
+            engagementData.annotations = engagementData.annotations.filter(a => a.id !== id);
+            renderEngagement(engagementData);
+        } else {
+            alert('Failed to delete annotation');
+        }
+    };
+
+    // ---- 404 Slug Tracking ----
+    let slug404Data = [];
+
+    function fmtSlugDate(iso) {
+        try { return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' }); } catch(e) { return iso; }
+    }
+
+    function renderSlug404s(data) {
+        slug404Data = data;
+        const tbody = document.getElementById('slug-404s-body');
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="analytics-loading">No unknown slugs recorded</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.map(s => `
+            <tr style="${s.whitelisted ? 'opacity:0.55;' : ''}">
+                <td class="path" title="${escEngHTML(s.slug)}">
+                    <code style="font-size:0.75rem;">${escEngHTML(s.slug)}</code>
+                </td>
+                <td class="num">${s.hit_count}</td>
+                <td style="font-size:0.75rem;color:var(--text-secondary);">${fmtSlugDate(s.first_seen)}</td>
+                <td style="font-size:0.75rem;color:var(--text-secondary);">${fmtSlugDate(s.last_seen)}</td>
+                <td>
+                    ${s.whitelisted
+                        ? '<span style="font-size:0.7rem;padding:2px 8px;border-radius:9999px;background:rgba(22,163,74,0.12);color:#16a34a;">Whitelisted</span>' +
+                          (s.whitelist_note ? '<span style="font-size:0.7rem;color:var(--text-secondary);margin-left:4px;">' + escEngHTML(s.whitelist_note) + '</span>' : '')
+                        : '<span style="font-size:0.7rem;padding:2px 8px;border-radius:9999px;background:rgba(239,68,68,0.1);color:#ef4444;">Unknown</span>'}
+                </td>
+                <td style="text-align:right;white-space:nowrap;">
+                    ${!s.whitelisted ? `<button onclick="whitelist404(${s.id})"
+                        style="padding:3px 10px;border-radius:6px;border:none;background:rgba(22,163,74,0.12);color:#16a34a;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:4px;">Whitelist</button>` : ''}
+                    <button onclick="delete404(${s.id})"
+                        style="padding:3px 10px;border-radius:6px;border:none;background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;font-weight:600;cursor:pointer;">Delete</button>
+                </td>
+            </tr>`).join('');
+    }
+
+    async function loadSlug404s() {
+        try {
+            const res = await fetch('/api/admin/slug-404s');
+            if (res.ok) renderSlug404s(await res.json());
+        } catch(e) { /* ignore */ }
+    }
+
+    window.whitelist404 = async function(id) {
+        const note = prompt('Optional note (e.g. "old URL", "typo"):');
+        if (note === null) return; // cancelled
+        const res = await fetch('/api/admin/slug-404s/' + id + '/whitelist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note: note }),
+        });
+        if (res.ok) {
+            const s = slug404Data.find(x => x.id === id);
+            if (s) { s.whitelisted = true; s.whitelist_note = note; }
+            renderSlug404s(slug404Data);
+        } else {
+            alert('Failed to whitelist slug');
+        }
+    };
+
+    window.delete404 = async function(id) {
+        if (!await suspConfirm('Delete this 404 record?')) return;
+        const res = await fetch('/api/admin/slug-404s/' + id, { method: 'DELETE' });
+        if (res.ok) {
+            slug404Data = slug404Data.filter(x => x.id !== id);
+            renderSlug404s(slug404Data);
+        } else {
+            alert('Failed to delete record');
+        }
+    };
+
+    // ─── Crawlers & Bots ───────────────────────────────────────────────
+    function crShowTab(tab) {
+        const statsPanel = document.getElementById('cr-stats-panel');
+        const rulesPanel = document.getElementById('cr-rules-panel');
+        const tabStats = document.getElementById('cr-tab-stats');
+        const tabRules = document.getElementById('cr-tab-rules');
+        if (tab === 'stats') {
+            statsPanel.style.display = '';
+            rulesPanel.style.display = 'none';
+            tabStats.style.borderBottomColor = 'var(--accent)';
+            tabStats.style.color = 'var(--text-primary)';
+            tabStats.style.fontWeight = '600';
+            tabRules.style.borderBottomColor = 'transparent';
+            tabRules.style.color = 'var(--text-secondary)';
+            tabRules.style.fontWeight = '500';
+        } else {
+            statsPanel.style.display = 'none';
+            rulesPanel.style.display = '';
+            tabRules.style.borderBottomColor = 'var(--accent)';
+            tabRules.style.color = 'var(--text-primary)';
+            tabRules.style.fontWeight = '600';
+            tabStats.style.borderBottomColor = 'transparent';
+            tabStats.style.color = 'var(--text-secondary)';
+            tabStats.style.fontWeight = '500';
+        }
+    }
+    window.crShowTab = crShowTab;
+
+    function crToggleTimeInputs() {
+        const action = document.getElementById('cr-new-action').value;
+        document.getElementById('cr-time-inputs').style.display = action === 'time_restrict' ? '' : 'none';
+    }
+    window.crToggleTimeInputs = crToggleTimeInputs;
+
+    function crawlerColor(type) {
+        const t = type.toLowerCase();
+        if (t.includes('google') || t.includes('bing') || t.includes('duckduck') || t.includes('yandex') || t.includes('baidu')) {
+            return '#16a34a'; // green for search engines
+        }
+        if (t.includes('claude') || t.includes('gpt') || t.includes('perplexity') || t.includes('cohere') || t.includes('amazon')) {
+            return '#8b5cf6'; // purple for LLM
+        }
+        return '#6b7280'; // gray for others
+    }
+
+    function actionBadge(action) {
+        const styles = {
+            allow: 'background:rgba(22,163,74,0.1);color:#16a34a;',
+            block: 'background:rgba(239,68,68,0.1);color:#ef4444;',
+            time_restrict: 'background:rgba(217,119,6,0.1);color:#d97706;',
+        };
+        const labels = { allow: 'Allow', block: 'Block', time_restrict: 'Time Restrict' };
+        return '<span style="padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;' + (styles[action] || '') + '">' + (labels[action] || action) + '</span>';
+    }
+
+    function renderCrawlerStats(stats) {
+        const body = document.getElementById('cr-stats-body');
+        if (!stats || stats.length === 0) {
+            body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.8125rem;">No crawler activity found</td></tr>';
+            return;
+        }
+        body.innerHTML = stats.map(s => {
+            const color = crawlerColor(s.crawler_type);
+            return '<tr>'
+                + '<td><span style="color:' + color + ';font-weight:600;">' + s.crawler_type + '</span></td>'
+                + '<td class="num">' + s.requests.toLocaleString() + '</td>'
+                + '<td class="num">' + s.unique_paths.toLocaleString() + '</td>'
+                + '<td style="font-size:0.8rem;color:var(--text-secondary);">' + (s.last_seen || '').replace('T', ' ').substring(0, 19) + '</td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    function renderCrawlerRules(rules) {
+        const body = document.getElementById('cr-rules-body');
+        const countEl = document.getElementById('cr-rules-count');
+        countEl.textContent = rules.length > 0 ? '(' + rules.length + ')' : '';
+        if (!rules || rules.length === 0) {
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.8125rem;">No rules defined — all crawlers allowed by default</td></tr>';
+            return;
+        }
+        body.innerHTML = rules.map(r => {
+            let timeWindow = '—';
+            if (r.action === 'time_restrict' && r.time_start !== null && r.time_end !== null) {
+                timeWindow = r.time_start + ':00 – ' + r.time_end + ':00 UTC';
+            }
+            return '<tr>'
+                + '<td style="font-weight:600;">' + r.crawler_pattern + '</td>'
+                + '<td>' + actionBadge(r.action) + '</td>'
+                + '<td style="font-size:0.8rem;color:var(--text-secondary);">' + timeWindow + '</td>'
+                + '<td style="font-size:0.8rem;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + (r.reason || '—') + '</td>'
+                + '<td style="text-align:right;white-space:nowrap;">'
+                + '<button onclick="crDeleteRule(' + r.id + ')" style="padding:3px 10px;border-radius:5px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;font-size:0.75rem;cursor:pointer;">Delete</button>'
+                + '</td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    async function loadCrawlerData() {
+        try {
+            const [statsResp, rulesResp] = await Promise.all([
+                fetch('/api/admin/analytics/crawlers?period=' + currentPeriod),
+                fetch('/api/admin/crawlers/rules'),
+            ]);
+            if (statsResp.ok) renderCrawlerStats(await statsResp.json());
+            if (rulesResp.ok) renderCrawlerRules(await rulesResp.json());
+        } catch(e) { /* ignore */ }
+    }
+
+    window.crCreateRule = async function() {
+        const pattern = document.getElementById('cr-new-pattern').value.trim();
+        const action = document.getElementById('cr-new-action').value;
+        const reason = document.getElementById('cr-new-reason').value.trim();
+        if (!pattern) { alert('Crawler pattern is required'); return; }
+
+        const body = { crawler_pattern: pattern, action: action, reason: reason };
+        if (action === 'time_restrict') {
+            const startVal = document.getElementById('cr-new-time-start').value;
+            const endVal = document.getElementById('cr-new-time-end').value;
+            if (startVal !== '' && endVal !== '') {
+                body.time_start = parseInt(startVal, 10);
+                body.time_end = parseInt(endVal, 10);
+            }
+        }
+
+        const res = await fetch('/api/admin/crawlers/rules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (res.ok) {
+            document.getElementById('cr-new-pattern').value = '';
+            document.getElementById('cr-new-reason').value = '';
+            document.getElementById('cr-new-time-start').value = '';
+            document.getElementById('cr-new-time-end').value = '';
+            loadCrawlerData();
+        } else {
+            alert('Failed to create rule: ' + await res.text());
+        }
+    };
+
+    window.crDeleteRule = async function(id) {
+        if (!await suspConfirm('Delete this crawler rule?')) return;
+        const res = await fetch('/api/admin/crawlers/rules/' + id, { method: 'DELETE' });
+        if (res.ok) {
+            loadCrawlerData();
+        } else {
+            alert('Failed to delete rule');
+        }
+    };
+
+    loadCrawlerData();
+
+    loadEngagement();
+    loadReaderEngagement();
+    loadSlug404s();
 
     // Load initial data
     loadData(currentPeriod);

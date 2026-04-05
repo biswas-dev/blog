@@ -8,9 +8,7 @@
 
     {{if .Message}}
     <div class="message-alert success">
-        <svg class="alert-icon" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-        </svg>
+        {{icon "check-circle" "alert-icon"}}
         <span>{{.Message}}</span>
     </div>
     {{end}}
@@ -24,6 +22,20 @@
             </div>
             <div class="account-info">
                 <div class="info-item">
+                    <label>Display Name</label>
+                    <span class="info-value">{{if .FullName}}{{.FullName}}{{else}}<em class="text-gray-400">Not set — showing username</em>{{end}}</span>
+                </div>
+                <div class="info-item">
+                    <label>Profile Picture</label>
+                    <span class="info-value">
+                        {{if .AvatarURL}}
+                            <img src="{{.AvatarURL}}" alt="Avatar" class="settings-avatar-preview">
+                        {{else}}
+                            <span style="color:var(--text-tertiary);font-size:0.875rem;">Not set</span>
+                        {{end}}
+                    </span>
+                </div>
+                <div class="info-item">
                     <label>Username</label>
                     <span class="info-value">{{.Username}}</span>
                 </div>
@@ -35,14 +47,68 @@
                 <div class="info-item">
                     <label>Role</label>
                     <span class="info-value admin-badge">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 0L15.09 8.26L24 9L17 14.74L19.18 24L12 19.77L4.82 24L7 14.74L0 9L8.91 8.26L12 0Z"/>
-                        </svg>
+                        {{icon "star-filled" "w-3 h-3"}}
                         Administrator
                     </span>
                 </div>
                 {{end}}
             </div>
+        </div>
+
+        <!-- Display Name -->
+        <div class="profile-section">
+            <div class="section-header">
+                <h2>Display Name</h2>
+                <p>Shown on your comments and annotations. Leave blank to use your username.</p>
+            </div>
+            <form class="profile-form" method="POST" action="/users/name">
+                <div class="form-group">
+                    <label for="full_name">Full Name</label>
+                    <input type="text" id="full_name" name="full_name" value="{{.FullName}}" placeholder="e.g. Anshuman Biswas" maxlength="100">
+                </div>
+                <button type="submit" class="btn-primary">Update Name</button>
+            </form>
+        </div>
+
+        <!-- Bio / About -->
+        <div class="profile-section">
+            <div class="section-header">
+                <h2>About You</h2>
+                <p>A short bio shown at the end of articles you write or contribute to. Max 500 characters.</p>
+            </div>
+            <form class="profile-form" method="POST" action="/users/bio">
+                <div class="form-group">
+                    <label for="bio">Bio</label>
+                    <textarea id="bio" name="bio" rows="3" maxlength="500" placeholder="e.g. Software engineer passionate about cloud security and distributed systems.">{{.Bio}}</textarea>
+                </div>
+                <button type="submit" class="btn-primary">Update Bio</button>
+            </form>
+        </div>
+
+        <!-- Profile Picture -->
+        <div class="profile-section">
+            <div class="section-header">
+                <h2>Profile Picture</h2>
+                <p>Shown on your comments and public profile. Upload a photo or provide a URL.</p>
+            </div>
+            <div class="avatar-section">
+                {{if .AvatarURL}}
+                    <img src="{{.AvatarURL}}" alt="Current avatar" class="settings-avatar-large">
+                {{else}}
+                    <div class="settings-avatar-init">{{initial .Username}}</div>
+                {{end}}
+            </div>
+            <form class="profile-form" method="POST" action="/users/avatar" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="avatar">Upload photo</label>
+                    <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif">
+                </div>
+                <div class="form-group">
+                    <label for="avatar_url">Or paste an image URL</label>
+                    <input type="url" id="avatar_url" name="avatar_url" placeholder="https://example.com/photo.jpg" value="{{.AvatarURL}}">
+                </div>
+                <button type="submit" class="btn-primary">Update Picture</button>
+            </form>
         </div>
 
         <!-- Change Password -->
@@ -123,6 +189,11 @@
 .profile-section .btn-primary:hover { background: var(--accent-hover); }
 
 .admin-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; background: #d97706; color: white; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
+
+.settings-avatar-preview { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; vertical-align: middle; }
+.avatar-section { margin-bottom: 1.5rem; }
+.settings-avatar-large { width: 5rem; height: 5rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-light); }
+.settings-avatar-init { width: 5rem; height: 5rem; border-radius: 50%; background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: #fff; }
 
 @media (max-width: 768px) {
     .profile-container { padding: 1rem; }

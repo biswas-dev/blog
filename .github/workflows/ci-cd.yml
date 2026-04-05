@@ -1,0 +1,321 @@
+# CI/CD Pipeline for Blog (anshumanbiswas.com)
+#
+# Native multi-arch builds on self-hosted runners — no cross-compilation.
+# Push to main builds ARM64 + x64 images in parallel, pushes both to Harbor,
+# then auto-deploys staging (ARM64). Promoting to prod uses the already-built
+# x64 image from Harbor (no rebuild needed).
+#
+# Runners:
+#   ARM64 runner: Staging server (129.213.82.37) — labels: self-hosted, Linux, ARM64
+#   x64 runner:   Prod server (31.97.102.48) — labels: self-hosted, Linux, X64, prod
+#   x64 runner:   UAT server (92.4.83.28) — labels: self-hosted, Linux, X64, uat
+#
+# Flow:
+#   main push       → test → build ARM64 + x64 (parallel) → deploy staging (ARM64)
+#   uat push        → deploy UAT using arm64-latest from Harbor
+#   production push → deploy prod using x64-latest from Harbor
+#
+# Required secrets:
+#   HARBOR_AUTH                   — base64("username:password") for Harbor registry
+#   STAGING_SSH_PRIVATE_KEY       — raw PEM SSH key for staging server
+#   UAT_SSH_PRIVATE_KEY           — raw PEM SSH key for UAT server
+#   SSH_PRIVATE_KEY               — raw PEM SSH key for production server
+#   BLOG_PG_PASSWORD, BLOG_SESSION_SECRET, BLOG_API_TOKEN
+#   ENCRYPTION_KEY (or per-env: STAGING_ENCRYPTION_KEY, UAT_ENCRYPTION_KEY, PRODUCTION_ENCRYPTION_KEY)
+#   GH_CLIENT_ID, GH_CLIENT_SECRET, OAUTH_STATE_SECRET
+#   SONAR_TOKEN, DD_API_KEY, DD_SITE
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, uat, production]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ── Go Tests ───────────────────────────────────────────────────────────
+  test:
+    name: "Blog Tests (Go)"
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    if: |
+      (vars.CI_ENABLED || 'true') == 'true' &&
+      (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: blog
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: blog
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PG_HOST: 127.0.0.1
+      PG_PORT: 5434
+      PG_USER: blog
+      PG_PASSWORD: testpass
+      PG_DB: blog
+      GOTOOLCHAIN: local
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Run database migrations
+        run: |
+          ARCH=$(uname -m)
+          [ "$ARCH" = "aarch64" ] && MIGRATE_ARCH="arm64" || MIGRATE_ARCH="amd64"
+          curl -sL "https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-${MIGRATE_ARCH}.tar.gz" | tar xz
+          chmod +x migrate
+          ./migrate -source file://migrations \
+            -database "postgresql://blog:testpass@127.0.0.1:5434/blog?sslmode=disable" up
+
+      - run: go vet ./...
+
+      - name: Run tests
+        run: go test -v -coverprofile=coverage.out -covermode=atomic ./...
+        timeout-minutes: 10
+
+      - run: go tool cover -func=coverage.out | tail -1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          retention-days: 30
+
+  # ── SonarQube (allowed to fail) ────────────────────────────────────────
+  sonarqube:
+    name: "SonarQube Analysis"
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+        continue-on-error: true
+
+      - name: Run SonarQube
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          ARCH=$(uname -m)
+          SONAR_SCANNER_VERSION=5.0.1.3006
+          if [ "$ARCH" = "aarch64" ]; then
+            SONAR_ZIP="sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-aarch64.zip"
+          else
+            SONAR_ZIP="sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip"
+          fi
+          curl -sSLo sonar-scanner.zip \
+            "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/$SONAR_ZIP"
+          unzip -q sonar-scanner.zip
+          SCANNER_DIR=$(ls -d sonar-scanner-*)
+          "$SCANNER_DIR/bin/sonar-scanner" \
+            -Dsonar.host.url="https://sonar.taskai.cc" \
+            -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.projectVersion="$(git describe --tags --always 2>/dev/null || echo dev)"
+
+  # ── Build ARM64 Image (native on ARM64 runner) ─────────────────────────
+  build-arm64:
+    name: "Build ARM64 Image"
+    runs-on: [self-hosted, Linux, ARM64]
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push to Harbor
+        id: build
+        env:
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+        run: |
+          TAG="arm64-${GITHUB_SHA::7}"
+          IMAGE="harbor.biswas.me/biswas/blog"
+
+          # Docker login to Harbor
+          echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1 > /tmp/.hu
+          echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2 > /tmp/.hp
+          docker login harbor.biswas.me -u "$(cat /tmp/.hu)" -p "$(cat /tmp/.hp)"
+          rm -f /tmp/.hu /tmp/.hp
+
+          # Native build (no cross-compilation)
+          docker build --cache-from "$IMAGE:arm64-latest" -t "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
+
+          # Capture digest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$TAG" | cut -d@ -f2)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+          # Tag as arm64-latest
+          docker tag "$IMAGE:$TAG" "$IMAGE:arm64-latest"
+          docker push "$IMAGE:arm64-latest"
+
+          echo "Built and pushed $IMAGE:$TAG (ARM64) digest=$DIGEST"
+
+  # ── Build x64 Image (native on x64 runner) ───────────────────────────
+  build-x64:
+    name: "Build x64 Image"
+    runs-on: [self-hosted, Linux, X64, prod]
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push to Harbor
+        id: build
+        env:
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+        run: |
+          TAG="x64-${GITHUB_SHA::7}"
+          IMAGE="harbor.biswas.me/biswas/blog"
+
+          # Docker login to Harbor
+          echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1 > /tmp/.hu
+          echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2 > /tmp/.hp
+          docker login harbor.biswas.me -u "$(cat /tmp/.hu)" -p "$(cat /tmp/.hp)"
+          rm -f /tmp/.hu /tmp/.hp
+
+          # Native build (no cross-compilation)
+          docker build --cache-from "$IMAGE:x64-latest" -t "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
+
+          # Capture digest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$TAG" | cut -d@ -f2)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+          # Tag as x64-latest
+          docker tag "$IMAGE:$TAG" "$IMAGE:x64-latest"
+          docker push "$IMAGE:x64-latest"
+
+          echo "Built and pushed $IMAGE:$TAG (x64) digest=$DIGEST"
+
+  # ── Deploy Staging (ARM64) ─────────────────────────────────────────────
+  deploy-staging:
+    name: "Deploy to Staging"
+    runs-on: [self-hosted, Linux, ARM64]
+    needs: build-arm64
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        env:
+          STAGING_SSH_KEY_BASE64: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+          BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
+          BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
+          STAGING_ENCRYPTION_KEY: ${{ secrets.STAGING_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
+          VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          IMAGE_DIGEST: ${{ needs.build-arm64.outputs.digest }}
+        run: |
+          echo "$IMAGE_DIGEST" > .image-digest.txt
+          bash deployment/scripts/travis-deploy.sh staging
+
+  # ── Deploy UAT (ARM64, optional) ───────────────────────────────────────
+  deploy-uat:
+    name: "Deploy to UAT"
+    runs-on: [self-hosted, Linux, ARM64]
+    if: |
+      (vars.CI_ENABLED || 'true') == 'true' &&
+      github.ref == 'refs/heads/uat' && github.event_name == 'push'
+    environment: uat
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy using arm64-latest image from Harbor
+        env:
+          UAT_SSH_KEY_BASE64: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+          BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
+          BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
+          UAT_ENCRYPTION_KEY: ${{ secrets.UAT_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
+          VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
+        run: |
+          # UAT is ARM64 — use arm64-latest digest directly
+          HARBOR_USER=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
+          HARBOR_PASS=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
+          DIGEST=$(curl -sf -u "$HARBOR_USER:$HARBOR_PASS" \
+            "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3Darm64-latest" \
+            | jq -r '.[0].digest')
+          echo "$DIGEST" > .image-digest.txt
+          bash deployment/scripts/travis-deploy.sh uat
+
+  # ── Deploy Production (x64) ────────────────────────────────────────────
+  deploy-production:
+    name: "Deploy to Production"
+    runs-on: [self-hosted, Linux, X64, prod]
+    if: |
+      (vars.CI_ENABLED || 'true') == 'true' &&
+      github.ref == 'refs/heads/production' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy using x64-latest image from Harbor
+        env:
+          PRODUCTION_SSH_KEY_BASE64: ${{ secrets.SSH_PRIVATE_KEY }}
+          HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
+          BLOG_PG_PASSWORD: ${{ secrets.BLOG_PG_PASSWORD }}
+          BLOG_SESSION_SECRET: ${{ secrets.BLOG_SESSION_SECRET }}
+          BLOG_API_TOKEN: ${{ secrets.BLOG_API_TOKEN }}
+          PRODUCTION_ENCRYPTION_KEY: ${{ secrets.PRODUCTION_ENCRYPTION_KEY || secrets.ENCRYPTION_KEY }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
+          VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
+        run: |
+          # Production is x64 — use x64-latest digest directly
+          HARBOR_USER=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
+          HARBOR_PASS=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
+          DIGEST=$(curl -sf -u "$HARBOR_USER:$HARBOR_PASS" \
+            "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3Dx64-latest" \
+            | jq -r '.[0].digest')
+          echo "$DIGEST" > .image-digest.txt
+          bash deployment/scripts/travis-deploy.sh production

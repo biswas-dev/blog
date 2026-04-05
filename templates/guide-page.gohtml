@@ -1,0 +1,676 @@
+{{define "page-title"}}{{.Guide.Title}} | Anshuman Biswas{{end}}
+{{define "meta-description"}}<meta name="description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}} — a comprehensive guide by Anshuman Biswas{{end}}" />{{end}}
+{{define "og-meta"}}
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anshuman Biswas" />
+    <meta property="og:title" content="{{.Guide.Title}}" />
+    <meta property="og:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
+    {{if .FullURL}}<meta property="og:url" content="{{.FullURL}}" />{{end}}
+    {{if .Guide.FeaturedImageURL}}<meta property="og:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
+    <meta name="twitter:card" content="{{if .Guide.FeaturedImageURL}}summary_large_image{{else}}summary{{end}}" />
+    <meta name="twitter:title" content="{{.Guide.Title}}" />
+    <meta name="twitter:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
+    {{if .Guide.FeaturedImageURL}}<meta name="twitter:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
+{{end}}
+{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/guides/{{.Guide.Slug}}" />{{end}}
+{{define "head-extra"}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{.Guide.Title}}",
+  "author": {"@type": "Person", "name": "{{.Guide.AuthorDisplayName}}"},
+  "datePublished": "{{.Guide.CreatedAt}}",
+  "dateModified": "{{if .Guide.UpdatedAt}}{{.Guide.UpdatedAt}}{{else}}{{.Guide.CreatedAt}}{{end}}",
+  "description": "{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}",
+  "url": "{{.FullURL}}"{{if .Guide.FeaturedImageURL}},
+  "image": "{{.Guide.FeaturedImageURL}}"{{end}}
+}
+</script>
+{{end}}
+{{template "modern-header" .}}
+
+<style>
+    .guide-layout {
+        display: grid;
+        grid-template-columns: 1fr 260px;
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+    .guide-toc {
+        position: sticky;
+        top: 6rem;
+        max-height: calc(100vh - 8rem);
+        overflow-y: auto;
+        padding: 1.25rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border-light, #e5e7eb);
+        background: var(--surface, #fff);
+    }
+    .guide-toc h3 {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-tertiary, #9ca3af);
+        margin-bottom: 0.75rem;
+    }
+    .guide-toc ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .guide-toc li {
+        margin-bottom: 0.25rem;
+    }
+    .toc-link {
+        display: block;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary, #6b7280);
+        text-decoration: none;
+        border-left: 2px solid transparent;
+        transition: all 0.15s;
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+    .toc-link:hover {
+        color: var(--accent, #0d9488);
+    }
+    .toc-link.active {
+        color: var(--accent, #0d9488);
+        border-left-color: var(--accent, #0d9488);
+        font-weight: 500;
+        background: rgba(13, 148, 136, 0.05);
+    }
+
+    /* Mobile TOC dropdown */
+    .guide-toc-mobile {
+        display: none;
+        margin-bottom: 1.5rem;
+    }
+    .guide-toc-mobile details {
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 0.5rem;
+        background: var(--surface, #fff);
+    }
+    .guide-toc-mobile summary {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+    .guide-toc-mobile ul {
+        list-style: none;
+        padding: 0 1rem 0.75rem;
+        margin: 0;
+    }
+    .guide-toc-mobile li {
+        margin-bottom: 0.25rem;
+    }
+    .guide-toc-mobile .toc-link {
+        padding: 0.25rem 0.5rem;
+    }
+
+    @media (max-width: 1024px) {
+        .guide-layout {
+            grid-template-columns: 1fr;
+        }
+        .guide-toc {
+            display: none;
+        }
+        .guide-toc-mobile {
+            display: block;
+        }
+    }
+
+    /* Sign-in prompt */
+    .signin-prompt { text-align: center; border: 1px solid var(--border-light, rgba(127,127,127,0.2)); border-radius: 12px; padding: 40px 32px; }
+    .signin-prompt-text { font-size: 0.875rem; color: var(--text-secondary, #6b7280); margin: 0 0 20px 0; }
+    .gh-signin-link { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-light, rgba(127,127,127,0.25)); background: transparent; color: var(--text-primary); font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: background 0.15s; }
+    .gh-signin-link:hover { background: var(--bg-secondary, rgba(127,127,127,0.08)); }
+
+    /* Comment system (shared with blog posts) */
+    .comment-item { padding: 1rem 0; border-bottom: 1px solid var(--border-light, rgba(127,127,127,0.12)); }
+    .comment-item:last-child { border-bottom: none; }
+    .comment-item.reply { margin-left: 2.5rem; padding-left: 1rem; border-left: 2px solid var(--border-light, rgba(127,127,127,0.2)); border-bottom: none; margin-top: 0.75rem; }
+    .comment-header { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 0.5rem; }
+    .comment-avatar { flex-shrink: 0; width: 2rem; height: 2rem; border-radius: 50%; overflow: hidden; }
+    .comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .comment-avatar-init { width: 2rem; height: 2rem; border-radius: 50%; background: linear-gradient(135deg, var(--accent, #0d9488) 0%, #6366f1 100%); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .comment-author { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); }
+    .comment-date { font-size: 0.75rem; color: var(--text-tertiary, #9ca3af); margin-left: 0.375rem; }
+    .comment-actions { display: flex; align-items: center; gap: 0.25rem; margin-left: auto; }
+    .comment-action-btn { font-size: 0.75rem; font-weight: 500; padding: 0.125rem 0.5rem; border-radius: 0.25rem; border: none; cursor: pointer; background: transparent; color: var(--text-tertiary, #9ca3af); transition: background 0.1s, color 0.1s; }
+    .comment-action-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+    .comment-action-btn.reply-btn:hover { color: var(--accent, #0d9488); }
+    .comment-body { font-size: 0.9375rem; line-height: 1.65; color: var(--text-primary); padding-left: 2.625rem; }
+    .comment-body p { margin: 0 0 0.5em; }
+    .comment-body p:last-child { margin-bottom: 0; }
+    .comment-body code { font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size: 0.825em; background: var(--bg-tertiary, rgba(127,127,127,0.1)); padding: 0.15em 0.35em; border-radius: 0.25em; }
+    .comment-body pre { background: var(--bg-tertiary, rgba(0,0,0,0.05)); border-radius: 0.5rem; padding: 1rem; overflow-x: auto; margin: 0.5em 0; }
+    .comment-body pre code { background: none; padding: 0; font-size: 0.875em; }
+    .comment-body a { color: var(--accent, #0d9488); text-decoration: underline; }
+    .comment-compose-box { background: var(--bg-secondary); border: 1px solid var(--border-light, rgba(127,127,127,0.2)); border-radius: 0.875rem; overflow: hidden; }
+    .reply-banner { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.875rem; background: rgba(13,148,136,0.08); font-size: 0.8125rem; color: var(--accent, #0d9488); font-weight: 500; }
+    .cancel-reply-btn { font-size: 0.75rem; background: none; border: none; color: var(--text-tertiary); cursor: pointer; }
+    .comment-toolbar { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border-light, rgba(127,127,127,0.15)); flex-wrap: wrap; }
+    .fmt-btn { font-size: 0.8125rem; padding: 0.2rem 0.5rem; border-radius: 0.25rem; border: 1px solid var(--border-light, rgba(127,127,127,0.2)); background: transparent; color: var(--text-secondary); cursor: pointer; transition: background 0.1s; }
+    .fmt-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .fmt-italic { font-style: italic; }
+    .toolbar-sep { width: 1px; height: 1rem; background: var(--border-light, rgba(127,127,127,0.2)); margin: 0 0.25rem; }
+    .toolbar-hint { font-size: 0.75rem; color: var(--text-tertiary); margin-left: auto; }
+    .comment-textarea { width: 100%; padding: 0.75rem; border: none; background: transparent; color: var(--text-primary); font-size: 0.9375rem; line-height: 1.6; resize: vertical; min-height: 100px; font-family: inherit; outline: none; }
+    .comment-compose-footer { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; border-top: 1px solid var(--border-light, rgba(127,127,127,0.15)); }
+    .comment-char-count { font-size: 0.75rem; color: var(--text-tertiary); }
+
+    /* Search overlay */
+    .guide-search-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); display: none; align-items: flex-start; justify-content: center; padding-top: 20vh; }
+    .guide-search-overlay.active { display: flex; }
+    .guide-search-box { background: var(--surface, #fff); border-radius: 12px; width: 90%; max-width: 560px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+    .guide-search-input { width: 100%; padding: 16px 20px; border: none; background: transparent; font-size: 1.125rem; color: var(--text-primary); outline: none; }
+    .guide-search-results { max-height: 300px; overflow-y: auto; border-top: 1px solid var(--border-light); }
+    .guide-search-result { padding: 10px 20px; cursor: pointer; font-size: 0.875rem; color: var(--text-secondary); }
+    .guide-search-result:hover, .guide-search-result.active { background: rgba(13,148,136,0.08); color: var(--text-primary); }
+    .guide-search-result mark { background: rgba(13,148,136,0.2); color: inherit; border-radius: 2px; padding: 0 2px; }
+    .guide-search-hint { padding: 8px 20px; font-size: 0.75rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light); }
+
+    /* Keyboard shortcut toast */
+    .guide-toast { position: fixed; bottom: 4rem; left: 50%; transform: translateX(-50%); background: var(--surface, #1f2937); color: var(--text-primary, #fff); padding: 8px 16px; border-radius: 8px; font-size: 0.8125rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9998; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .guide-toast.show { opacity: 1; }
+
+    /* Persistent shortcut hint bar */
+    .guide-shortcuts-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9997; display: flex; align-items: center; justify-content: center; gap: 1.5rem; padding: 6px 16px; background: var(--surface, #1e293b); border-top: 1px solid var(--border-light, rgba(127,127,127,0.15)); font-size: 0.75rem; color: var(--text-tertiary, #9ca3af); }
+    .guide-shortcuts-bar kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; background: var(--bg-tertiary, rgba(127,127,127,0.15)); border: 1px solid var(--border-light, rgba(127,127,127,0.25)); border-radius: 4px; font-family: inherit; font-size: 0.6875rem; font-weight: 600; color: var(--text-secondary, #d1d5db); }
+    @media (max-width: 640px) { .guide-shortcuts-bar { display: none; } }
+</style>
+
+<article class="max-w-7xl mx-auto">
+    <!-- Article Header -->
+    <header class="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-4">
+        {{if .Guide.FeaturedImageURL}}
+        <div class="mb-8 rounded-2xl overflow-hidden">
+            <img src="{{.Guide.FeaturedImageURL}}" alt="{{.Guide.Title}}" class="w-full" loading="eager">
+        </div>
+        {{end}}
+
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight" style="color: var(--text-primary);">
+            {{.Guide.Title}}
+        </h1>
+
+        {{if .Guide.Description}}
+        <p class="text-xl mb-6" style="color: var(--text-secondary);">{{.Guide.Description}}</p>
+        {{end}}
+
+        <!-- Meta Information -->
+        <div class="flex flex-wrap items-center gap-6 pb-6 border-b" style="color: var(--text-tertiary); border-color: var(--border-light);">
+            <a href="/users/{{.Guide.Username}}" class="inline-flex items-center gap-2 hover:opacity-80 transition-opacity">
+                {{if .Guide.AuthorAvatarURL}}
+                <img src="{{thumbURL .Guide.AuthorAvatarURL}}" alt="{{.Guide.AuthorDisplayName}}" class="w-8 h-8 rounded-full object-cover" width="32" height="32">
+                {{end}}
+                <span class="font-medium" style="color: var(--text-primary);">{{.Guide.AuthorDisplayName}}</span>
+            </a>
+
+            <div class="flex items-center gap-2">
+                {{icon "calendar" "w-4 h-4"}}
+                <time>{{.Guide.PublicationDate}}</time>
+            </div>
+
+            <div class="flex items-center gap-2">
+                {{icon "clock" "w-4 h-4"}}
+                <span>{{.Guide.ReadingTime}} min read</span>
+            </div>
+
+            {{if .Guide.Categories}}
+            <div class="flex flex-wrap gap-2">
+                {{range .Guide.Categories}}
+                <a href="/tags/{{.Name}}" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors" style="background: rgba(13,148,136,0.1); color: var(--accent);">
+                    {{.Name}}
+                </a>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+    </header>
+
+    <!-- Mobile TOC -->
+    <div class="guide-toc-mobile max-w-4xl mx-auto px-4 sm:px-6">
+        <details>
+            <summary>Table of Contents</summary>
+            <ul id="toc-list-mobile"></ul>
+        </details>
+    </div>
+
+    <!-- Two-column layout: content + TOC sidebar -->
+    <div class="guide-layout">
+        <!-- Main Content -->
+        <div class="min-w-0">
+            <div id="guide-content" class="prose prose-lg max-w-none dark:prose-invert">
+                {{.Guide.ContentHTML}}
+            </div>
+
+            <!-- Share Buttons -->
+            <div class="mt-12 pt-6 border-t" style="border-color: var(--border-light);">
+                <h3 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-tertiary);">Share this guide</h3>
+                <div class="flex items-center gap-3">
+                    <a href="https://x.com/intent/tweet?url={{.FullURL}}&text={{.Guide.Title}}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border" style="border-color: var(--border-light); color: var(--text-secondary);">
+                        Share on X
+                    </a>
+                    <a href="https://www.linkedin.com/sharing/share-offsite/?url={{.FullURL}}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border" style="border-color: var(--border-light); color: var(--text-secondary);">
+                        Share on LinkedIn
+                    </a>
+                    <button onclick="navigator.clipboard.writeText('{{.FullURL}}').then(()=>{this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy Link'},2000)})"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border" style="border-color: var(--border-light); color: var(--text-secondary);">
+                        Copy Link
+                    </button>
+                </div>
+            </div>
+
+            <!-- Comments Section -->
+            <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700" id="comments-section">
+                <h2 class="text-2xl font-bold mb-6">Comments</h2>
+
+                <div id="comments-list" class="mb-8">
+                    <p class="text-gray-500 dark:text-gray-400 text-sm" id="comments-loading">Loading comments...</p>
+                </div>
+
+                {{if .LoggedIn}}
+                    {{if .UserPermissions.CanComment}}
+                    <div class="comment-compose-box" id="comment-compose">
+                        <div id="reply-banner" class="reply-banner" style="display:none;">
+                            <span id="reply-banner-text"></span>
+                            <button type="button" id="cancel-reply" class="cancel-reply-btn">&#x2715; Cancel</button>
+                        </div>
+                        <div class="comment-toolbar">
+                            <button type="button" class="fmt-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+                            <button type="button" class="fmt-btn fmt-italic" data-cmd="italic" title="Italic"><i>I</i></button>
+                            <button type="button" class="fmt-btn" data-cmd="code" title="Inline code">`</button>
+                            <button type="button" class="fmt-btn" data-cmd="codeblock" title="Code block">{ }</button>
+                            <button type="button" class="fmt-btn" data-cmd="link" title="Link">&#128279;</button>
+                            <span class="toolbar-sep"></span>
+                            <span class="toolbar-hint">Markdown supported</span>
+                        </div>
+                        <textarea id="new-comment-content" rows="4" maxlength="5000"
+                            class="comment-textarea"
+                            placeholder="Write a comment... Markdown supported"></textarea>
+                        <div class="comment-compose-footer">
+                            <span id="comment-char-count" class="comment-char-count">0 / 5000</span>
+                            <button id="submit-comment" class="btn btn-primary">Post Comment</button>
+                        </div>
+                    </div>
+                    {{end}}
+                {{else}}
+                <div class="signin-prompt">
+                    <p class="signin-prompt-text">Sign in to join the discussion</p>
+                    <a href="/auth/github?return_to=/guides/{{.Guide.Slug}}" class="gh-signin-link">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/></svg>
+                        Sign in with GitHub to comment
+                    </a>
+                </div>
+                {{end}}
+            </section>
+        </div>
+
+        <!-- Sticky TOC Sidebar (desktop) -->
+        <aside class="guide-toc" id="guide-toc">
+            <h3>On This Page</h3>
+            <ul id="toc-list"></ul>
+        </aside>
+    </div>
+</article>
+
+<script>
+(function() {
+    // Auto-generate TOC from h2, h3 headings
+    var content = document.getElementById('guide-content');
+    var tocList = document.getElementById('toc-list');
+    var tocListMobile = document.getElementById('toc-list-mobile');
+    if (!content || !tocList) return;
+
+    var headings = content.querySelectorAll('h2, h3');
+    headings.forEach(function(heading, i) {
+        if (!heading.id) heading.id = 'section-' + i;
+
+        // Desktop TOC
+        var li = document.createElement('li');
+        li.className = heading.tagName === 'H3' ? 'ml-4' : '';
+        var a = document.createElement('a');
+        a.href = '#' + heading.id;
+        a.textContent = heading.textContent;
+        a.className = 'toc-link';
+        li.appendChild(a);
+        tocList.appendChild(li);
+
+        // Mobile TOC
+        if (tocListMobile) {
+            var liM = document.createElement('li');
+            liM.className = heading.tagName === 'H3' ? 'ml-4' : '';
+            var aM = document.createElement('a');
+            aM.href = '#' + heading.id;
+            aM.textContent = heading.textContent;
+            aM.className = 'toc-link';
+            liM.appendChild(aM);
+            tocListMobile.appendChild(liM);
+        }
+    });
+
+    // Hide TOC if no headings
+    if (headings.length === 0) {
+        var tocSidebar = document.getElementById('guide-toc');
+        if (tocSidebar) tocSidebar.style.display = 'none';
+        var tocMobile = document.querySelector('.guide-toc-mobile');
+        if (tocMobile) tocMobile.style.display = 'none';
+    }
+
+    // Active section tracking via IntersectionObserver
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                document.querySelectorAll('.toc-link').forEach(function(l) { l.classList.remove('active'); });
+                var links = document.querySelectorAll('a[href="#' + entry.target.id + '"]');
+                links.forEach(function(link) { link.classList.add('active'); });
+            }
+        });
+    }, { rootMargin: '-80px 0px -80% 0px' });
+    headings.forEach(function(h) { observer.observe(h); });
+
+    // Comments
+    var slug = '{{.Guide.Slug}}';
+    var commentsList = document.getElementById('comments-list');
+    var loadingEl = document.getElementById('comments-loading');
+
+    function renderComment(c, depth) {
+        depth = depth || 0;
+        var ml = depth > 0 ? ' style="margin-left:' + Math.min(depth * 24, 96) + 'px"' : '';
+        var dateStr = '';
+        try { dateStr = new Date(c.comment_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}); } catch(e) { dateStr = c.comment_date; }
+        var html = '<div class="comment-item"' + ml + '>' +
+            '<div class="comment-header">' +
+            (c.avatar_url ? '<img src="' + c.avatar_url + '" class="comment-avatar" width="28" height="28">' : '') +
+            '<strong class="comment-author">' + escapeHtml(c.username) + '</strong>' +
+            '<span class="comment-date">' + dateStr + '</span>' +
+            '</div>' +
+            '<div class="comment-body">' + escapeHtml(c.content) + '</div>' +
+            '<div class="comment-actions"><button class="reply-btn" data-id="' + c.comment_id + '" data-name="' + escapeHtml(c.username) + '">Reply</button></div>' +
+            '</div>';
+        if (c.replies) {
+            c.replies.forEach(function(r) { html += renderComment(r, depth + 1); });
+        }
+        return html;
+    }
+
+    function escapeHtml(s) {
+        var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+    }
+
+    function loadComments() {
+        fetch('/guides/' + slug + '/comments')
+            .then(function(r) { return r.json(); })
+            .then(function(comments) {
+                if (!comments || comments.length === 0) {
+                    commentsList.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">No comments yet. Be the first to comment!</p>';
+                    return;
+                }
+                var html = '';
+                comments.forEach(function(c) { html += renderComment(c); });
+                commentsList.innerHTML = html;
+                addReplyListeners();
+            })
+            .catch(function() {
+                commentsList.innerHTML = '<p class="text-gray-500 text-sm">Failed to load comments.</p>';
+            });
+    }
+
+    var parentCommentId = null;
+
+    function addReplyListeners() {
+        document.querySelectorAll('.reply-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                parentCommentId = parseInt(btn.dataset.id);
+                var banner = document.getElementById('reply-banner');
+                var bannerText = document.getElementById('reply-banner-text');
+                if (banner && bannerText) {
+                    bannerText.textContent = 'Replying to ' + btn.dataset.name;
+                    banner.style.display = 'flex';
+                }
+                var ta = document.getElementById('new-comment-content');
+                if (ta) ta.focus();
+            });
+        });
+    }
+
+    var cancelReply = document.getElementById('cancel-reply');
+    if (cancelReply) {
+        cancelReply.addEventListener('click', function() {
+            parentCommentId = null;
+            document.getElementById('reply-banner').style.display = 'none';
+        });
+    }
+
+    var submitBtn = document.getElementById('submit-comment');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            var ta = document.getElementById('new-comment-content');
+            var content = ta ? ta.value.trim() : '';
+            if (!content) return;
+            var payload = { content: content };
+            if (parentCommentId) payload.parent_comment_id = parentCommentId;
+
+            fetch('/guides/' + slug + '/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(function(r) {
+                if (r.ok) {
+                    ta.value = '';
+                    parentCommentId = null;
+                    var banner = document.getElementById('reply-banner');
+                    if (banner) banner.style.display = 'none';
+                    loadComments();
+                }
+            });
+        });
+    }
+
+    // Character count
+    var charCount = document.getElementById('comment-char-count');
+    var commentTa = document.getElementById('new-comment-content');
+    if (charCount && commentTa) {
+        commentTa.addEventListener('input', function() {
+            charCount.textContent = commentTa.value.length + ' / 5000';
+        });
+    }
+
+    loadComments();
+
+    // Format toolbar buttons
+    document.querySelectorAll('.fmt-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var ta = document.getElementById('new-comment-content');
+            if (!ta) return;
+            var start = ta.selectionStart, end = ta.selectionEnd, val = ta.value;
+            var sel = val.substring(start, end);
+            var cmd = btn.dataset.cmd;
+            var wrap = { bold: ['**','**'], italic: ['*','*'], code: ['`','`'], codeblock: ['```\n','\n```'], link: ['[',sel ? '](url)' : 'text](url)'] };
+            if (wrap[cmd]) {
+                var before = wrap[cmd][0], after = wrap[cmd][1];
+                ta.value = val.substring(0, start) + before + sel + after + val.substring(end);
+                ta.focus();
+                ta.selectionStart = start + before.length;
+                ta.selectionEnd = start + before.length + sel.length;
+            }
+        });
+    });
+})();
+</script>
+
+<!-- Search Overlay -->
+<div class="guide-search-overlay" id="guide-search-overlay">
+    <div class="guide-search-box">
+        <input type="text" class="guide-search-input" id="guide-search-input" placeholder="Search in this guide..." autofocus>
+        <div class="guide-search-results" id="guide-search-results"></div>
+        <div class="guide-search-hint">
+            <kbd style="background:var(--bg-tertiary);padding:1px 5px;border-radius:3px;font-size:0.75rem;">Enter</kbd> to jump &middot;
+            <kbd style="background:var(--bg-tertiary);padding:1px 5px;border-radius:3px;font-size:0.75rem;">Esc</kbd> to close &middot;
+            <kbd style="background:var(--bg-tertiary);padding:1px 5px;border-radius:3px;font-size:0.75rem;">/</kbd> to search &middot;
+            <kbd style="background:var(--bg-tertiary);padding:1px 5px;border-radius:3px;font-size:0.75rem;">H</kbd> hide nav &middot;
+            <kbd style="background:var(--bg-tertiary);padding:1px 5px;border-radius:3px;font-size:0.75rem;">J</kbd>/<kbd style="background:var(--bg-tertiary);padding:1px 5px;border-radius:3px;font-size:0.75rem;">K</kbd> next/prev section
+        </div>
+    </div>
+</div>
+<div class="guide-toast" id="guide-toast"></div>
+<div class="guide-shortcuts-bar" id="guide-shortcuts-bar">
+    <span><kbd>/</kbd> Search</span>
+    <span><kbd>J</kbd> Next section</span>
+    <span><kbd>K</kbd> Prev section</span>
+    <span><kbd>H</kbd> Hide nav</span>
+</div>
+
+<script>
+(function() {
+    var headings = Array.from(document.querySelectorAll('#guide-content h2, #guide-content h3'));
+    var searchOverlay = document.getElementById('guide-search-overlay');
+    var searchInput = document.getElementById('guide-search-input');
+    var searchResults = document.getElementById('guide-search-results');
+    var toast = document.getElementById('guide-toast');
+    var activeResultIdx = -1;
+    var navHidden = false;
+
+    function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(function() { toast.classList.remove('show'); }, 1500);
+    }
+
+    function currentSectionIdx() {
+        var scrollY = window.scrollY + 120;
+        for (var i = headings.length - 1; i >= 0; i--) {
+            if (headings[i].offsetTop <= scrollY) return i;
+        }
+        return -1;
+    }
+
+    // Keyboard shortcuts (only when not typing in an input/textarea)
+    document.addEventListener('keydown', function(e) {
+        var tag = (e.target.tagName || '').toLowerCase();
+        var isTyping = tag === 'input' || tag === 'textarea' || e.target.isContentEditable;
+
+        // Search overlay shortcuts
+        if (searchOverlay.classList.contains('active')) {
+            if (e.key === 'Escape') {
+                searchOverlay.classList.remove('active');
+                searchInput.value = '';
+                searchResults.innerHTML = '';
+                e.preventDefault();
+            } else if (e.key === 'Enter') {
+                var active = searchResults.querySelector('.guide-search-result.active') || searchResults.querySelector('.guide-search-result');
+                if (active) {
+                    active.click();
+                    searchOverlay.classList.remove('active');
+                    searchInput.value = '';
+                    searchResults.innerHTML = '';
+                }
+                e.preventDefault();
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                var items = searchResults.querySelectorAll('.guide-search-result');
+                if (items.length === 0) return;
+                items.forEach(function(it) { it.classList.remove('active'); });
+                if (e.key === 'ArrowDown') activeResultIdx = Math.min(activeResultIdx + 1, items.length - 1);
+                else activeResultIdx = Math.max(activeResultIdx - 1, 0);
+                items[activeResultIdx].classList.add('active');
+                items[activeResultIdx].scrollIntoView({ block: 'nearest' });
+                e.preventDefault();
+            }
+            return;
+        }
+
+        if (isTyping) return;
+
+        // H — Toggle navigation (guide-specific)
+        if (e.key === 'h' || e.key === 'H') {
+            var nav = document.querySelector('header') || document.querySelector('nav');
+            var toc = document.getElementById('guide-toc');
+            if (nav) {
+                navHidden = !navHidden;
+                nav.style.display = navHidden ? 'none' : '';
+                if (toc) toc.style.display = navHidden ? 'none' : '';
+                showToast(navHidden ? 'Navigation hidden (H to show)' : 'Navigation visible');
+            }
+        }
+        // Note: /, j, k are handled globally by /static/js/keynav.js
+        //   / = open search  |  j = prev heading  |  k = next heading
+    });
+
+    // Search input handler
+    searchInput.addEventListener('input', function() {
+        var query = searchInput.value.trim().toLowerCase();
+        searchResults.innerHTML = '';
+        activeResultIdx = -1;
+        if (!query) return;
+
+        // Search through all text content in the guide
+        var content = document.getElementById('guide-content');
+        var allElements = content.querySelectorAll('h2, h3, p, li, td, th, code');
+        var seen = {};
+        allElements.forEach(function(el) {
+            var text = el.textContent;
+            if (text.toLowerCase().indexOf(query) === -1) return;
+            // Find parent heading for context
+            var heading = el;
+            if (el.tagName !== 'H2' && el.tagName !== 'H3') {
+                var prev = el;
+                while (prev) {
+                    prev = prev.previousElementSibling;
+                    if (prev && (prev.tagName === 'H2' || prev.tagName === 'H3')) { heading = prev; break; }
+                }
+                if (!prev) {
+                    // Walk up and find preceding heading
+                    var parent = el.parentElement;
+                    while (parent && parent.id !== 'guide-content') {
+                        var ps = parent.previousElementSibling;
+                        while (ps) {
+                            if (ps.tagName === 'H2' || ps.tagName === 'H3') { heading = ps; break; }
+                            ps = ps.previousElementSibling;
+                        }
+                        if (heading !== el) break;
+                        parent = parent.parentElement;
+                    }
+                }
+            }
+            var key = (heading.id || '') + ':' + text.substring(0, 50);
+            if (seen[key]) return;
+            seen[key] = true;
+
+            var div = document.createElement('div');
+            div.className = 'guide-search-result';
+            var snippet = text.length > 80 ? text.substring(0, 80) + '...' : text;
+            // Highlight match
+            var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            div.innerHTML = snippet.replace(re, '<mark>$1</mark>');
+            div.addEventListener('click', function() {
+                var target = heading.id ? heading : el;
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Flash highlight
+                el.style.background = 'rgba(13,148,136,0.15)';
+                setTimeout(function() { el.style.background = ''; }, 2000);
+            });
+            searchResults.appendChild(div);
+        });
+    });
+
+    // Close search on click outside
+    searchOverlay.addEventListener('click', function(e) {
+        if (e.target === searchOverlay) {
+            searchOverlay.classList.remove('active');
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+        }
+    });
+})();
+</script>
+
+{{template "modern-footer" .}}

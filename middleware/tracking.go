@@ -11,9 +11,24 @@ import (
 
 // TrackingMiddleware records page views for every GET request.
 // It calls next.ServeHTTP first (zero added latency) then records asynchronously.
-func TrackingMiddleware(analyticsService *models.AnalyticsService, sessionService *models.SessionService) func(http.Handler) http.Handler {
+// If crawlerRules is non-nil, blocked crawlers receive 429 before the request is served.
+func TrackingMiddleware(analyticsService *models.AnalyticsService, sessionService *models.SessionService, crawlerRules ...*models.CrawlerRuleService) func(http.Handler) http.Handler {
+	var rules *models.CrawlerRuleService
+	if len(crawlerRules) > 0 {
+		rules = crawlerRules[0]
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Check crawler blocking BEFORE serving (must reject early)
+			if rules != nil && r.Method == http.MethodGet {
+				crawlerType := models.ClassifyCrawler(r.UserAgent())
+				if crawlerType != "" && rules.IsBlocked(crawlerType) {
+					http.Error(w, "Crawler temporarily restricted", http.StatusTooManyRequests)
+					return
+				}
+			}
+
 			// Serve the request first — no latency added
 			next.ServeHTTP(w, r)
 
@@ -29,6 +44,16 @@ func TrackingMiddleware(analyticsService *models.AnalyticsService, sessionServic
 				strings.HasPrefix(path, "/css/") ||
 				strings.HasPrefix(path, "/api/") ||
 				path == "/favicon.ico" {
+				return
+			}
+
+			// Skip blog sub-resource endpoints (comments, annotations) — not page views
+			if strings.HasSuffix(path, "/comments") || strings.HasSuffix(path, "/annotations") {
+				return
+			}
+
+			// Skip paths with unresolved JS template literals (bot noise, e.g. /blog/${escapeHTML(post.Slug)})
+			if strings.Contains(path, "${") {
 				return
 			}
 
@@ -50,6 +75,7 @@ func TrackingMiddleware(analyticsService *models.AnalyticsService, sessionServic
 				Referrer:    r.Referer(),
 				UserID:      userID,
 				ContentType: models.ContentTypeForPath(path),
+				CrawlerType: models.ClassifyCrawler(r.UserAgent()),
 			}
 
 			analyticsService.Record(pv)

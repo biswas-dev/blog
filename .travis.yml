@@ -1,0 +1,139 @@
+# Travis CI configuration for Blog (anshumanbiswas.com)
+# Primary CI/CD pipeline (GitHub Actions kept as backup in .github/workflows-backup/)
+#
+# Build once on main, promote exact digest through staging -> UAT -> production.
+# Images pushed to Harbor (harbor.biswas.me/biswas/blog).
+#
+# Required environment variables (set in Travis CI Settings > Environment Variables):
+#   STAGING_SSH_KEY_BASE64 / UAT_SSH_KEY_BASE64 / PRODUCTION_SSH_KEY_BASE64
+#   BLOG_PG_PASSWORD, BLOG_SESSION_SECRET, BLOG_API_TOKEN
+#   STAGING_ENCRYPTION_KEY, UAT_ENCRYPTION_KEY, PRODUCTION_ENCRYPTION_KEY
+#   GH_CLIENT_ID, GH_CLIENT_SECRET, OAUTH_STATE_SECRET
+#   HARBOR_AUTH (base64-encoded "username:password")
+#   SONAR_TOKEN, DD_API_KEY, DD_SITE
+
+language: minimal
+os: linux
+dist: jammy
+
+git:
+  depth: 10
+  submodules: false
+
+env:
+  global:
+    - SONAR_HOST_URL=https://sonar.taskai.cc
+
+stages:
+  - name: test
+    if: type = push OR type = pull_request
+  - name: sonarqube
+    if: branch = main AND type = push
+  - name: build-images
+    if: branch = main AND type = push
+  - name: deploy-staging
+    if: branch = main AND type = push
+  - name: promote-and-deploy-uat
+    if: branch = uat AND type = push
+  - name: promote-and-deploy-production
+    if: branch = production AND type = push
+
+jobs:
+  include:
+    # ── Go Tests ───────────────────────────────────────────────────────────
+    - stage: test
+      name: "Blog Tests (Go)"
+      language: go
+      go: "1.26.1"
+      env:
+        - GOTOOLCHAIN=local
+        - PG_HOST=127.0.0.1
+        - PG_PORT=5432
+        - PG_USER=blog
+        - PG_PASSWORD=testpass
+        - PG_DB=blog
+      cache:
+        directories:
+          - $HOME/go/pkg/mod
+          - $HOME/.cache/go-build
+      services:
+        - postgresql
+      before_script:
+        - go version
+        - psql -c "CREATE DATABASE blog;" -U postgres
+        - psql -c "CREATE USER blog WITH PASSWORD 'testpass';" -U postgres
+        - psql -c "GRANT ALL PRIVILEGES ON DATABASE blog TO blog;" -U postgres
+        - psql -c "ALTER DATABASE blog OWNER TO blog;" -U postgres
+        - curl -sL https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xz && sudo mv migrate /usr/local/bin/
+        - migrate -source file://migrations -database "postgresql://blog:testpass@127.0.0.1:5432/blog?sslmode=disable" up
+      script:
+        - go vet ./...
+        - go test -v -coverprofile=coverage.out -covermode=atomic ./...
+        - go tool cover -func=coverage.out | tail -1
+      workspaces:
+        create:
+          name: blog-coverage
+          paths:
+            - coverage.out
+
+    # ── SonarQube ──────────────────────────────────────────────────────────
+    - stage: sonarqube
+      name: "SonarQube Analysis"
+      git:
+        depth: false
+        submodules: false
+      workspaces:
+        use:
+          - blog-coverage
+      script:
+        - |
+          export SONAR_SCANNER_VERSION=5.0.1.3006
+          curl -sSLo sonar-scanner.zip "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip"
+          unzip -q sonar-scanner.zip
+          export PATH="$PWD/sonar-scanner-${SONAR_SCANNER_VERSION}-linux/bin:$PATH"
+          sonar-scanner \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.projectVersion="$(git describe --tags --always 2>/dev/null || echo dev)"
+
+    # ── Build & Push Docker Images (main only) ──────────────────────────
+    - stage: build-images
+      name: "Build & Push Docker Images"
+      services:
+        - docker
+      script:
+        - bash deployment/scripts/travis-build-images.sh
+      workspaces:
+        create:
+          name: blog-digest
+          paths:
+            - .image-digest.txt
+
+    # ── Deploy Staging (uses digest from build) ──────────────────────────
+    - stage: deploy-staging
+      name: "Deploy to Staging"
+      workspaces:
+        use:
+          - blog-digest
+      script:
+        - bash deployment/scripts/travis-deploy.sh staging
+
+    # ── Promote & Deploy UAT (no rebuild) ────────────────────────────────
+    - stage: promote-and-deploy-uat
+      name: "Promote & Deploy to UAT"
+      script:
+        - bash deployment/scripts/travis-deploy.sh uat
+
+    # ── Promote & Deploy Production (no rebuild) ─────────────────────────
+    - stage: promote-and-deploy-production
+      name: "Promote & Deploy to Production"
+      script:
+        - bash deployment/scripts/travis-deploy.sh production
+
+  allow_failures:
+    - name: "SonarQube Analysis"
+
+notifications:
+  email:
+    on_success: never
+    on_failure: always

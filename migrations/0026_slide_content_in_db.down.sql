@@ -1,0 +1,1 @@
+ALTER TABLE Slides DROP COLUMN IF EXISTS content;

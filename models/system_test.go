@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-func TestSystemService_countMigrationFiles(t *testing.T) {
+func TestSystemService_CountMigrationFiles(t *testing.T) {
 	service := &SystemService{
 		migrationsPath: "testdata/migrations",
 	}
 
 	// This will return 0 if testdata doesn't exist, which is fine for this test
-	count := service.countMigrationFiles()
+	count := service.CountMigrationFiles()
 	if count < 0 {
 		t.Errorf("countMigrationFiles() returned negative count: %d", count)
 	}

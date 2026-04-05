@@ -1,3 +1,4 @@
+{{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
 {{template "modern-header" .}}
 
 <section class="editor-container formatting-guide">
@@ -27,7 +28,7 @@
               </div>
               <div id="cover-upload-zone" class="cover-drop-zone" style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 1rem; text-align: center; cursor: pointer; margin-top: 0.5rem;">
                 <div class="cover-drop-content">
-                  <svg style="width:32px;height:32px;margin:0 auto 8px;display:block;opacity:0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                  {{icon "cloud-upload" "w-6 h-6"}}
                   <div style="font-size: 13px; color: #6b7280;">Drop image here or click Upload</div>
                 </div>
               </div>
@@ -188,6 +189,75 @@ if (window.__goWikiConfig) {
 })();
 </script>
 
+{{if eq .Mode "edit"}}
+<div id="version-history-section" style="max-width:900px;margin:1.5rem auto 0;">
+  <button type="button" onclick="toggleVersionHistory()" class="version-history-btn">
+    &#x1F4DC; Version History
+  </button>
+  <div id="version-list" hidden class="version-history-panel">
+    <p id="version-loading" style="color:#6b7280;font-size:14px;">Loading versions...</p>
+  </div>
+</div>
+<script>
+(function() {
+  var loaded = false;
+  window.toggleVersionHistory = function() {
+    var div = document.getElementById('version-list');
+    if (div.hidden) {
+      div.hidden = false;
+      if (!loaded) { loadVersions(); loaded = true; }
+    } else {
+      div.hidden = true;
+    }
+  };
+
+  window.loadVersions = async function() {
+    var div = document.getElementById('version-list');
+    try {
+      var res = await fetch('/api/posts/{{.Post.ID}}/versions');
+      if (!res.ok) { div.innerHTML = '<p style="color:#ef4444">Failed to load versions.</p>'; return; }
+      var versions = await res.json();
+      if (!versions || versions.length === 0) {
+        div.innerHTML = '<p style="color:#6b7280;font-size:14px;">No versions saved yet.</p>';
+        return;
+      }
+      var html = '<table class="version-table">';
+      html += '<tr><th>Version</th><th>Title</th><th>Editor</th><th>Date</th><th></th></tr>';
+      versions.forEach(function(v) {
+        var date = new Date(v.CreatedAt).toLocaleDateString();
+        html += '<tr>';
+        html += '<td>#' + v.VersionNumber + '</td>';
+        html += '<td>' + escHtml(v.Title) + '</td>';
+        html += '<td>' + escHtml(v.CreatedByName) + '</td>';
+        html += '<td>' + date + '</td>';
+        html += '<td><button type="button" onclick="restoreVersion(' + v.VersionNumber + ')" class="version-restore-btn">Restore</button></td>';
+        html += '</tr>';
+      });
+      html += '</table>';
+      div.innerHTML = html;
+    } catch(e) {
+      div.innerHTML = '<p style="color:#ef4444">Error loading versions.</p>';
+    }
+  };
+
+  window.restoreVersion = async function(vNum) {
+    if (!confirm('Restore version #' + vNum + '? The current content will be saved as a new version before restoring.')) return;
+    try {
+      var res = await fetch('/api/posts/{{.Post.ID}}/versions/' + vNum + '/restore', {method:'POST'});
+      if (!res.ok) { alert('Failed to restore version.'); return; }
+      window.location.reload();
+    } catch(e) {
+      alert('Error restoring version.');
+    }
+  };
+
+  function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+})();
+</script>
+{{end}}
+
 <style>
 /* Blog-specific sidebar styles */
 .editor-sidebar {
@@ -198,6 +268,68 @@ if (window.__goWikiConfig) {
 .dark .editor-sidebar {
   background: #1e293b;
   border-color: #334155;
+}
+
+/* Version history styles */
+.version-history-btn {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+}
+.dark .version-history-btn {
+  color: #d1d5db;
+  border-color: #4b5563;
+}
+.version-history-panel {
+  margin-top: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #f9fafb;
+}
+.dark .version-history-panel {
+  background: #1e293b;
+  border-color: #374155;
+}
+.version-table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+  color: #374151;
+}
+.dark .version-table {
+  color: #d1d5db;
+}
+.version-table th {
+  text-align: left;
+  padding: 6px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.dark .version-table th {
+  border-bottom-color: #4b5563;
+}
+.version-table td {
+  padding: 6px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.dark .version-table td {
+  border-bottom-color: #374151;
+}
+.version-restore-btn {
+  font-size: 12px;
+  padding: 2px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+  color: inherit;
+}
+.dark .version-restore-btn {
+  border-color: #4b5563;
 }
 </style>
 

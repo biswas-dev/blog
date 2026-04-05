@@ -1,3 +1,4 @@
+{{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
 {{template "modern-header" .}}
 
 <style>
@@ -280,7 +281,7 @@
                 <p>IP ban and allow list management</p>
             </div>
             <a href="/admin/analytics" class="sys-back-btn">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                {{icon "chevron-left" "w-4 h-4"}}
                 Analytics
             </a>
         </div>
@@ -313,7 +314,7 @@
         <div class="sys-card" style="margin-bottom: 24px;">
             <div class="sys-card-header">
                 <div class="sys-icon sys-icon-amber">
-                    <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/></svg>
+                    {{icon "plus" "w-4 h-4"}}
                 </div>
                 <h3>Add Rule</h3>
             </div>
@@ -341,7 +342,7 @@
         <div class="sys-card">
             <div class="sys-card-header">
                 <div class="sys-icon sys-icon-red">
-                    <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    {{icon "globe" "w-4 h-4"}}
                 </div>
                 <h3>IP Rules</h3>
             </div>
