@@ -1203,7 +1203,7 @@
         }
     }
 
-    async function loadSectionStats(path, days) {
+    window.loadSectionStats = async function(path, days) {
         const card = document.getElementById('engagement-sections-card');
         const pathEl = document.getElementById('engagement-sections-path');
         const tbody = document.getElementById('engagement-sections-body');
@@ -1236,7 +1236,7 @@
         } catch (err) {
             tbody.innerHTML = '<tr><td colspan="3" class="analytics-loading">Failed to load section data.</td></tr>';
         }
-    }
+    };
 
     document.getElementById('engagement-sections-close').addEventListener('click', function() {
         document.getElementById('engagement-sections-card').style.display = 'none';
