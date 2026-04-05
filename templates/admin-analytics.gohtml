@@ -1180,7 +1180,7 @@
         const days = period === '7d' ? 7 : period === '90d' ? 90 : period === '1y' ? 365 : 30;
         const tbody = document.getElementById('engagement-body');
         try {
-            const res = await fetch('/api/admin/engagement-stats?days=' + days);
+            const res = await fetch('/api/admin/engagement-summary?days=' + days);
             if (!res.ok) throw new Error('failed');
             const data = await res.json();
             const rows = data.top_engaged || [];
@@ -1212,7 +1212,7 @@
         tbody.innerHTML = '<tr><td colspan="3" class="analytics-loading">Loading...</td></tr>';
         card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         try {
-            const res = await fetch('/api/admin/engagement-stats?path=' + encodeURIComponent(path) + '&days=' + days);
+            const res = await fetch('/api/admin/engagement-summary?path=' + encodeURIComponent(path) + '&days=' + days);
             if (!res.ok) throw new Error('failed');
             const data = await res.json();
             const secs = data.sections || [];

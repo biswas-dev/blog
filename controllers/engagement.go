@@ -84,7 +84,7 @@ func isBot(ua string) bool {
 }
 
 // GetEngagementJSON returns engagement summary for admin dashboard.
-// GET /api/admin/engagement-stats?path=/blog/xxx&days=30
+// GET /api/admin/engagement-summary?path=/blog/xxx&days=30
 func (c EngagementController) GetSummary(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	daysStr := r.URL.Query().Get("days")

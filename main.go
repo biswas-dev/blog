@@ -674,7 +674,7 @@ func main() {
 
 	// Engagement Management Routes (admin)
 	r.Get("/api/admin/engagement", analyticsC.GetEngagementJSON)
-	r.Get("/api/admin/engagement-stats", engagementController.GetSummary)
+	r.Get("/api/admin/engagement-summary", engagementController.GetSummary)
 	r.Delete("/api/admin/engagement/comments/{id}", analyticsC.AdminDeleteComment)
 	r.Delete("/api/admin/engagement/annotations/{id}", analyticsC.AdminDeleteAnnotation)
 
