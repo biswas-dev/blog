@@ -129,7 +129,6 @@
         return {
           id: s.id,
           text: s.text,
-          order: s.order,
           active_seconds: Math.round(s.active_seconds),
           viewed: s.viewed
         };
