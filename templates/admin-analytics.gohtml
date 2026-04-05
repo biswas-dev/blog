@@ -1162,7 +1162,7 @@
             initBrowserChart(data.browsers || []);
 
             // Reader engagement
-            loadEngagement(period);
+            loadReaderEngagement(period);
 
         } catch (err) {
             console.error('Analytics load error:', err);
@@ -1176,7 +1176,7 @@
         return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm';
     }
 
-    async function loadEngagement(period) {
+    async function loadReaderEngagement(period) {
         const days = period === '7d' ? 7 : period === '90d' ? 90 : period === '1y' ? 365 : 30;
         const tbody = document.getElementById('engagement-body');
         try {
@@ -1848,6 +1848,7 @@
     loadCrawlerData();
 
     loadEngagement();
+    loadReaderEngagement();
     loadSlug404s();
 
     // Load initial data
