@@ -1029,6 +1029,18 @@ func drawAuthMiddleware(ss *models.SessionService, apiTokenStr string, apiTokenS
 			canEdit = models.IsAdmin(user.Role) || models.CanEditPosts(user.Role)
 		}
 
+		// All go-draw pages (list, viewer, editor) are internal tools — tell
+		// search engines not to index them. Blog posts embed drawings via
+		// iframes so the content is still reachable.
+		isHTMLPage := !strings.HasPrefix(path, "static/") &&
+			!strings.HasPrefix(path, "uploads/") &&
+			!strings.HasPrefix(path, "api/") &&
+			!strings.HasSuffix(path, "/data") &&
+			!strings.HasSuffix(path, "/save")
+		if isHTMLPage {
+			w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+		}
+
 		// For the list page, hide "+", "Edit", "Delete" buttons for non-editors.
 		if !canEdit && (path == "" || path == "/") {
 			w = &drawHideButtonsWriter{
@@ -1039,11 +1051,7 @@ func drawAuthMiddleware(ss *models.SessionService, apiTokenStr string, apiTokenS
 
 		// For viewer pages (/draw/{id}), hide the "+" new-canvas button
 		// rendered by canvas.js inside the iframe.
-		if !canEdit && !writeOp && path != "" && path != "/" &&
-			!strings.HasPrefix(path, "static/") &&
-			!strings.HasPrefix(path, "uploads/") &&
-			!strings.HasPrefix(path, "api/") &&
-			!strings.HasSuffix(path, "/data") {
+		if !canEdit && !writeOp && path != "" && path != "/" && isHTMLPage {
 			w = &drawHideButtonsWriter{
 				ResponseWriter: w,
 				css:            `#btn-new-canvas{display:none!important}`,
