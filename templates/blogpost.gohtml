@@ -5,13 +5,40 @@
 {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "{{.FullURL}}"},
   "headline": "{{.Post.Title}}",
-  "author": {"@type": "Person", "name": "{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}"},
+  "author": {
+    "@type": "Person",
+    "name": "{{if .Post.AuthorDisplayName}}{{.Post.AuthorDisplayName}}{{else}}Anshuman Biswas{{end}}"{{if .Post.Username}},
+    "url": "https://anshumanbiswas.com/users/{{.Post.Username}}"{{end}}{{if .Post.AuthorAvatarURL}},
+    "image": "https://anshumanbiswas.com{{.Post.AuthorAvatarURL}}"{{end}}
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Anshuman Biswas",
+    "url": "https://anshumanbiswas.com"
+  },
   "datePublished": "{{.Post.CreatedAt}}",
   "dateModified": "{{if .Post.LastEditDate}}{{.Post.LastEditDate}}{{else}}{{.Post.CreatedAt}}{{end}}",
   "description": "{{.OGDescription}}",
   "url": "{{.FullURL}}"{{if .OGImage}},
-  "image": "{{.OGImage}}"{{end}}
+  "image": {
+    "@type": "ImageObject",
+    "url": "{{.OGImage}}",
+    "width": 1200,
+    "height": 630
+  }{{end}}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://anshumanbiswas.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://anshumanbiswas.com/blog"},
+    {"@type": "ListItem", "position": 3, "name": "{{.Post.Title}}"}
+  ]
 }
 </script>
 {{end}}
@@ -23,8 +50,15 @@
     <meta property="og:title" content="{{.Post.Title}}" />
     <meta property="og:description" content="{{.OGDescription}}" />
     {{if .FullURL}}<meta property="og:url" content="{{.FullURL}}" />{{end}}
-    {{if .OGImage}}<meta property="og:image" content="{{.OGImage}}" />{{end}}
+    {{if .OGImage}}<meta property="og:image" content="{{.OGImage}}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />{{end}}
+    <meta property="article:published_time" content="{{.Post.CreatedAt}}" />
+    <meta property="article:modified_time" content="{{if .Post.LastEditDate}}{{.Post.LastEditDate}}{{else}}{{.Post.CreatedAt}}{{end}}" />
+    <meta property="article:author" content="https://anshumanbiswas.com/users/{{.Post.Username}}" />
     <meta name="twitter:card" content="{{if .OGImage}}summary_large_image{{else}}summary{{end}}" />
+    <meta name="twitter:site" content="@AnshumanBiswas" />
+    <meta name="twitter:creator" content="@AnshumanBiswas" />
     <meta name="twitter:title" content="{{.Post.Title}}" />
     <meta name="twitter:description" content="{{.OGDescription}}" />
     {{if .OGImage}}<meta name="twitter:image" content="{{.OGImage}}" />{{end}}
