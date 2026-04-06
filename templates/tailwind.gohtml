@@ -584,6 +584,38 @@
     <!-- Reader engagement tracker (time on page, scroll depth, section attention) -->
     <script src="/static/js/engagement.js?v=2026-04-04c" defer></script>
 
+    <!-- go-draw embed scroll guard: block pointer events on diagram iframes
+         until the reader has hovered for 5 seconds, so normal page scrolling
+         isn't hijacked when the cursor passes over an embedded drawing. -->
+    <style>.godraw-embed iframe { pointer-events: none; transition: opacity 0.2s; }
+           .godraw-embed.draw-active iframe { pointer-events: auto; }
+           .godraw-embed .draw-hover-hint { position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+             padding:4px 12px; border-radius:6px; font-size:12px; color:#fff; background:rgba(0,0,0,0.55);
+             backdrop-filter:blur(4px); pointer-events:none; opacity:0; transition:opacity 0.3s; z-index:2; }
+           .godraw-embed:hover .draw-hover-hint { opacity:1; }
+           .godraw-embed.draw-active .draw-hover-hint { opacity:0; }</style>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.godraw-embed').forEach(el => {
+        // Ensure the container is positioned for the hint overlay
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+        // Add a subtle hint
+        const hint = document.createElement('div');
+        hint.className = 'draw-hover-hint';
+        hint.textContent = 'Hover to interact with diagram';
+        el.appendChild(hint);
+        let timer = null;
+        el.addEventListener('mouseenter', () => {
+          timer = setTimeout(() => { el.classList.add('draw-active'); }, 5000);
+        });
+        el.addEventListener('mouseleave', () => {
+          clearTimeout(timer);
+          el.classList.remove('draw-active');
+        });
+      });
+    });
+    </script>
+
     <!-- Keyboard navigation (j/k for sections, / for search) -->
     <style>
       #keynav-search { display: none; position: fixed; inset: 0; z-index: 9999; }
