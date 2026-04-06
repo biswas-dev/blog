@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -1800,6 +1801,29 @@ func xmlEscape(s string) string {
 	return s
 }
 
+// sitemapDate normalises any date string to ISO 8601 (YYYY-MM-DD) for sitemap
+// <lastmod>. Handles RFC3339, RFC3339Nano, human "January 2, 2006", and bare
+// "2006-01-02". Falls back to the raw string if parsing fails (should not happen).
+func sitemapDate(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Now().Format("2006-01-02")
+	}
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+		"January 2, 2006",
+		"Jan 2, 2006",
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.Format("2006-01-02")
+		}
+	}
+	return s // fallback: return as-is
+}
+
 // robotsTxtHandler returns the robots.txt content for crawlers.
 func robotsTxtHandler() http.HandlerFunc {
 	body := `User-agent: *
@@ -1879,7 +1903,7 @@ func sitemapHandler(
 					lastmod = p.LastEditDate
 				}
 				fmt.Fprintf(w, "  <url><loc>%s/blog/%s</loc><lastmod>%s</lastmod><priority>0.8</priority></url>\n",
-					baseURL, xmlEscape(p.Slug), xmlEscape(lastmod))
+					baseURL, xmlEscape(p.Slug), sitemapDate(lastmod))
 			}
 		}
 
@@ -1891,7 +1915,7 @@ func sitemapHandler(
 					lastmod = s.UpdatedAt
 				}
 				fmt.Fprintf(w, "  <url><loc>%s/slides/%s</loc><lastmod>%s</lastmod><priority>0.7</priority></url>\n",
-					baseURL, xmlEscape(s.Slug), xmlEscape(lastmod))
+					baseURL, xmlEscape(s.Slug), sitemapDate(lastmod))
 			}
 		}
 
@@ -1903,15 +1927,16 @@ func sitemapHandler(
 					lastmod = g.UpdatedAt
 				}
 				fmt.Fprintf(w, "  <url><loc>%s/guides/%s</loc><lastmod>%s</lastmod><priority>0.8</priority></url>\n",
-					baseURL, xmlEscape(g.Slug), xmlEscape(lastmod))
+					baseURL, xmlEscape(g.Slug), sitemapDate(lastmod))
 			}
 		}
 
-		// Tag pages
+		// Tag pages — URL-encode names (spaces → %20)
 		if cats, err := cs.GetAll(); err == nil {
 			for _, c := range cats {
+				encodedName := url.PathEscape(c.Name)
 				fmt.Fprintf(w, "  <url><loc>%s/tags/%s</loc><lastmod>%s</lastmod><priority>0.5</priority></url>\n",
-					baseURL, xmlEscape(c.Name), now)
+					baseURL, encodedName, now)
 			}
 		}
 
