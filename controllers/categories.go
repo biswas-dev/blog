@@ -101,6 +101,7 @@ func (c *Categories) TagPage(w http.ResponseWriter, r *http.Request) {
 		Description     string
 		CurrentPage     string
 		UserPermissions models.UserPermissions
+		SignupDisabled  bool
 	}
 	data.TagName = category.Name
 	data.Posts = posts
