@@ -6,8 +6,15 @@
     <meta property="og:title" content="{{.Guide.Title}}" />
     <meta property="og:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
     {{if .FullURL}}<meta property="og:url" content="{{.FullURL}}" />{{end}}
-    {{if .Guide.FeaturedImageURL}}<meta property="og:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
+    {{if .Guide.FeaturedImageURL}}<meta property="og:image" content="{{.Guide.FeaturedImageURL}}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />{{end}}
+    <meta property="article:published_time" content="{{.Guide.CreatedAt}}" />
+    <meta property="article:modified_time" content="{{if .Guide.UpdatedAt}}{{.Guide.UpdatedAt}}{{else}}{{.Guide.CreatedAt}}{{end}}" />
+    <meta property="article:author" content="https://anshumanbiswas.com/users/{{.Guide.Username}}" />
     <meta name="twitter:card" content="{{if .Guide.FeaturedImageURL}}summary_large_image{{else}}summary{{end}}" />
+    <meta name="twitter:site" content="@AnshumanBiswas" />
+    <meta name="twitter:creator" content="@AnshumanBiswas" />
     <meta name="twitter:title" content="{{.Guide.Title}}" />
     <meta name="twitter:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
     {{if .Guide.FeaturedImageURL}}<meta name="twitter:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
@@ -17,14 +24,41 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Article",
+  "@type": "TechArticle",
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "https://anshumanbiswas.com/guides/{{.Guide.Slug}}"},
   "headline": "{{.Guide.Title}}",
-  "author": {"@type": "Person", "name": "{{.Guide.AuthorDisplayName}}"},
+  "author": {
+    "@type": "Person",
+    "name": "{{.Guide.AuthorDisplayName}}"{{if .Guide.Username}},
+    "url": "https://anshumanbiswas.com/users/{{.Guide.Username}}"{{end}}{{if .Guide.AuthorAvatarURL}},
+    "image": "https://anshumanbiswas.com{{.Guide.AuthorAvatarURL}}"{{end}}
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Anshuman Biswas",
+    "url": "https://anshumanbiswas.com"
+  },
   "datePublished": "{{.Guide.CreatedAt}}",
   "dateModified": "{{if .Guide.UpdatedAt}}{{.Guide.UpdatedAt}}{{else}}{{.Guide.CreatedAt}}{{end}}",
   "description": "{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}",
-  "url": "{{.FullURL}}"{{if .Guide.FeaturedImageURL}},
-  "image": "{{.Guide.FeaturedImageURL}}"{{end}}
+  "url": "https://anshumanbiswas.com/guides/{{.Guide.Slug}}"{{if .Guide.FeaturedImageURL}},
+  "image": {
+    "@type": "ImageObject",
+    "url": "https://anshumanbiswas.com{{.Guide.FeaturedImageURL}}",
+    "width": 1200,
+    "height": 630
+  }{{end}}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://anshumanbiswas.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Guides", "item": "https://anshumanbiswas.com/guides"},
+    {"@type": "ListItem", "position": 3, "name": "{{.Guide.Title}}"}
+  ]
 }
 </script>
 {{end}}
