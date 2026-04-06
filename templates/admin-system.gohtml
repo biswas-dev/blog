@@ -699,6 +699,71 @@
             </div>
         </div>
 
+        <!-- Site Settings Section -->
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-blue">
+                        {{icon "settings" "w-4 h-4"}}
+                    </div>
+                    <div>
+                        <h3>Site Settings</h3>
+                        <p>Configurable site-wide parameters</p>
+                    </div>
+                </div>
+            </div>
+            <div class="sys-section-body" style="padding: 16px 20px;">
+                <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 180px;">
+                        Draw Hover Delay (seconds)
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="number" id="draw-hover-delay" min="1" max="30" step="1"
+                               value="{{siteConfig "draw_hover_delay" "3"}}"
+                               class="sys-input" style="width: 80px; padding: 6px 10px; text-align: center;">
+                        <button onclick="saveDrawHoverDelay()" class="sys-btn-outline" style="padding: 6px 14px;">
+                            Save
+                        </button>
+                        <span id="draw-delay-status" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-tertiary); width: 100%;">
+                        Readers must hover over a go-draw diagram for this many seconds before scroll-to-zoom activates. Min 1s, max 30s.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <script>
+        async function saveDrawHoverDelay() {
+            const input = document.getElementById('draw-hover-delay');
+            const status = document.getElementById('draw-delay-status');
+            const val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 1 || val > 30) {
+                status.textContent = 'Must be 1–30';
+                status.style.color = '#dc2626';
+                return;
+            }
+            try {
+                const res = await fetch('/api/admin/site-settings/draw_hover_delay', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({value: String(val)})
+                });
+                if (res.ok) {
+                    status.textContent = 'Saved';
+                    status.style.color = '#16a34a';
+                } else {
+                    const text = await res.text();
+                    status.textContent = text || 'Error';
+                    status.style.color = '#dc2626';
+                }
+            } catch (e) {
+                status.textContent = 'Network error';
+                status.style.color = '#dc2626';
+            }
+            setTimeout(() => { status.textContent = ''; }, 3000);
+        }
+        </script>
+
         <!-- Brevo Settings Modal -->
         <div id="brevo-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">

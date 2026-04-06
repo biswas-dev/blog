@@ -16,6 +16,11 @@ import (
 	"github.com/gorilla/csrf"
 )
 
+// SiteConfigFunc is a package-level hook that templates call via the
+// "siteConfig" FuncMap entry. Set it during init (main.go) to point at
+// SiteSettingsService.Get. When nil the function returns the fallback.
+var SiteConfigFunc func(key, fallback string) string
+
 type Template struct {
 	htmlTpl *template.Template
 }
@@ -57,6 +62,12 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 				}
 				r := []rune(s)
 				return strings.ToUpper(string(r[0]))
+			},
+			"siteConfig": func(key, fallback string) string {
+				if SiteConfigFunc != nil {
+					return SiteConfigFunc(key, fallback)
+				}
+				return fallback
 			},
 			"where": func(slice interface{}, field string, value interface{}) interface{} {
 				sliceValue := reflect.ValueOf(slice)

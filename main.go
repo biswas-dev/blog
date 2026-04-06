@@ -460,6 +460,10 @@ func main() {
 	}
 
 	// Initialize System controller
+	siteSettingsService := models.NewSiteSettingsService(DB)
+	// Wire site settings into templates so {{siteConfig "key" "fallback"}} works.
+	views.SiteConfigFunc = siteSettingsService.Get
+
 	systemC := controllers.System{
 		SystemService:         systemService,
 		DatabaseBackupService: databaseBackupService,
@@ -468,6 +472,7 @@ func main() {
 		SyncClient:            &syncClient,
 		CloudinaryService:     &cloudinaryService,
 		BrevoService:          &brevoService,
+		SiteSettingsService:   siteSettingsService,
 	}
 
 	usersC.Templates.New = views.Must(views.ParseFS(
@@ -712,6 +717,10 @@ func main() {
 	r.Post(routeBrevo, systemC.SaveBrevoSettings)
 	r.Delete(routeBrevo, systemC.DeleteBrevoSettings)
 	r.Post(routeBrevo+"/test", systemC.TestBrevoConnection)
+
+	// Site settings (generic key-value)
+	r.Get("/api/admin/site-settings/{key}", systemC.GetSiteSettings)
+	r.Put("/api/admin/site-settings/{key}", systemC.SaveSiteSetting)
 
 	r.Get("/api/admin/upload-config", usersC.GetUploadConfig)
 
