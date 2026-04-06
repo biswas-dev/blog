@@ -596,17 +596,16 @@
            .godraw-embed.draw-active .draw-hover-hint { opacity:0; }</style>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+      const drawHoverDelay = {{siteConfig "draw_hover_delay" "3"}} * 1000;
       document.querySelectorAll('.godraw-embed').forEach(el => {
-        // Ensure the container is positioned for the hint overlay
         if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
-        // Add a subtle hint
         const hint = document.createElement('div');
         hint.className = 'draw-hover-hint';
         hint.textContent = 'Hover to interact with diagram';
         el.appendChild(hint);
         let timer = null;
         el.addEventListener('mouseenter', () => {
-          timer = setTimeout(() => { el.classList.add('draw-active'); }, 5000);
+          timer = setTimeout(() => { el.classList.add('draw-active'); }, drawHoverDelay);
         });
         el.addEventListener('mouseleave', () => {
           clearTimeout(timer);

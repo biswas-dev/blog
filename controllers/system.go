@@ -34,6 +34,7 @@ type System struct {
 	SyncClient            *models.SyncClient
 	CloudinaryService     *models.CloudinaryService
 	BrevoService          *models.BrevoService
+	SiteSettingsService   *models.SiteSettingsService
 	Templates             struct {
 		Dashboard Template
 	}
@@ -921,5 +922,62 @@ func (s *System) TestBrevoConnection(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": msg,
+	})
+}
+
+// --- Site Settings Handlers ---
+
+// GetSiteSettings returns a single site setting.
+func (s *System) GetSiteSettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+	key := chi.URLParam(r, "key")
+	if key == "" {
+		http.Error(w, "key required", http.StatusBadRequest)
+		return
+	}
+	value := s.SiteSettingsService.Get(key, "")
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]string{"key": key, "value": value})
+}
+
+// SaveSiteSetting saves a single site setting with validation.
+func (s *System) SaveSiteSetting(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+	key := chi.URLParam(r, "key")
+	if key == "" {
+		http.Error(w, "key required", http.StatusBadRequest)
+		return
+	}
+	var input struct {
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
+		return
+	}
+
+	// Per-key validation
+	switch key {
+	case "draw_hover_delay":
+		v, err := strconv.Atoi(input.Value)
+		if err != nil || v < 1 || v > 30 {
+			http.Error(w, "draw_hover_delay must be 1–30 (seconds)", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := s.SiteSettingsService.Set(key, input.Value); err != nil {
+		log.Printf("Error saving site setting %q: %v", key, err)
+		http.Error(w, "Failed to save setting", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Setting %q saved", key),
 	})
 }
