@@ -79,6 +79,8 @@ func (b Books) PublicBooksList(w http.ResponseWriter, r *http.Request) {
 		WantToRead       []models.Book
 		Abandoned        []models.Book
 		UserPermissions  models.UserPermissions
+		FilterName       string
+		FilterType       string
 	}{
 		LoggedIn:         user != nil,
 		Username:         getUsername(user),
@@ -649,7 +651,9 @@ func (b Books) PreviewBook(w http.ResponseWriter, r *http.Request) {
 // AuthorPage shows all books by a specific author.
 // GET /books/author/{name}
 func (b Books) AuthorPage(w http.ResponseWriter, r *http.Request) {
-	name, _ := url.PathUnescape(chi.URLParam(r, "name"))
+	raw := chi.URLParam(r, "name")
+	name, _ := url.PathUnescape(raw)
+	name = strings.ReplaceAll(name, "+", " ") // + is space in URLs
 	if name == "" {
 		http.NotFound(w, r)
 		return
@@ -696,7 +700,9 @@ func (b Books) AuthorPage(w http.ResponseWriter, r *http.Request) {
 // PublisherPage shows all books by a specific publisher.
 // GET /books/publisher/{name}
 func (b Books) PublisherPage(w http.ResponseWriter, r *http.Request) {
-	name, _ := url.PathUnescape(chi.URLParam(r, "name"))
+	raw := chi.URLParam(r, "name")
+	name, _ := url.PathUnescape(raw)
+	name = strings.ReplaceAll(name, "+", " ")
 	if name == "" {
 		http.NotFound(w, r)
 		return
