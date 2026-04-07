@@ -243,15 +243,18 @@
             </div>
             {{end}}
 
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 1rem;">
             {{if or .Book.LinkURL .Book.Title}}
             <a href="/books/{{.Book.Slug}}/buy" target="_blank" rel="noopener sponsored noreferrer" class="book-link-btn" style="background: #f59e0b; color: #000; font-weight: 600;">
                 Buy on Amazon
             </a>
             {{end}}
-            {{if and .Book.LinkURL (not (contains .Book.LinkURL "amazon."))}}
-            <a href="{{.Book.LinkURL}}" target="_blank" rel="noopener noreferrer" class="book-link-btn">
-                {{icon "external" "w-4 h-4"}} View / Purchase
+            {{if .Book.LinkURL}}
+            <a href="{{.Book.LinkURL}}" target="_blank" rel="noopener noreferrer" class="book-link-btn" style="background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-light);">
+                {{if contains .Book.LinkURL "goodreads.com"}}Goodreads{{else if contains .Book.LinkURL "amazon."}}Amazon{{else}}More Info{{end}} {{icon "external" "w-4 h-4"}}
             </a>
+            {{end}}
+            </div>
             {{end}}
         </div>
     </div>
