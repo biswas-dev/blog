@@ -1,0 +1,334 @@
+{{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
+{{template "modern-header" .}}
+
+<section class="editor-container formatting-guide">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{if eq .Mode "edit"}}Edit Book{{else}}New Book{{end}}</h1>
+    <a href="/admin/books" class="nav-link">Back to Books</a>
+  </div>
+
+  <form method="POST" action="{{if eq .Mode "edit"}}/admin/books/{{.Book.ID}}{{else}}/admin/books{{end}}">
+    {{csrfField}}
+    <div class="editor-layout" style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 1.5rem !important; width: 100% !important; flex-wrap: nowrap !important;">
+
+      <!-- Sidebar -->
+      <div class="editor-sidebar" style="display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; border-radius: 0.75rem !important; box-sizing: border-box !important; flex: 0 0 320px !important; width: 320px !important; min-width: 320px !important; max-width: 320px !important; position: sticky !important; top: 1rem !important; align-self: flex-start !important; overflow: hidden !important;">
+        <div class="sidebar-scrollable-content" style="flex: 1 1 auto; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+
+          <!-- Slug -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slug</label>
+            <input type="text" name="slug" placeholder="book-slug (optional)" class="form-input w-full" value="{{.Book.Slug}}" />
+          </div>
+
+          <!-- Description -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <textarea name="description" placeholder="Brief description of the book" class="form-input w-full" rows="3">{{.Book.Description}}</textarea>
+          </div>
+
+          <!-- Book Author -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Book Author</label>
+            <input type="text" name="book_author" placeholder="Author name" class="form-input w-full" value="{{.Book.BookAuthor}}" />
+          </div>
+
+          <!-- ISBN -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ISBN</label>
+            <input type="text" name="isbn" placeholder="ISBN" class="form-input w-full" value="{{.Book.ISBN}}" />
+          </div>
+
+          <!-- Publisher -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Publisher</label>
+            <input type="text" name="publisher" placeholder="Publisher" class="form-input w-full" value="{{.Book.Publisher}}" />
+          </div>
+
+          <!-- Page Count -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Page Count</label>
+            <input type="number" name="page_count" placeholder="0" class="form-input w-full" value="{{.Book.PageCount}}" min="0" />
+          </div>
+
+          <!-- Reading Status -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reading Status</label>
+            <select name="reading_status" class="form-input w-full">
+              <option value="want-to-read" {{if eq .Book.ReadingStatus "want-to-read"}}selected{{end}}>Want to Read</option>
+              <option value="reading" {{if eq .Book.ReadingStatus "reading"}}selected{{end}}>Reading</option>
+              <option value="completed" {{if eq .Book.ReadingStatus "completed"}}selected{{end}}>Completed</option>
+              <option value="abandoned" {{if eq .Book.ReadingStatus "abandoned"}}selected{{end}}>Abandoned</option>
+            </select>
+          </div>
+
+          <!-- Rating -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rating</label>
+            <div class="book-star-rating" style="display: flex; gap: 4px; font-size: 1.5rem; cursor: pointer;">
+              {{range seq 1 5}}
+              <label style="cursor: pointer; color: #d1d5db;" class="star-label" data-star="{{.}}">
+                <input type="radio" name="rating" value="{{.}}" style="display: none;" {{if eq . $.Book.Rating}}checked{{end}} />
+                <span class="star-icon">&#9733;</span>
+              </label>
+              {{end}}
+              <label style="cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; margin-left: 4px; color: var(--text-tertiary);">
+                <input type="radio" name="rating" value="0" style="display: none;" {{if not .Book.Rating}}checked{{end}} />
+                <span>Clear</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Date Started -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date Started</label>
+            <input type="date" name="date_started" class="form-input w-full" value="{{.Book.DateStarted}}" />
+          </div>
+
+          <!-- Date Finished -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date Finished</label>
+            <input type="date" name="date_finished" class="form-input w-full" value="{{.Book.DateFinished}}" />
+          </div>
+
+          <!-- Link URL -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Link URL</label>
+            <input type="url" name="link_url" placeholder="https://goodreads.com/..." class="form-input w-full" value="{{.Book.LinkURL}}" />
+          </div>
+
+          <!-- Cover Image -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cover Image</label>
+            <input type="text" name="cover_image_url" id="featured-url" placeholder="Cover Image URL" class="form-input w-full" value="{{.Book.CoverImageURL}}" />
+            <div class="cover-upload-section mt-2">
+              <div id="current-cover-preview" class="current-cover-preview" style="display: {{if .Book.CoverImageURL}}block{{else}}none{{end}};">
+                <img id="current-cover-img" src="{{.Book.CoverImageURL}}" alt="Current cover image" style="max-width: 120px; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px;" />
+                <button type="button" id="remove-cover-btn" class="remove-cover-btn" aria-label="Remove cover image" style="margin-top: 4px; background: none; border: 1px solid #ef4444; color: #ef4444; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;">&times; Remove</button>
+              </div>
+              <div id="cover-upload-zone" class="cover-drop-zone" style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 1rem; text-align: center; cursor: pointer; margin-top: 0.5rem;">
+                <div class="cover-drop-content">
+                  {{icon "cloud-upload" "w-6 h-6"}}
+                  <div style="font-size: 13px; color: #6b7280;">Drop cover image here or click Upload</div>
+                </div>
+              </div>
+              <div class="cover-upload-controls" style="display: flex; gap: 8px; margin-top: 8px;">
+                <input type="file" id="cover-upload" accept="image/*" style="display:none" />
+                <button type="button" id="upload-new-cover-btn" class="btn btn-secondary" style="font-size: 13px; padding: 6px 12px;">Upload New</button>
+                <button type="button" id="choose-existing-cover-btn" class="btn" style="font-size: 13px; padding: 6px 12px;">Choose Existing</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Genres -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Genres</label>
+            <div class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-2 max-h-48 overflow-y-auto">
+              {{if .GenresByGroup}}
+                {{range $group, $genres := .GenresByGroup}}
+                <div class="genre-group mb-2">
+                  <h5 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 mt-1">{{$group}}</h5>
+                  {{range $genres}}
+                  <label class="flex items-center space-x-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 cursor-pointer">
+                    <input type="checkbox"
+                           name="genres"
+                           value="{{.ID}}"
+                           class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                           {{if index $.SelectedGenreMap .ID}}checked{{end}}>
+                    <span class="text-sm text-gray-700 dark:text-gray-300">{{.Name}}</span>
+                  </label>
+                  {{end}}
+                </div>
+                {{end}}
+              {{else}}
+                <p class="text-sm text-gray-500 dark:text-gray-400">No genres available</p>
+              {{end}}
+            </div>
+          </div>
+
+          <!-- Publish -->
+          <div style="flex: 0 0 auto;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Publish</label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" name="is_published" {{if .Book.IsPublished}}checked{{end}}
+                     class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+              <span class="text-sm text-gray-700 dark:text-gray-300">Published</span>
+            </label>
+          </div>
+
+        </div>
+        <!-- Fixed button area at bottom -->
+        <div class="sidebar-button-area" style="flex: 0 0 auto; padding: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px 24px; font-size: 16px; font-weight: 600;">
+            {{if eq .Mode "edit"}}Update Book{{else}}Create Book{{end}}
+          </button>
+        </div>
+      </div>
+
+      <!-- Main content area -->
+      <div class="editor-main" style="display: flex !important; flex-direction: column !important; gap: 1rem !important; width: 100% !important;">
+        <input type="text" name="title" placeholder="Book Title" class="form-input w-full" value="{{.Book.Title}}" required style="font-size: 1.25rem; padding: 0.75rem;" />
+
+        <!-- go-wiki content editor for summary/review -->
+        {{.EditorHTML}}
+
+        <!-- My Thoughts (plain textarea, not go-wiki) -->
+        <div style="margin-top: 1rem;">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">My Thoughts <span style="color: var(--text-tertiary); font-weight: normal;">(personal notes, supports markdown)</span></label>
+          <textarea name="my_thoughts" class="form-input w-full" rows="8" placeholder="Your personal thoughts, notes, and reflections on this book...">{{.Book.MyThoughts}}</textarea>
+        </div>
+      </div>
+
+    </div>
+  </form>
+</section>
+
+{{if eq .Mode "edit"}}
+<script>
+if (window.__goWikiConfig) {
+  window.__goWikiConfig.bookId = "{{.Book.ID}}";
+  window.__goWikiConfig.cloudinaryFolder = "blog/books/{{.Book.ID}}";
+}
+</script>
+{{end}}
+
+<!-- Cover image sidebar JS -->
+<script>
+(function() {
+  'use strict';
+  document.addEventListener('DOMContentLoaded', function() {
+    var featuredURL = document.getElementById('featured-url');
+    var coverPreview = document.getElementById('current-cover-preview');
+    var coverImg = document.getElementById('current-cover-img');
+    var removeBtn = document.getElementById('remove-cover-btn');
+    var uploadInput = document.getElementById('cover-upload');
+    var uploadBtn = document.getElementById('upload-new-cover-btn');
+    var chooseBtn = document.getElementById('choose-existing-cover-btn');
+    var dropZone = document.getElementById('cover-upload-zone');
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', function() {
+        featuredURL.value = '';
+        coverPreview.style.display = 'none';
+      });
+    }
+
+    if (uploadBtn) {
+      uploadBtn.addEventListener('click', function() { uploadInput.click(); });
+    }
+
+    if (uploadInput) {
+      uploadInput.addEventListener('change', function() {
+        if (!uploadInput.files.length) return;
+        var fd = new FormData();
+        fd.append('file', uploadInput.files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    if (dropZone) {
+      dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.borderColor = '#6366f1'; });
+      dropZone.addEventListener('dragleave', function() { dropZone.style.borderColor = '#d1d5db'; });
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.style.borderColor = '#d1d5db';
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length || !files[0].type.startsWith('image/')) return;
+        var fd = new FormData();
+        fd.append('file', files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    if (chooseBtn) {
+      chooseBtn.addEventListener('click', function() {
+        fetch('/admin/uploads/list?type=featured')
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            var images = data.images || [];
+            if (images.length === 0) { alert('No existing images found'); return; }
+            var url = prompt('Select image URL from: ' + images.slice(0, 5).map(function(i) { return i.url; }).join(', '));
+            if (url) {
+              featuredURL.value = url;
+              coverImg.src = url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function() { alert('Failed to load images'); });
+      });
+    }
+
+    // Star rating interactivity
+    var starLabels = document.querySelectorAll('.book-star-rating .star-label');
+    starLabels.forEach(function(label) {
+      var starVal = parseInt(label.getAttribute('data-star'), 10);
+      label.addEventListener('mouseenter', function() {
+        starLabels.forEach(function(l) {
+          var v = parseInt(l.getAttribute('data-star'), 10);
+          l.querySelector('.star-icon').style.color = v <= starVal ? '#f59e0b' : '#d1d5db';
+        });
+      });
+      label.addEventListener('click', function() {
+        label.querySelector('input').checked = true;
+        starLabels.forEach(function(l) {
+          var v = parseInt(l.getAttribute('data-star'), 10);
+          l.querySelector('.star-icon').style.color = v <= starVal ? '#f59e0b' : '#d1d5db';
+        });
+      });
+    });
+
+    var ratingContainer = document.querySelector('.book-star-rating');
+    if (ratingContainer) {
+      ratingContainer.addEventListener('mouseleave', function() {
+        var checked = ratingContainer.querySelector('input[name="rating"]:checked');
+        var checkedVal = checked ? parseInt(checked.value, 10) : 0;
+        starLabels.forEach(function(l) {
+          var v = parseInt(l.getAttribute('data-star'), 10);
+          l.querySelector('.star-icon').style.color = v <= checkedVal ? '#f59e0b' : '#d1d5db';
+        });
+      });
+
+      // Initialize star colors on load
+      var checked = ratingContainer.querySelector('input[name="rating"]:checked');
+      var checkedVal = checked ? parseInt(checked.value, 10) : 0;
+      starLabels.forEach(function(l) {
+        var v = parseInt(l.getAttribute('data-star'), 10);
+        l.querySelector('.star-icon').style.color = v <= checkedVal ? '#f59e0b' : '#d1d5db';
+      });
+    }
+  });
+})();
+</script>
+
+<style>
+/* Blog-specific sidebar styles */
+.editor-sidebar {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+.dark .editor-sidebar {
+  background: #1e293b;
+  border-color: #334155;
+}
+</style>
+
+{{template "modern-footer" .}}

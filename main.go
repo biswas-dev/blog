@@ -316,8 +316,13 @@ func main() {
 	// Initialize GuideService (early, needed by Users controller)
 	guideService := models.GuideService{DB: DB}
 
-	// sitemap.xml — dynamic XML sitemap (depends on post/slide/guide/category services)
-	r.Get("/sitemap.xml", sitemapHandler(&postService, &slideService, &guideService, &categoryService))
+	// Initialize BookService, BookGenreService, BookVersionService
+	bookGenreService := models.BookGenreService{DB: DB}
+	bookService := models.BookService{DB: DB}
+	bookVersionService := &models.BookVersionService{DB: DB}
+
+	// sitemap.xml — dynamic XML sitemap (depends on post/slide/guide/book/category services)
+	r.Get("/sitemap.xml", sitemapHandler(&postService, &slideService, &guideService, &bookService, &categoryService, &bookGenreService))
 
 	slideVersionService := &models.SlideVersionService{DB: DB}
 
@@ -436,6 +441,15 @@ func main() {
 		BlogWiki:        blogWiki,
 	}
 
+	// Initialize Books controller
+	booksC := controllers.Books{
+		BookService:        &bookService,
+		BookVersionService: bookVersionService,
+		SessionService:     &sessionService,
+		BookGenreService:   &bookGenreService,
+		BlogWiki:           blogWiki,
+	}
+
 	// Initialize SlideVersions controller
 	slideVersionsC := controllers.SlideVersions{
 		SlideVersionService: slideVersionService,
@@ -550,6 +564,16 @@ func main() {
 	guidesC.Templates.GuideEditor = views.Must(views.ParseFS(
 		templates.FS, "guide-editor.gohtml", "tailwind.gohtml"))
 
+	// Initialize Books templates
+	booksC.Templates.BooksList = views.Must(views.ParseFS(
+		templates.FS, "books-list.gohtml", "tailwind.gohtml"))
+	booksC.Templates.BookPage = views.Must(views.ParseFS(
+		templates.FS, "book-page.gohtml", "tailwind.gohtml"))
+	booksC.Templates.AdminBooks = views.Must(views.ParseFS(
+		templates.FS, "admin-books.gohtml", "tailwind.gohtml"))
+	booksC.Templates.BookEditor = views.Must(views.ParseFS(
+		templates.FS, "book-editor.gohtml", "tailwind.gohtml"))
+
 	// Initialize Analytics controller
 	analyticsC := controllers.Analytics{
 		DB:               DB,
@@ -635,6 +659,20 @@ func main() {
 	r.Post("/admin/guides/{guideID}", guidesC.UpdateGuide)
 	r.Post("/admin/guides/{guideID}/delete", guidesC.DeleteGuide)
 	r.Post("/admin/guides/preview", guidesC.PreviewGuide)
+
+	// Public Book Routes
+	r.Get("/books", booksC.PublicBooksList)
+	r.Get("/books/{slug}", booksC.ViewBook)
+	r.Get("/books/genre/{name}", booksC.GenrePage)
+
+	// Admin Book Routes
+	r.Get("/admin/books", booksC.AdminBooks)
+	r.Get("/admin/books/new", booksC.NewBook)
+	r.Post("/admin/books", booksC.CreateBook)
+	r.Get("/admin/books/{bookID}/edit", booksC.EditBook)
+	r.Post("/admin/books/{bookID}", booksC.UpdateBook)
+	r.Post("/admin/books/{bookID}/delete", booksC.DeleteBook)
+	r.Post("/admin/books/preview", booksC.PreviewBook)
 
 	// Slide Version API Routes
 	r.Get("/api/slides/{slideID}/versions", slideVersionsC.HandleListVersions)
@@ -854,6 +892,25 @@ func main() {
 		r.Post("/", createGuideAPI(&guideService))
 		r.Put("/{guideID}", updateGuideAPI(&guideService))
 		r.Delete("/{guideID}", deleteGuideAPI(&guideService))
+	})
+
+	// Books API
+	r.Route("/api/books", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listBooksAPI(&bookService))
+		r.Get("/{bookID}", getBookAPI(&bookService))
+		r.Post("/", createBookAPI(&bookService))
+		r.Put("/{bookID}", updateBookAPI(&bookService))
+		r.Delete("/{bookID}", deleteBookAPI(&bookService))
+	})
+
+	// Book Genres API
+	r.Route("/api/book-genres", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listBookGenresAPI(&bookGenreService))
+		r.Post("/", createBookGenreAPI(&bookGenreService))
+		r.Put("/{genreID}", updateBookGenreAPI(&bookGenreService))
+		r.Delete("/{genreID}", deleteBookGenreAPI(&bookGenreService))
 	})
 
 	// Comments API (token-authenticated)
@@ -1748,6 +1805,211 @@ func deleteGuideAPI(gs *models.GuideService) http.HandlerFunc {
 }
 
 // jsonResponse sends a JSON response with the given data and status code.
+// ── Book API handlers ────────────────────────────────────────────────────────
+
+func listBooksAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		books, err := bs.GetAllBooks()
+		if err != nil {
+			http.Error(w, "Failed to fetch books", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, books, http.StatusOK)
+	}
+}
+
+func getBookAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "bookID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid book ID", http.StatusBadRequest)
+			return
+		}
+		book, err := bs.GetByID(id)
+		if err != nil {
+			http.Error(w, "Book not found", http.StatusNotFound)
+			return
+		}
+		jsonResponse(w, book, http.StatusOK)
+	}
+}
+
+func createBookAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			UserID        int    `json:"user_id"`
+			Title         string `json:"title"`
+			Slug          string `json:"slug"`
+			BookAuthor    string `json:"book_author"`
+			ISBN          string `json:"isbn"`
+			Publisher     string `json:"publisher"`
+			PageCount     int    `json:"page_count"`
+			CoverImageURL string `json:"cover_image_url"`
+			Content       string `json:"content"`
+			Description   string `json:"description"`
+			MyThoughts    string `json:"my_thoughts"`
+			LinkURL       string `json:"link_url"`
+			ReadingStatus string `json:"reading_status"`
+			Rating        int    `json:"rating"`
+			DateStarted   string `json:"date_started"`
+			DateFinished  string `json:"date_finished"`
+			IsPublished   bool   `json:"is_published"`
+			Genres        []int  `json:"genres"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		if req.Title == "" {
+			http.Error(w, "Title required", http.StatusBadRequest)
+			return
+		}
+		book, err := bs.Create(req.UserID, req.Title, req.Slug, req.BookAuthor,
+			req.ISBN, req.Publisher, req.PageCount, req.CoverImageURL,
+			req.Content, req.Description, req.MyThoughts, req.LinkURL,
+			req.ReadingStatus, req.Rating, req.DateStarted, req.DateFinished,
+			req.IsPublished, req.Genres)
+		if err != nil {
+			http.Error(w, "Failed to create book: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, book, http.StatusCreated)
+	}
+}
+
+func updateBookAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "bookID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid book ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Title         string `json:"title"`
+			Slug          string `json:"slug"`
+			BookAuthor    string `json:"book_author"`
+			ISBN          string `json:"isbn"`
+			Publisher     string `json:"publisher"`
+			PageCount     int    `json:"page_count"`
+			CoverImageURL string `json:"cover_image_url"`
+			Content       string `json:"content"`
+			Description   string `json:"description"`
+			MyThoughts    string `json:"my_thoughts"`
+			LinkURL       string `json:"link_url"`
+			ReadingStatus string `json:"reading_status"`
+			Rating        int    `json:"rating"`
+			DateStarted   string `json:"date_started"`
+			DateFinished  string `json:"date_finished"`
+			IsPublished   bool   `json:"is_published"`
+			Genres        []int  `json:"genres"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		if err := bs.Update(id, req.Title, req.Slug, req.BookAuthor,
+			req.ISBN, req.Publisher, req.PageCount, req.CoverImageURL,
+			req.Content, req.Description, req.MyThoughts, req.LinkURL,
+			req.ReadingStatus, req.Rating, req.DateStarted, req.DateFinished,
+			req.IsPublished, req.Genres); err != nil {
+			http.Error(w, "Failed to update book: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "updated"}, http.StatusOK)
+	}
+}
+
+func deleteBookAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "bookID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid book ID", http.StatusBadRequest)
+			return
+		}
+		if err := bs.Delete(id); err != nil {
+			http.Error(w, "Failed to delete book: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
+	}
+}
+
+// ── Book Genre API handlers ─────────────────────────────────────────────────
+
+func listBookGenresAPI(bgs *models.BookGenreService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		genres, err := bgs.GetAll()
+		if err != nil {
+			http.Error(w, "Failed to fetch genres", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, genres, http.StatusOK)
+	}
+}
+
+func createBookGenreAPI(bgs *models.BookGenreService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name  string `json:"name"`
+			Group string `json:"group"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		genre, err := bgs.Create(req.Name, req.Group)
+		if err != nil {
+			http.Error(w, "Failed to create genre: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, genre, http.StatusCreated)
+	}
+}
+
+func updateBookGenreAPI(bgs *models.BookGenreService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "genreID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid genre ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Name  string `json:"name"`
+			Group string `json:"group"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		genre, err := bgs.Update(id, req.Name, req.Group)
+		if err != nil {
+			http.Error(w, "Failed to update genre: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, genre, http.StatusOK)
+	}
+}
+
+func deleteBookGenreAPI(bgs *models.BookGenreService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "genreID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid genre ID", http.StatusBadRequest)
+			return
+		}
+		if err := bgs.Delete(id); err != nil {
+			http.Error(w, "Failed to delete genre: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
+	}
+}
+
 func jsonResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set(headerContentType, "application/json")
 	w.WriteHeader(statusCode)
@@ -1881,7 +2143,9 @@ func sitemapHandler(
 	ps *models.PostService,
 	ss *models.SlideService,
 	gs *models.GuideService,
+	bs *models.BookService,
 	cs *models.CategoryService,
+	bgs *models.BookGenreService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const baseURL = "https://anshumanbiswas.com"
@@ -1904,6 +2168,7 @@ func sitemapHandler(
 			{"/about", "0.6"},
 			{"/guides", "0.7"},
 			{"/slides", "0.7"},
+			{"/books", "0.7"},
 		} {
 			fmt.Fprintf(w, "  <url><loc>%s%s</loc><lastmod>%s</lastmod><priority>%s</priority></url>\n",
 				baseURL, page.path, now, page.priority)
@@ -1953,6 +2218,27 @@ func sitemapHandler(
 			for _, c := range cats {
 				encodedName := url.PathEscape(c.Name)
 				fmt.Fprintf(w, "  <url><loc>%s/tags/%s</loc><lastmod>%s</lastmod><priority>0.5</priority></url>\n",
+					baseURL, encodedName, now)
+			}
+		}
+
+		// Published books
+		if books, err := bs.GetPublishedBooks(); err == nil && books != nil {
+			for _, b := range books.Books {
+				lastmod := b.CreatedAt
+				if b.UpdatedAt != "" {
+					lastmod = b.UpdatedAt
+				}
+				fmt.Fprintf(w, "  <url><loc>%s/books/%s</loc><lastmod>%s</lastmod><priority>0.6</priority></url>\n",
+					baseURL, xmlEscape(b.Slug), sitemapDate(lastmod))
+			}
+		}
+
+		// Book genre pages
+		if genres, err := bgs.GetAll(); err == nil {
+			for _, g := range genres {
+				encodedName := url.PathEscape(g.Name)
+				fmt.Fprintf(w, "  <url><loc>%s/books/genre/%s</loc><lastmod>%s</lastmod><priority>0.4</priority></url>\n",
 					baseURL, encodedName, now)
 			}
 		}
