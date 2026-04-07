@@ -109,8 +109,13 @@
 <div class="books-page">
     <!-- Header -->
     <div class="books-header">
+        {{if .FilterName}}
+        <p style="margin-bottom: 0.5rem;"><a href="/books" style="color: var(--accent); text-decoration: none;">← All Books</a></p>
+        <h1>{{if eq .FilterType "author"}}Books by {{.FilterName}}{{else if eq .FilterType "publisher"}}Published by {{.FilterName}}{{else}}Books{{end}}</h1>
+        {{else}}
         <h1>Books</h1>
         <p>What I'm reading, what I've read, and what's on my list — with notes and reviews.</p>
+        {{end}}
     </div>
 
     {{if and (not .CurrentlyReading) (not .Completed) (not .WantToRead) (not .Abandoned)}}
@@ -137,7 +142,7 @@
                     {{end}}
                     <div class="book-info">
                         <a href="/books/{{.Slug}}" class="book-title">{{.Title}}</a>
-                        <span class="book-author">{{.BookAuthor}}</span>
+                        <span class="book-author">{{authorLinks .BookAuthor ""}}</span>
                         {{if .DateStarted}}
                         <span class="book-date">Started {{.DateStarted}}</span>
                         {{end}}
@@ -167,7 +172,7 @@
                     {{end}}
                     <div class="book-info">
                         <a href="/books/{{.Slug}}" class="book-title">{{.Title}}</a>
-                        <span class="book-author">{{.BookAuthor}}</span>
+                        <span class="book-author">{{authorLinks .BookAuthor ""}}</span>
                         {{if .Rating}}
                         <span class="book-rating">{{ratingStars .Rating}}</span>
                         {{end}}
@@ -181,8 +186,7 @@
                             {{end}}
                         </div>
                         {{end}}
-                        {{$amz := amazonLink .ISBN .Title .BookAuthor .LinkURL}}
-                        {{if $amz}}<a href="{{$amz}}" target="_blank" rel="noopener sponsored" style="display:inline-block;margin-top:6px;padding:3px 10px;background:#f59e0b;color:#000;border-radius:4px;font-size:0.75rem;font-weight:600;text-decoration:none;">Amazon</a>{{end}}
+                        <a href="/books/{{.Slug}}/buy" target="_blank" rel="noopener sponsored" style="display:inline-block;margin-top:6px;padding:3px 10px;background:#f59e0b;color:#000;border-radius:4px;font-size:0.75rem;font-weight:600;text-decoration:none;">Amazon</a>
                         {{if $.IsAdmin}}
                         <a href="/admin/books/{{.Slug}}/edit" class="edit-link">Edit</a>
                         {{end}}
@@ -209,7 +213,7 @@
                     {{end}}
                     <div class="book-info">
                         <a href="/books/{{.Slug}}" class="book-title">{{.Title}}</a>
-                        <span class="book-author">{{.BookAuthor}}</span>
+                        <span class="book-author">{{authorLinks .BookAuthor ""}}</span>
                         {{if $.IsAdmin}}
                         <a href="/admin/books/{{.Slug}}/edit" class="edit-link" style="margin-top:auto;">Edit</a>
                         {{end}}
@@ -236,7 +240,7 @@
                     {{end}}
                     <div class="book-info">
                         <a href="/books/{{.Slug}}" class="book-title">{{.Title}}</a>
-                        <span class="book-author">{{.BookAuthor}}</span>
+                        <span class="book-author">{{authorLinks .BookAuthor ""}}</span>
                         {{if $.IsAdmin}}
                         <a href="/admin/books/{{.Slug}}/edit" class="edit-link" style="margin-top:auto;">Edit</a>
                         {{end}}

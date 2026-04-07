@@ -47,55 +47,71 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 				return icons.Icon(name, class)
 			},
 			// amazonLink generates an Amazon affiliate URL for a book.
-			// If linkURL is already an Amazon URL, it appends/replaces the tag.
-			// If ISBN is provided, links to the product page.
-			// Otherwise, searches by title + author.
+			// Priority: (1) Amazon URL in linkURL → append tag
+			//           (2) Search Amazon by title + author
+			// ISBN-based /dp/ links are NOT used — ISBNs don't reliably
+			// match Amazon ASINs. Users should paste the actual Amazon
+			// product URL in linkURL for a direct link.
 			"amazonLink": func(isbn, title, bookAuthor, linkURL string) string {
 				tag := ""
 				if SiteConfigFunc != nil {
 					tag = SiteConfigFunc("amazon_affiliate_tag", "")
 				}
 				if tag == "" {
-					// No affiliate tag configured — return original link or empty
 					if linkURL != "" {
 						return linkURL
 					}
 					return ""
 				}
-				// If linkURL is already an Amazon URL, append tag
+				// If linkURL is an Amazon URL, append/replace the affiliate tag
 				if strings.Contains(linkURL, "amazon.") {
+					// Strip any existing tag= param
+					u := linkURL
+					if idx := strings.Index(u, "tag="); idx > 0 {
+						end := strings.IndexByte(u[idx:], '&')
+						if end < 0 {
+							u = u[:idx-1]
+						} else {
+							u = u[:idx-1] + u[idx+end:]
+						}
+					}
 					sep := "?"
-					if strings.Contains(linkURL, "?") {
+					if strings.Contains(u, "?") {
 						sep = "&"
 					}
-					// Remove existing tag param if present
-					if idx := strings.Index(linkURL, "tag="); idx > 0 {
-						end := strings.IndexByte(linkURL[idx:], '&')
-						if end < 0 {
-							linkURL = linkURL[:idx-1] // remove ?tag= or &tag=
-						} else {
-							linkURL = linkURL[:idx-1] + linkURL[idx+end:]
-						}
-						sep = "?"
-						if strings.Contains(linkURL, "?") {
-							sep = "&"
-						}
-					}
-					return linkURL + sep + "tag=" + tag
+					return u + sep + "tag=" + tag
 				}
-				// Generate Amazon URL from ISBN or title search
+				// No Amazon URL — generate a search link
 				base := "https://www.amazon.ca"
-				if isbn != "" {
-					// Clean ISBN (remove hyphens)
-					clean := strings.ReplaceAll(strings.ReplaceAll(isbn, "-", ""), " ", "")
-					return base + "/dp/" + clean + "?tag=" + tag
-				}
-				// Fallback: search by title + author
 				q := strings.TrimSpace(title)
 				if bookAuthor != "" {
 					q += " " + strings.TrimSpace(bookAuthor)
 				}
 				return base + "/s?k=" + strings.ReplaceAll(strings.ReplaceAll(q, " ", "+"), "&", "") + "&tag=" + tag
+			},
+			// splitAuthors splits "Author1, Author2" into linked HTML.
+			"authorLinks": func(authors, basePath string) template.HTML {
+				parts := strings.Split(authors, ",")
+				var links []string
+				for _, p := range parts {
+					p = strings.TrimSpace(p)
+					if p == "" {
+						continue
+					}
+					escaped := template.HTMLEscapeString(p)
+					href := basePath + "/books/author/" + template.URLQueryEscaper(p)
+					links = append(links, `<a href="`+href+`" style="color:var(--accent);text-decoration:none;">`+escaped+`</a>`)
+				}
+				return template.HTML(strings.Join(links, ", "))
+			},
+			// publisherLink makes a publisher name a clickable link.
+			"publisherLink": func(publisher, basePath string) template.HTML {
+				if publisher == "" {
+					return ""
+				}
+				escaped := template.HTMLEscapeString(publisher)
+				href := basePath + "/books/publisher/" + template.URLQueryEscaper(publisher)
+				return template.HTML(`<a href="` + href + `" style="color:var(--accent);text-decoration:none;">` + escaped + `</a>`)
 			},
 			"ratingStars": func(rating float64) template.HTML {
 				var b strings.Builder

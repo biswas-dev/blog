@@ -62,6 +62,40 @@
             </select>
           </div>
 
+          <!-- Medium -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Format</label>
+            <select name="medium" id="medium-select" class="form-input w-full">
+              <option value="" {{if not .Book.Medium}}selected{{end}}>—</option>
+              <option value="physical" {{if eq .Book.Medium "physical"}}selected{{end}}>Physical</option>
+              <option value="ebook" {{if eq .Book.Medium "ebook"}}selected{{end}}>eBook</option>
+              <option value="audiobook" {{if eq .Book.Medium "audiobook"}}selected{{end}}>Audiobook</option>
+            </select>
+          </div>
+
+          <!-- eBook Reader -->
+          <div style="flex: 0 0 auto; min-width: 200px;" id="ebook-reader-wrap">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reader Device</label>
+            <select name="ebook_reader" class="form-input w-full">
+              <option value="" {{if not .Book.EbookReader}}selected{{end}}>—</option>
+              <option value="Kindle Scribe Gen 1" {{if eq .Book.EbookReader "Kindle Scribe Gen 1"}}selected{{end}}>Kindle Scribe Gen 1</option>
+              <option value="Boox Go 7" {{if eq .Book.EbookReader "Boox Go 7"}}selected{{end}}>Boox Go 7</option>
+              <option value="Kobo Libra 2" {{if eq .Book.EbookReader "Kobo Libra 2"}}selected{{end}}>Kobo Libra 2</option>
+              <option value="Boox Tab Ultra 13" {{if eq .Book.EbookReader "Boox Tab Ultra 13"}}selected{{end}}>Boox Tab Ultra 13</option>
+            </select>
+            <p style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px;">Only for eBooks. Configure more in Admin > System > Site Settings.</p>
+          </div>
+          <script>
+          // Show/hide reader device based on medium
+          (function(){
+            var ms = document.getElementById('medium-select');
+            var rw = document.getElementById('ebook-reader-wrap');
+            function toggle() { rw.style.display = ms.value === 'ebook' ? '' : 'none'; }
+            ms.addEventListener('change', toggle);
+            toggle();
+          })();
+          </script>
+
           <!-- Rating (supports half-stars: 0.5 increments) -->
           <div style="flex: 0 0 auto; min-width: 200px;">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rating</label>
