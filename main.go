@@ -1859,6 +1859,7 @@ func createBookAPI(bs *models.BookService) http.HandlerFunc {
 			LinkURL       string `json:"link_url"`
 			ReadingStatus string `json:"reading_status"`
 			Rating        float64 `json:"rating"`
+			AmazonASIN    string  `json:"amazon_asin"`
 			Medium        string  `json:"medium"`
 			EbookReader   string  `json:"ebook_reader"`
 			DateStarted   string `json:"date_started"`
@@ -1877,7 +1878,7 @@ func createBookAPI(bs *models.BookService) http.HandlerFunc {
 		book, err := bs.Create(req.UserID, req.Title, req.Slug, req.BookAuthor,
 			req.ISBN, req.Publisher, req.PageCount, req.CoverImageURL,
 			req.Content, req.Description, req.MyThoughts, req.LinkURL,
-			req.ReadingStatus, req.Rating, req.Medium, req.EbookReader,
+			req.ReadingStatus, req.Rating, req.AmazonASIN, req.Medium, req.EbookReader,
 			req.DateStarted, req.DateFinished,
 			req.IsPublished, req.Genres)
 		if err != nil {
@@ -1910,6 +1911,7 @@ func updateBookAPI(bs *models.BookService) http.HandlerFunc {
 			LinkURL       string `json:"link_url"`
 			ReadingStatus string `json:"reading_status"`
 			Rating        float64 `json:"rating"`
+			AmazonASIN    string  `json:"amazon_asin"`
 			Medium        string  `json:"medium"`
 			EbookReader   string  `json:"ebook_reader"`
 			DateStarted   string `json:"date_started"`
@@ -1924,7 +1926,7 @@ func updateBookAPI(bs *models.BookService) http.HandlerFunc {
 		if err := bs.Update(id, req.Title, req.Slug, req.BookAuthor,
 			req.ISBN, req.Publisher, req.PageCount, req.CoverImageURL,
 			req.Content, req.Description, req.MyThoughts, req.LinkURL,
-			req.ReadingStatus, req.Rating, req.Medium, req.EbookReader,
+			req.ReadingStatus, req.Rating, req.AmazonASIN, req.Medium, req.EbookReader,
 			req.DateStarted, req.DateFinished,
 			req.IsPublished, req.Genres); err != nil {
 			http.Error(w, "Failed to update book: "+err.Error(), http.StatusInternalServerError)

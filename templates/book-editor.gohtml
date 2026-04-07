@@ -39,6 +39,13 @@
             <input type="text" name="isbn" placeholder="ISBN" class="form-input w-full" value="{{.Book.ISBN}}" />
           </div>
 
+          <!-- Amazon ASIN -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amazon ASIN</label>
+            <input type="text" name="amazon_asin" placeholder="e.g. 0063486466" class="form-input w-full" value="{{.Book.AmazonASIN}}" maxlength="10" />
+            <p style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px;">10-char code from Amazon URL /dp/XXXXXXXXXX. Used for direct Buy on Amazon links.</p>
+          </div>
+
           <!-- Publisher -->
           <div style="flex: 0 0 auto; min-width: 200px;">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Publisher</label>
