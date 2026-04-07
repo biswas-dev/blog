@@ -219,6 +219,12 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		go createThumbnail(fpath, 96)
 	}
 
+	// Auto-compress featured/cover images (book covers, post covers)
+	// to max 600px wide at JPEG quality 80 — keeps files under ~100 KB
+	if uploadType == "featured" {
+		go compressImage(fpath, 600, 80)
+	}
+
 	return url, nil
 }
 
@@ -294,6 +300,62 @@ func createThumbnail(srcPath string, size int) {
 	}
 }
 
+// compressImage resizes an image to maxWidth (preserving aspect ratio) and
+// re-encodes as JPEG at the given quality. The file is replaced in-place.
+// PNGs are converted to JPEG (the extension stays the same in the URL, but
+// content-type detection will serve the correct type).
+// This keeps uploaded featured images and book covers under ~100 KB.
+func compressImage(fpath string, maxWidth, quality int) {
+	src, err := os.Open(fpath)
+	if err != nil {
+		log.Printf("compress: open %s: %v", fpath, err)
+		return
+	}
+	img, _, err := image.Decode(src)
+	src.Close()
+	if err != nil {
+		log.Printf("compress: decode %s: %v", fpath, err)
+		return
+	}
+
+	bounds := img.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+
+	// Only resize if wider than maxWidth
+	newW, newH := w, h
+	if w > maxWidth {
+		newW = maxWidth
+		newH = int(float64(h) * float64(maxWidth) / float64(w))
+	}
+
+	var dst *image.RGBA
+	if newW != w {
+		dst = image.NewRGBA(image.Rect(0, 0, newW, newH))
+		draw.CatmullRom.Scale(dst, dst.Bounds(), img, bounds, draw.Over, nil)
+	} else {
+		// No resize needed — just re-encode at lower quality
+		dst = image.NewRGBA(image.Rect(0, 0, w, h))
+		draw.Copy(dst, image.Point{}, img, bounds, draw.Over, nil)
+	}
+
+	// Always write as JPEG for maximum compression
+	out, err := os.Create(fpath)
+	if err != nil {
+		log.Printf("compress: create %s: %v", fpath, err)
+		return
+	}
+	defer out.Close()
+	if err := jpeg.Encode(out, dst, &jpeg.Options{Quality: quality}); err != nil {
+		log.Printf("compress: encode %s: %v", fpath, err)
+		return
+	}
+
+	// Log the result
+	if info, err := os.Stat(fpath); err == nil {
+		log.Printf("compress: %s → %dx%d %d KB (was %dx%d)", filepath.Base(fpath), newW, newH, info.Size()/1024, w, h)
+	}
+}
+
 // BackfillAvatarThumbnails generates thumbnails for all existing avatar images
 // that don't already have a _thumb version. Intended to run once at startup.
 func BackfillAvatarThumbnails() {
@@ -315,6 +377,46 @@ func BackfillAvatarThumbnails() {
 		srcPath := filepath.Join(avatarDir, e.Name())
 		createThumbnail(srcPath, 96)
 		log.Printf("thumbnail: backfilled %s", thumbName)
+	}
+}
+
+// CompressOversizedImages scans static/uploads/featured/ and compresses any
+// image larger than 200 KB to max 600px wide at JPEG quality 80. Intended to
+// run once at startup to fix images uploaded before auto-compression was added.
+func CompressOversizedImages() {
+	const maxBytes = 200 * 1024 // 200 KB threshold
+	dirs := []string{
+		filepath.Join("static", "uploads", "featured"),
+	}
+	// Also scan subdirectories (featured/{slug}/)
+	if entries, err := os.ReadDir(dirs[0]); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				dirs = append(dirs, filepath.Join(dirs[0], e.Name()))
+			}
+		}
+	}
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() || strings.Contains(e.Name(), "_thumb") {
+				continue
+			}
+			ext := strings.ToLower(filepath.Ext(e.Name()))
+			if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+				continue
+			}
+			info, err := e.Info()
+			if err != nil || info.Size() <= maxBytes {
+				continue
+			}
+			fpath := filepath.Join(dir, e.Name())
+			log.Printf("compress: oversized %s (%d KB) — compressing", e.Name(), info.Size()/1024)
+			compressImage(fpath, 600, 80)
+		}
 	}
 }
 
