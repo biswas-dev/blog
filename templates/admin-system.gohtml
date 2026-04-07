@@ -699,6 +699,108 @@
             </div>
         </div>
 
+        <!-- Cloudflare CDN Section -->
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-amber">
+                        {{icon "cloud" "w-4 h-4"}}
+                    </div>
+                    <div>
+                        <h3>Cloudflare CDN</h3>
+                        <p>Cache management and CDN configuration</p>
+                    </div>
+                </div>
+                <button onclick="purgeCloudflareCache()" class="sys-btn-outline" id="cf-purge-btn" style="display: flex; align-items: center; gap: 6px;">
+                    {{icon "refresh" "w-4 h-4"}}
+                    Purge All Cache
+                </button>
+            </div>
+            <div class="sys-section-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 16px;">
+                <div id="cf-purge-status" style="display:none; padding: 8px 12px; border-radius: 6px; font-size: 0.8125rem;"></div>
+                <p style="font-size: 0.8125rem; color: var(--text-secondary);">
+                    Cloudflare API credentials are injected via CI environment variables. You can also set them manually below (overrides env vars).
+                </p>
+                <!-- CF API Token -->
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 120px;">API Token</label>
+                    <input type="text" id="cf-api-token"
+                           value=""
+                           placeholder="cfut_..."
+                           class="sys-input" style="width: 320px; padding: 6px 10px; font-family: monospace; font-size: 0.8125rem;">
+                    <button onclick="saveCFSetting('cf_api_token','cf-api-token','cf-token-status')" class="sys-btn-outline" style="padding: 6px 14px;">Save</button>
+                    <span id="cf-token-status" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                </div>
+                <!-- CF Zone ID -->
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 120px;">Zone ID</label>
+                    <input type="text" id="cf-zone-id"
+                           value=""
+                           placeholder="39baf63f..."
+                           class="sys-input" style="width: 320px; padding: 6px 10px; font-family: monospace; font-size: 0.8125rem;">
+                    <button onclick="saveCFSetting('cf_zone_id','cf-zone-id','cf-zone-status')" class="sys-btn-outline" style="padding: 6px 14px;">Save</button>
+                    <span id="cf-zone-status" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-tertiary);">
+                    Once saved, token values are masked. Get your token at <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" style="color: var(--accent);">Cloudflare Dashboard</a> with "Cache Purge" + "Zone Read" permissions.
+                </p>
+            </div>
+        </div>
+        <script>
+        // Load masked CF values on page load
+        (async function() {
+            for (var pair of [['cf_api_token','cf-api-token'],['cf_zone_id','cf-zone-id']]) {
+                try {
+                    var res = await fetch('/api/admin/site-settings/' + pair[0]);
+                    if (res.ok) {
+                        var data = await res.json();
+                        if (data.value) document.getElementById(pair[1]).value = data.value;
+                    }
+                } catch(e) {}
+            }
+        })();
+        function saveCFSetting(key, inputId, statusId) {
+            saveSiteSetting(key, inputId, statusId);
+            // After saving, mask the displayed value
+            setTimeout(function() {
+                var input = document.getElementById(inputId);
+                var val = input.value;
+                if (val && val.length > 8 && !val.includes('*')) {
+                    input.value = val.substring(0, 4) + '*'.repeat(val.length - 8) + val.substring(val.length - 4);
+                }
+            }, 500);
+        }
+        async function purgeCloudflareCache() {
+            var btn = document.getElementById('cf-purge-btn');
+            var status = document.getElementById('cf-purge-status');
+            btn.disabled = true;
+            btn.textContent = 'Purging...';
+            status.style.display = 'none';
+            try {
+                var res = await fetch('/api/admin/cloudflare/purge', {method: 'POST'});
+                var data = await res.json();
+                status.style.display = 'block';
+                if (data.success) {
+                    status.textContent = '✓ ' + data.message;
+                    status.style.background = 'rgba(22,163,74,0.1)';
+                    status.style.color = '#16a34a';
+                } else {
+                    status.textContent = '✗ ' + data.message;
+                    status.style.background = 'rgba(220,38,38,0.1)';
+                    status.style.color = '#dc2626';
+                }
+            } catch (e) {
+                status.style.display = 'block';
+                status.textContent = '✗ Network error';
+                status.style.background = 'rgba(220,38,38,0.1)';
+                status.style.color = '#dc2626';
+            }
+            btn.disabled = false;
+            btn.textContent = 'Purge All Cache';
+            setTimeout(function() { status.style.display = 'none'; }, 5000);
+        }
+        </script>
+
         <!-- Site Settings Section -->
         <div class="sys-section-card">
             <div class="sys-section-header">
