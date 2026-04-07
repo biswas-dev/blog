@@ -181,6 +181,8 @@
                             {{end}}
                         </div>
                         {{end}}
+                        {{$amz := amazonLink .ISBN .Title .BookAuthor .LinkURL}}
+                        {{if $amz}}<a href="{{$amz}}" target="_blank" rel="noopener sponsored" style="display:inline-block;margin-top:6px;padding:3px 10px;background:#f59e0b;color:#000;border-radius:4px;font-size:0.75rem;font-weight:600;text-decoration:none;">Amazon</a>{{end}}
                         {{if $.IsAdmin}}
                         <a href="/admin/books/{{.Slug}}/edit" class="edit-link">Edit</a>
                         {{end}}

@@ -240,7 +240,13 @@
             </div>
             {{end}}
 
-            {{if .Book.LinkURL}}
+            {{$amzLink := amazonLink .Book.ISBN .Book.Title .Book.BookAuthor .Book.LinkURL}}
+            {{if $amzLink}}
+            <a href="{{$amzLink}}" target="_blank" rel="noopener sponsored noreferrer" class="book-link-btn" style="background: #f59e0b; color: #000; font-weight: 600;">
+                Buy on Amazon
+            </a>
+            {{end}}
+            {{if and .Book.LinkURL (not (contains .Book.LinkURL "amazon."))}}
             <a href="{{.Book.LinkURL}}" target="_blank" rel="noopener noreferrer" class="book-link-btn">
                 {{icon "external" "w-4 h-4"}} View / Purchase
             </a>
