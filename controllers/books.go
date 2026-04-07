@@ -398,6 +398,7 @@ func (b Books) CreateBook(w http.ResponseWriter, r *http.Request) {
 	linkURL := r.FormValue("link_url")
 	readingStatus := r.FormValue("reading_status")
 	ratingStr := r.FormValue("rating")
+	amazonASIN := r.FormValue("amazon_asin")
 	medium := r.FormValue("medium")
 	ebookReader := r.FormValue("ebook_reader")
 	dateStarted := r.FormValue("date_started")
@@ -422,7 +423,7 @@ func (b Books) CreateBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	book, err := b.BookService.Create(user.UserID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, medium, ebookReader, dateStarted, dateFinished, isPublished, genreIDs)
+	book, err := b.BookService.Create(user.UserID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, dateStarted, dateFinished, isPublished, genreIDs)
 	if err != nil {
 		log.Printf("Error creating book: %v", err)
 		http.Error(w, "Failed to create book", http.StatusInternalServerError)
@@ -555,6 +556,7 @@ func (b Books) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	linkURL := r.FormValue("link_url")
 	readingStatus := r.FormValue("reading_status")
 	ratingStr := r.FormValue("rating")
+	amazonASIN := r.FormValue("amazon_asin")
 	medium := r.FormValue("medium")
 	ebookReader := r.FormValue("ebook_reader")
 	dateStarted := r.FormValue("date_started")
@@ -579,7 +581,7 @@ func (b Books) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = b.BookService.Update(bookID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, medium, ebookReader, dateStarted, dateFinished, isPublished, genreIDs)
+	err = b.BookService.Update(bookID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, dateStarted, dateFinished, isPublished, genreIDs)
 	if err != nil {
 		log.Printf("Error updating book: %v", err)
 		http.Error(w, "Failed to update book", http.StatusInternalServerError)
@@ -763,8 +765,11 @@ func (b Books) BuyBook(w http.ResponseWriter, r *http.Request) {
 		tag = views.SiteConfigFunc("amazon_affiliate_tag", "")
 	}
 
-	// Extract ASIN: try link_url first, then ISBN (ISBN-10 can be an ASIN)
-	asin := extractASIN(book.LinkURL)
+	// ASIN priority: explicit field > extracted from link_url > ISBN-10
+	asin := book.AmazonASIN
+	if asin == "" {
+		asin = extractASIN(book.LinkURL)
+	}
 	if asin == "" && len(strings.ReplaceAll(book.ISBN, "-", "")) == 10 {
 		asin = strings.ReplaceAll(book.ISBN, "-", "")
 	}

@@ -1,0 +1,1 @@
+ALTER TABLE Books DROP COLUMN IF EXISTS amazon_asin;
