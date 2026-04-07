@@ -35,8 +35,10 @@ type Book struct {
 	LinkURL           string
 	ReadingStatus     string
 	Rating            float64
-	DateStarted       string // YYYY-MM-DD or empty
-	DateFinished      string // YYYY-MM-DD or empty
+	Medium            string  // physical, ebook, audiobook, or empty
+	EbookReader       string  // device name (e.g. "Kindle Scribe Gen 1")
+	DateStarted       string  // YYYY-MM-DD or empty
+	DateFinished      string  // YYYY-MM-DD or empty
 	IsPublished       bool
 	PublicationDate   string
 	LastEditDate      string
@@ -57,6 +59,7 @@ const bookBaseSelect = `
 	       COALESCE(b.page_count, 0), COALESCE(b.cover_image_url, ''),
 	       b.content, COALESCE(b.description, ''), COALESCE(b.my_thoughts, ''),
 	       COALESCE(b.link_url, ''), b.reading_status, COALESCE(b.rating, 0),
+	       COALESCE(b.medium, ''), COALESCE(b.ebook_reader, ''),
 	       b.date_started, b.date_finished,
 	       b.is_published, b.publication_date, b.last_edit_date, b.created_at, b.updated_at
 	FROM Books b
@@ -73,6 +76,7 @@ func scanBook(scanner interface{ Scan(...interface{}) error }) (Book, error) {
 		&book.PageCount, &book.CoverImageURL,
 		&book.Content, &book.Description, &book.MyThoughts,
 		&book.LinkURL, &book.ReadingStatus, &book.Rating,
+		&book.Medium, &book.EbookReader,
 		&dateStarted, &dateFinished,
 		&book.IsPublished, &book.PublicationDate, &book.LastEditDate, &book.CreatedAt, &book.UpdatedAt,
 	)
@@ -101,7 +105,7 @@ func parseDateToNullTime(s string) sql.NullTime {
 }
 
 // Create creates a new book and returns it.
-func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, dateStarted, dateFinished string, isPublished bool, genreIDs []int) (*Book, error) {
+func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, medium, ebookReader, dateStarted, dateFinished string, isPublished bool, genreIDs []int) (*Book, error) {
 	if slug == "" {
 		slug = generateSlug(title)
 	} else {
@@ -114,10 +118,10 @@ func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publish
 
 	var book Book
 	err := bs.DB.QueryRow(`
-		INSERT INTO Books (user_id, title, slug, book_author, isbn, publisher, page_count, cover_image_url, content, description, my_thoughts, link_url, reading_status, rating, date_started, date_finished, is_published, publication_date, last_edit_date, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+		INSERT INTO Books (user_id, title, slug, book_author, isbn, publisher, page_count, cover_image_url, content, description, my_thoughts, link_url, reading_status, rating, medium, ebook_reader, date_started, date_finished, is_published, publication_date, last_edit_date, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
 		RETURNING book_id, created_at, updated_at`,
-		userID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, dsNT, dfNT, isPublished, now, now, now, now,
+		userID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, medium, ebookReader, dsNT, dfNT, isPublished, now, now, now, now,
 	).Scan(&book.ID, &book.CreatedAt, &book.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create book: %w", err)
@@ -137,6 +141,8 @@ func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publish
 	book.LinkURL = linkURL
 	book.ReadingStatus = readingStatus
 	book.Rating = rating
+	book.Medium = medium
+	book.EbookReader = ebookReader
 	book.DateStarted = dateStarted
 	book.DateFinished = dateFinished
 	book.IsPublished = isPublished
@@ -153,7 +159,7 @@ func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publish
 }
 
 // Update updates an existing book.
-func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, dateStarted, dateFinished string, isPublished bool, genreIDs []int) error {
+func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, medium, ebookReader, dateStarted, dateFinished string, isPublished bool, genreIDs []int) error {
 	if slug == "" {
 		slug = generateSlug(title)
 	} else {
@@ -164,9 +170,9 @@ func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publish
 	dfNT := parseDateToNullTime(dateFinished)
 
 	_, err := bs.DB.Exec(`
-		UPDATE Books SET title=$1, slug=$2, book_author=$3, isbn=$4, publisher=$5, page_count=$6, cover_image_url=$7, content=$8, description=$9, my_thoughts=$10, link_url=$11, reading_status=$12, rating=$13, date_started=$14, date_finished=$15, is_published=$16, last_edit_date=$17, updated_at=$18
-		WHERE book_id=$19`,
-		title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, dsNT, dfNT, isPublished, time.Now(), time.Now(), bookID)
+		UPDATE Books SET title=$1, slug=$2, book_author=$3, isbn=$4, publisher=$5, page_count=$6, cover_image_url=$7, content=$8, description=$9, my_thoughts=$10, link_url=$11, reading_status=$12, rating=$13, medium=$14, ebook_reader=$15, date_started=$16, date_finished=$17, is_published=$18, last_edit_date=$19, updated_at=$20
+		WHERE book_id=$21`,
+		title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, medium, ebookReader, dsNT, dfNT, isPublished, time.Now(), time.Now(), bookID)
 	if err != nil {
 		return fmt.Errorf("update book: %w", err)
 	}
@@ -393,6 +399,53 @@ func (bs *BookService) GetPublishedBooksByUser(userID int) ([]Book, error) {
 	}
 
 	return books, nil
+}
+
+// GetPublishedBooksByAuthor returns published books where book_author contains the name.
+// Uses ILIKE for case-insensitive partial match (comma-separated authors).
+func (bs *BookService) GetPublishedBooksByAuthor(authorName string) ([]Book, error) {
+	query := bookBaseSelect + ` WHERE b.is_published = true AND b.book_author ILIKE '%' || $1 || '%' ORDER BY COALESCE(b.date_finished, b.date_started, b.created_at) DESC`
+	rows, err := bs.DB.Query(query, authorName)
+	if err != nil {
+		return nil, fmt.Errorf("query books by author: %w", err)
+	}
+	defer rows.Close()
+	var books []Book
+	for rows.Next() {
+		book, err := scanBook(rows)
+		if err != nil {
+			return nil, err
+		}
+		formatBookDates(&book)
+		books = append(books, book)
+	}
+	if err := bs.loadGenresForBooks(books); err != nil {
+		return nil, fmt.Errorf("load genres: %w", err)
+	}
+	return books, rows.Err()
+}
+
+// GetPublishedBooksByPublisher returns published books by a specific publisher.
+func (bs *BookService) GetPublishedBooksByPublisher(publisher string) ([]Book, error) {
+	query := bookBaseSelect + ` WHERE b.is_published = true AND b.publisher ILIKE $1 ORDER BY COALESCE(b.date_finished, b.date_started, b.created_at) DESC`
+	rows, err := bs.DB.Query(query, publisher)
+	if err != nil {
+		return nil, fmt.Errorf("query books by publisher: %w", err)
+	}
+	defer rows.Close()
+	var books []Book
+	for rows.Next() {
+		book, err := scanBook(rows)
+		if err != nil {
+			return nil, err
+		}
+		formatBookDates(&book)
+		books = append(books, book)
+	}
+	if err := bs.loadGenresForBooks(books); err != nil {
+		return nil, fmt.Errorf("load genres: %w", err)
+	}
+	return books, rows.Err()
 }
 
 // AddGenres adds genres to a book.

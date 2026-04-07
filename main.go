@@ -665,7 +665,10 @@ func main() {
 	// Public Book Routes
 	r.Get("/books", booksC.PublicBooksList)
 	r.Get("/books/{slug}", booksC.ViewBook)
+	r.Get("/books/{slug}/buy", booksC.BuyBook)
 	r.Get("/books/genre/{name}", booksC.GenrePage)
+	r.Get("/books/author/{name}", booksC.AuthorPage)
+	r.Get("/books/publisher/{name}", booksC.PublisherPage)
 
 	// Admin Book Routes
 	r.Get("/admin/books", booksC.AdminBooks)
@@ -1856,6 +1859,8 @@ func createBookAPI(bs *models.BookService) http.HandlerFunc {
 			LinkURL       string `json:"link_url"`
 			ReadingStatus string `json:"reading_status"`
 			Rating        float64 `json:"rating"`
+			Medium        string  `json:"medium"`
+			EbookReader   string  `json:"ebook_reader"`
 			DateStarted   string `json:"date_started"`
 			DateFinished  string `json:"date_finished"`
 			IsPublished   bool   `json:"is_published"`
@@ -1872,7 +1877,8 @@ func createBookAPI(bs *models.BookService) http.HandlerFunc {
 		book, err := bs.Create(req.UserID, req.Title, req.Slug, req.BookAuthor,
 			req.ISBN, req.Publisher, req.PageCount, req.CoverImageURL,
 			req.Content, req.Description, req.MyThoughts, req.LinkURL,
-			req.ReadingStatus, req.Rating, req.DateStarted, req.DateFinished,
+			req.ReadingStatus, req.Rating, req.Medium, req.EbookReader,
+			req.DateStarted, req.DateFinished,
 			req.IsPublished, req.Genres)
 		if err != nil {
 			http.Error(w, "Failed to create book: "+err.Error(), http.StatusInternalServerError)
@@ -1904,6 +1910,8 @@ func updateBookAPI(bs *models.BookService) http.HandlerFunc {
 			LinkURL       string `json:"link_url"`
 			ReadingStatus string `json:"reading_status"`
 			Rating        float64 `json:"rating"`
+			Medium        string  `json:"medium"`
+			EbookReader   string  `json:"ebook_reader"`
 			DateStarted   string `json:"date_started"`
 			DateFinished  string `json:"date_finished"`
 			IsPublished   bool   `json:"is_published"`
@@ -1916,7 +1924,8 @@ func updateBookAPI(bs *models.BookService) http.HandlerFunc {
 		if err := bs.Update(id, req.Title, req.Slug, req.BookAuthor,
 			req.ISBN, req.Publisher, req.PageCount, req.CoverImageURL,
 			req.Content, req.Description, req.MyThoughts, req.LinkURL,
-			req.ReadingStatus, req.Rating, req.DateStarted, req.DateFinished,
+			req.ReadingStatus, req.Rating, req.Medium, req.EbookReader,
+			req.DateStarted, req.DateFinished,
 			req.IsPublished, req.Genres); err != nil {
 			http.Error(w, "Failed to update book: "+err.Error(), http.StatusInternalServerError)
 			return

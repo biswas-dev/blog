@@ -198,7 +198,7 @@
         </div>
         <div class="book-details">
             <h1>{{.Book.Title}}</h1>
-            <span class="book-author">by {{.Book.BookAuthor}}</span>
+            <span class="book-author">by {{authorLinks .Book.BookAuthor ""}}</span>
 
             {{if .Book.Rating}}
             <span class="book-rating">{{ratingStars .Book.Rating}} <span style="font-size:0.875rem; color: var(--text-tertiary);">{{.Book.Rating}}/5</span></span>
@@ -225,10 +225,13 @@
                 <li><strong>Pages</strong> {{.Book.PageCount}}</li>
                 {{end}}
                 {{if .Book.Publisher}}
-                <li><strong>Publisher</strong> {{.Book.Publisher}}</li>
+                <li><strong>Publisher</strong> {{publisherLink .Book.Publisher ""}}</li>
                 {{end}}
                 {{if .Book.ISBN}}
                 <li><strong>ISBN</strong> {{.Book.ISBN}}</li>
+                {{end}}
+                {{if .Book.Medium}}
+                <li><strong>Format</strong> {{if eq .Book.Medium "ebook"}}eBook{{else if eq .Book.Medium "audiobook"}}Audiobook{{else}}Physical{{end}}{{if .Book.EbookReader}} · {{.Book.EbookReader}}{{end}}</li>
                 {{end}}
             </ul>
 
@@ -240,9 +243,8 @@
             </div>
             {{end}}
 
-            {{$amzLink := amazonLink .Book.ISBN .Book.Title .Book.BookAuthor .Book.LinkURL}}
-            {{if $amzLink}}
-            <a href="{{$amzLink}}" target="_blank" rel="noopener sponsored noreferrer" class="book-link-btn" style="background: #f59e0b; color: #000; font-weight: 600;">
+            {{if or .Book.LinkURL .Book.Title}}
+            <a href="/books/{{.Book.Slug}}/buy" target="_blank" rel="noopener sponsored noreferrer" class="book-link-btn" style="background: #f59e0b; color: #000; font-weight: 600;">
                 Buy on Amazon
             </a>
             {{end}}

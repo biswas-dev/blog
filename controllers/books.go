@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -394,6 +396,8 @@ func (b Books) CreateBook(w http.ResponseWriter, r *http.Request) {
 	linkURL := r.FormValue("link_url")
 	readingStatus := r.FormValue("reading_status")
 	ratingStr := r.FormValue("rating")
+	medium := r.FormValue("medium")
+	ebookReader := r.FormValue("ebook_reader")
 	dateStarted := r.FormValue("date_started")
 	dateFinished := r.FormValue("date_finished")
 	isPublished := r.FormValue("is_published") == "on" || r.FormValue("is_published") == "true"
@@ -416,7 +420,7 @@ func (b Books) CreateBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	book, err := b.BookService.Create(user.UserID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, dateStarted, dateFinished, isPublished, genreIDs)
+	book, err := b.BookService.Create(user.UserID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, medium, ebookReader, dateStarted, dateFinished, isPublished, genreIDs)
 	if err != nil {
 		log.Printf("Error creating book: %v", err)
 		http.Error(w, "Failed to create book", http.StatusInternalServerError)
@@ -549,6 +553,8 @@ func (b Books) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	linkURL := r.FormValue("link_url")
 	readingStatus := r.FormValue("reading_status")
 	ratingStr := r.FormValue("rating")
+	medium := r.FormValue("medium")
+	ebookReader := r.FormValue("ebook_reader")
 	dateStarted := r.FormValue("date_started")
 	dateFinished := r.FormValue("date_finished")
 	isPublished := r.FormValue("is_published") == "on" || r.FormValue("is_published") == "true"
@@ -571,7 +577,7 @@ func (b Books) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = b.BookService.Update(bookID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, dateStarted, dateFinished, isPublished, genreIDs)
+	err = b.BookService.Update(bookID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, medium, ebookReader, dateStarted, dateFinished, isPublished, genreIDs)
 	if err != nil {
 		log.Printf("Error updating book: %v", err)
 		http.Error(w, "Failed to update book", http.StatusInternalServerError)
@@ -638,6 +644,193 @@ func (b Books) PreviewBook(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, template.HTML(rendered))
+}
+
+// AuthorPage shows all books by a specific author.
+// GET /books/author/{name}
+func (b Books) AuthorPage(w http.ResponseWriter, r *http.Request) {
+	name, _ := url.PathUnescape(chi.URLParam(r, "name"))
+	if name == "" {
+		http.NotFound(w, r)
+		return
+	}
+	books, err := b.BookService.GetPublishedBooksByAuthor(name)
+	if err != nil {
+		log.Printf("Error fetching books by author %q: %v", name, err)
+	}
+	user, _ := utils.IsUserLoggedIn(r, b.SessionService)
+	data := struct {
+		LoggedIn        bool
+		IsAdmin         bool
+		Username        string
+		CurrentPage     string
+		Description     string
+		SignupDisabled  bool
+		UserPermissions models.UserPermissions
+		Books           []models.Book
+		FilterName      string
+		FilterType      string
+	}{
+		CurrentPage: "books",
+		Description: fmt.Sprintf("Books by %s", name),
+		Books:       books,
+		FilterName:  name,
+		FilterType:  "author",
+	}
+	if user != nil {
+		data.LoggedIn = true
+		data.Username = user.Username
+		data.IsAdmin = models.IsAdmin(user.Role)
+		data.UserPermissions = models.GetPermissions(user.Role)
+	}
+	b.Templates.BooksList.Execute(w, r, data)
+}
+
+// PublisherPage shows all books by a specific publisher.
+// GET /books/publisher/{name}
+func (b Books) PublisherPage(w http.ResponseWriter, r *http.Request) {
+	name, _ := url.PathUnescape(chi.URLParam(r, "name"))
+	if name == "" {
+		http.NotFound(w, r)
+		return
+	}
+	books, err := b.BookService.GetPublishedBooksByPublisher(name)
+	if err != nil {
+		log.Printf("Error fetching books by publisher %q: %v", name, err)
+	}
+	user, _ := utils.IsUserLoggedIn(r, b.SessionService)
+	data := struct {
+		LoggedIn        bool
+		IsAdmin         bool
+		Username        string
+		CurrentPage     string
+		Description     string
+		SignupDisabled  bool
+		UserPermissions models.UserPermissions
+		Books           []models.Book
+		FilterName      string
+		FilterType      string
+	}{
+		CurrentPage: "books",
+		Description: fmt.Sprintf("Books by %s", name),
+		Books:       books,
+		FilterName:  name,
+		FilterType:  "publisher",
+	}
+	if user != nil {
+		data.LoggedIn = true
+		data.Username = user.Username
+		data.IsAdmin = models.IsAdmin(user.Role)
+		data.UserPermissions = models.GetPermissions(user.Role)
+	}
+	b.Templates.BooksList.Execute(w, r, data)
+}
+
+// BuyBook redirects the user to the correct Amazon store based on their country
+// (via Cloudflare's CF-IPCountry header). Extracts the ASIN from the book's
+// link_url and constructs a geo-targeted affiliate link.
+// GET /books/{slug}/buy
+func (b Books) BuyBook(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	book, err := b.BookService.GetBySlug(slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	tag := ""
+	if views.SiteConfigFunc != nil {
+		tag = views.SiteConfigFunc("amazon_affiliate_tag", "")
+	}
+
+	// Extract ASIN from existing Amazon link_url
+	asin := extractASIN(book.LinkURL)
+
+	// Determine user's country from Cloudflare header
+	country := strings.ToUpper(r.Header.Get("CF-IPCountry"))
+	if country == "" {
+		country = "CA" // default to Canada
+	}
+
+	// Build the Amazon URL
+	domain := amazonDomainForCountry(country)
+	var amazonURL string
+	if asin != "" {
+		amazonURL = "https://" + domain + "/dp/" + asin
+	} else {
+		// Fallback: search by title + author
+		q := book.Title
+		if book.BookAuthor != "" {
+			q += " " + book.BookAuthor
+		}
+		amazonURL = "https://" + domain + "/s?k=" + url.QueryEscape(q)
+	}
+
+	// Append affiliate tag
+	if tag != "" {
+		sep := "?"
+		if strings.Contains(amazonURL, "?") {
+			sep = "&"
+		}
+		amazonURL += sep + "tag=" + tag
+	}
+
+	http.Redirect(w, r, amazonURL, http.StatusFound)
+}
+
+// asinRe matches /dp/{ASIN} in Amazon URLs. ASIN is 10 chars (alphanumeric).
+var asinRe = regexp.MustCompile(`/dp/([A-Z0-9]{10})`)
+
+// extractASIN pulls the ASIN from an Amazon product URL.
+// e.g. "https://www.amazon.ca/Open-Work-How-Get-Ahead/dp/0063486466" → "0063486466"
+func extractASIN(rawURL string) string {
+	m := asinRe.FindStringSubmatch(rawURL)
+	if len(m) >= 2 {
+		return m[1]
+	}
+	return ""
+}
+
+// amazonDomainForCountry maps an ISO country code to the Amazon domain.
+func amazonDomainForCountry(country string) string {
+	switch country {
+	case "US":
+		return "www.amazon.com"
+	case "GB":
+		return "www.amazon.co.uk"
+	case "DE", "AT":
+		return "www.amazon.de"
+	case "FR":
+		return "www.amazon.fr"
+	case "IT":
+		return "www.amazon.it"
+	case "ES":
+		return "www.amazon.es"
+	case "IN":
+		return "www.amazon.in"
+	case "JP":
+		return "www.amazon.co.jp"
+	case "AU":
+		return "www.amazon.com.au"
+	case "BR":
+		return "www.amazon.com.br"
+	case "MX":
+		return "www.amazon.com.mx"
+	case "SG":
+		return "www.amazon.sg"
+	case "NL":
+		return "www.amazon.nl"
+	case "SE":
+		return "www.amazon.se"
+	case "PL":
+		return "www.amazon.pl"
+	case "AE", "SA":
+		return "www.amazon.ae"
+	case "CA":
+		return "www.amazon.ca"
+	default:
+		return "www.amazon.com" // US as global fallback
+	}
 }
 
 // groupGenres organizes genres by their Group field for the editor template.
