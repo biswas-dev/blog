@@ -405,7 +405,7 @@ func (b Books) CreateBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pageCount, _ := strconv.Atoi(pageCountStr)
-	rating, _ := strconv.Atoi(ratingStr)
+	rating, _ := strconv.ParseFloat(ratingStr, 64)
 
 	var genreIDs []int
 	if genresStr != "" {
@@ -560,7 +560,7 @@ func (b Books) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pageCount, _ := strconv.Atoi(pageCountStr)
-	rating, _ := strconv.Atoi(ratingStr)
+	rating, _ := strconv.ParseFloat(ratingStr, 64)
 
 	var genreIDs []int
 	if genresStr != "" {

@@ -169,7 +169,7 @@
                         <a href="/books/{{.Slug}}" class="book-title">{{.Title}}</a>
                         <span class="book-author">{{.BookAuthor}}</span>
                         {{if .Rating}}
-                        <span class="book-rating">{{if ge .Rating 1}}&#9733;{{else}}&#9734;{{end}}{{if ge .Rating 2}}&#9733;{{else}}&#9734;{{end}}{{if ge .Rating 3}}&#9733;{{else}}&#9734;{{end}}{{if ge .Rating 4}}&#9733;{{else}}&#9734;{{end}}{{if ge .Rating 5}}&#9733;{{else}}&#9734;{{end}}</span>
+                        <span class="book-rating">{{ratingStars .Rating}}</span>
                         {{end}}
                         {{if .DateFinished}}
                         <span class="book-date">Finished {{.DateFinished}}</span>

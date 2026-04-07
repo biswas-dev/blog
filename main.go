@@ -1851,7 +1851,7 @@ func createBookAPI(bs *models.BookService) http.HandlerFunc {
 			MyThoughts    string `json:"my_thoughts"`
 			LinkURL       string `json:"link_url"`
 			ReadingStatus string `json:"reading_status"`
-			Rating        int    `json:"rating"`
+			Rating        float64 `json:"rating"`
 			DateStarted   string `json:"date_started"`
 			DateFinished  string `json:"date_finished"`
 			IsPublished   bool   `json:"is_published"`
@@ -1899,7 +1899,7 @@ func updateBookAPI(bs *models.BookService) http.HandlerFunc {
 			MyThoughts    string `json:"my_thoughts"`
 			LinkURL       string `json:"link_url"`
 			ReadingStatus string `json:"reading_status"`
-			Rating        int    `json:"rating"`
+			Rating        float64 `json:"rating"`
 			DateStarted   string `json:"date_started"`
 			DateFinished  string `json:"date_finished"`
 			IsPublished   bool   `json:"is_published"`

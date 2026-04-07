@@ -201,7 +201,7 @@
             <span class="book-author">by {{.Book.BookAuthor}}</span>
 
             {{if .Book.Rating}}
-            <span class="book-rating">{{if ge .Book.Rating 1}}&#9733;{{else}}&#9734;{{end}}{{if ge .Book.Rating 2}}&#9733;{{else}}&#9734;{{end}}{{if ge .Book.Rating 3}}&#9733;{{else}}&#9734;{{end}}{{if ge .Book.Rating 4}}&#9733;{{else}}&#9734;{{end}}{{if ge .Book.Rating 5}}&#9733;{{else}}&#9734;{{end}} <span style="font-size:0.875rem; color: var(--text-tertiary);">{{.Book.Rating}}/5</span></span>
+            <span class="book-rating">{{ratingStars .Book.Rating}} <span style="font-size:0.875rem; color: var(--text-tertiary);">{{.Book.Rating}}/5</span></span>
             {{end}}
 
             {{if eq .Book.ReadingStatus "completed"}}
