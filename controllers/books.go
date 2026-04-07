@@ -763,8 +763,11 @@ func (b Books) BuyBook(w http.ResponseWriter, r *http.Request) {
 		tag = views.SiteConfigFunc("amazon_affiliate_tag", "")
 	}
 
-	// Extract ASIN from existing Amazon link_url
+	// Extract ASIN: try link_url first, then ISBN (ISBN-10 can be an ASIN)
 	asin := extractASIN(book.LinkURL)
+	if asin == "" && len(strings.ReplaceAll(book.ISBN, "-", "")) == 10 {
+		asin = strings.ReplaceAll(book.ISBN, "-", "")
+	}
 
 	// Determine user's country from Cloudflare header
 	country := strings.ToUpper(r.Header.Get("CF-IPCountry"))
