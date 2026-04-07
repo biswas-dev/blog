@@ -160,6 +160,10 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
   # Version endpoint protection
   export VERSION_TOKEN='${VERSION_TOKEN:-}'
 
+  # Cloudflare cache purge
+  export CF_API_TOKEN='${CF_API_TOKEN:-}'
+  export CF_ZONE_ID='${CF_ZONE_ID:-}'
+
   # Datadog APM
   export DD_API_KEY='${DD_API_KEY:-}'
   export DD_SITE='${DD_SITE:-datadoghq.com}'

@@ -761,6 +761,8 @@ func main() {
 	// Site settings (generic key-value)
 	r.Get("/api/admin/site-settings/{key}", systemC.GetSiteSettings)
 	r.Put("/api/admin/site-settings/{key}", systemC.SaveSiteSetting)
+	// Cloudflare cache purge
+	r.Post("/api/admin/cloudflare/purge", systemC.PurgeCloudflareCacheHandler)
 
 	r.Get("/api/admin/upload-config", usersC.GetUploadConfig)
 
