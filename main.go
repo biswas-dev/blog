@@ -662,13 +662,13 @@ func main() {
 	r.Post("/admin/guides/{guideID}/delete", guidesC.DeleteGuide)
 	r.Post("/admin/guides/preview", guidesC.PreviewGuide)
 
-	// Public Book Routes
+	// Public Book Routes (literal paths before {slug} parameter)
 	r.Get("/books", booksC.PublicBooksList)
-	r.Get("/books/{slug}", booksC.ViewBook)
-	r.Get("/books/{slug}/buy", booksC.BuyBook)
 	r.Get("/books/genre/{name}", booksC.GenrePage)
 	r.Get("/books/author/{name}", booksC.AuthorPage)
 	r.Get("/books/publisher/{name}", booksC.PublisherPage)
+	r.Get("/books/{slug}", booksC.ViewBook)
+	r.Get("/books/{slug}/buy", booksC.BuyBook)
 
 	// Admin Book Routes
 	r.Get("/admin/books", booksC.AdminBooks)

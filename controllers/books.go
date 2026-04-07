@@ -658,24 +658,31 @@ func (b Books) AuthorPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error fetching books by author %q: %v", name, err)
 	}
+	cr, co, wt, ab := groupBooksByStatus(books)
 	user, _ := utils.IsUserLoggedIn(r, b.SessionService)
 	data := struct {
-		LoggedIn        bool
-		IsAdmin         bool
-		Username        string
-		CurrentPage     string
-		Description     string
-		SignupDisabled  bool
-		UserPermissions models.UserPermissions
-		Books           []models.Book
-		FilterName      string
-		FilterType      string
+		LoggedIn         bool
+		IsAdmin          bool
+		Username         string
+		CurrentPage      string
+		Description      string
+		SignupDisabled   bool
+		UserPermissions  models.UserPermissions
+		CurrentlyReading []models.Book
+		Completed        []models.Book
+		WantToRead       []models.Book
+		Abandoned        []models.Book
+		FilterName       string
+		FilterType       string
 	}{
-		CurrentPage: "books",
-		Description: fmt.Sprintf("Books by %s", name),
-		Books:       books,
-		FilterName:  name,
-		FilterType:  "author",
+		CurrentPage:      "books",
+		Description:      fmt.Sprintf("Books by %s", name),
+		CurrentlyReading: cr,
+		Completed:        co,
+		WantToRead:       wt,
+		Abandoned:        ab,
+		FilterName:       name,
+		FilterType:       "author",
 	}
 	if user != nil {
 		data.LoggedIn = true
@@ -698,24 +705,31 @@ func (b Books) PublisherPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error fetching books by publisher %q: %v", name, err)
 	}
+	cr, co, wt, ab := groupBooksByStatus(books)
 	user, _ := utils.IsUserLoggedIn(r, b.SessionService)
 	data := struct {
-		LoggedIn        bool
-		IsAdmin         bool
-		Username        string
-		CurrentPage     string
-		Description     string
-		SignupDisabled  bool
-		UserPermissions models.UserPermissions
-		Books           []models.Book
-		FilterName      string
-		FilterType      string
+		LoggedIn         bool
+		IsAdmin          bool
+		Username         string
+		CurrentPage      string
+		Description      string
+		SignupDisabled   bool
+		UserPermissions  models.UserPermissions
+		CurrentlyReading []models.Book
+		Completed        []models.Book
+		WantToRead       []models.Book
+		Abandoned        []models.Book
+		FilterName       string
+		FilterType       string
 	}{
-		CurrentPage: "books",
-		Description: fmt.Sprintf("Books by %s", name),
-		Books:       books,
-		FilterName:  name,
-		FilterType:  "publisher",
+		CurrentPage:      "books",
+		Description:      fmt.Sprintf("Books by %s", name),
+		CurrentlyReading: cr,
+		Completed:        co,
+		WantToRead:       wt,
+		Abandoned:        ab,
+		FilterName:       name,
+		FilterType:       "publisher",
 	}
 	if user != nil {
 		data.LoggedIn = true
@@ -831,6 +845,25 @@ func amazonDomainForCountry(country string) string {
 	default:
 		return "www.amazon.com" // US as global fallback
 	}
+}
+
+// groupBooksByStatus separates books into reading status groups.
+func groupBooksByStatus(books []models.Book) (currentlyReading, completed, wantToRead, abandoned []models.Book) {
+	for _, book := range books {
+		switch book.ReadingStatus {
+		case "reading":
+			currentlyReading = append(currentlyReading, book)
+		case "completed":
+			completed = append(completed, book)
+		case "want-to-read":
+			wantToRead = append(wantToRead, book)
+		case "abandoned":
+			abandoned = append(abandoned, book)
+		default:
+			completed = append(completed, book)
+		}
+	}
+	return
 }
 
 // groupGenres organizes genres by their Group field for the editor template.
