@@ -46,6 +46,21 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 			"icon": func(name, class string) template.HTML {
 				return icons.Icon(name, class)
 			},
+			"ratingStars": func(rating float64) template.HTML {
+				var b strings.Builder
+				for i := 1; i <= 5; i++ {
+					fi := float64(i)
+					if rating >= fi {
+						b.WriteString(`<span style="color:#f59e0b;">&#9733;</span>`)
+					} else if rating >= fi-0.5 {
+						// Half star: full star clipped to left half + empty star clipped to right half
+						b.WriteString(`<span style="position:relative;display:inline-block;color:#d1d5db;">&#9733;<span style="position:absolute;left:0;top:0;overflow:hidden;width:50%;color:#f59e0b;">&#9733;</span></span>`)
+					} else {
+						b.WriteString(`<span style="color:#d1d5db;">&#9733;</span>`)
+					}
+				}
+				return template.HTML(b.String())
+			},
 			"add": func(a, b int) int {
 				return a + b
 			},

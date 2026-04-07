@@ -34,7 +34,7 @@ type Book struct {
 	MyThoughtsHTML    template.HTML
 	LinkURL           string
 	ReadingStatus     string
-	Rating            int
+	Rating            float64
 	DateStarted       string // YYYY-MM-DD or empty
 	DateFinished      string // YYYY-MM-DD or empty
 	IsPublished       bool
@@ -101,7 +101,7 @@ func parseDateToNullTime(s string) sql.NullTime {
 }
 
 // Create creates a new book and returns it.
-func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating int, dateStarted, dateFinished string, isPublished bool, genreIDs []int) (*Book, error) {
+func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, dateStarted, dateFinished string, isPublished bool, genreIDs []int) (*Book, error) {
 	if slug == "" {
 		slug = generateSlug(title)
 	} else {
@@ -153,7 +153,7 @@ func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publish
 }
 
 // Update updates an existing book.
-func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating int, dateStarted, dateFinished string, isPublished bool, genreIDs []int) error {
+func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, dateStarted, dateFinished string, isPublished bool, genreIDs []int) error {
 	if slug == "" {
 		slug = generateSlug(title)
 	} else {
