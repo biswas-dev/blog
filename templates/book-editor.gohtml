@@ -66,12 +66,26 @@
           <div style="flex: 0 0 auto; min-width: 200px;">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rating</label>
             <div class="book-star-rating" style="display: flex; gap: 4px; font-size: 1.5rem; cursor: pointer;">
-              {{range seq 1 5}}
-              <label style="cursor: pointer; color: #d1d5db;" class="star-label" data-star="{{.}}">
-                <input type="radio" name="rating" value="{{.}}" style="display: none;" {{if eq . $.Book.Rating}}checked{{end}} />
+              <label style="cursor: pointer; color: #d1d5db;" class="star-label" data-star="1">
+                <input type="radio" name="rating" value="1" style="display: none;" {{if eq .Book.Rating 1}}checked{{end}} />
                 <span class="star-icon">&#9733;</span>
               </label>
-              {{end}}
+              <label style="cursor: pointer; color: #d1d5db;" class="star-label" data-star="2">
+                <input type="radio" name="rating" value="2" style="display: none;" {{if eq .Book.Rating 2}}checked{{end}} />
+                <span class="star-icon">&#9733;</span>
+              </label>
+              <label style="cursor: pointer; color: #d1d5db;" class="star-label" data-star="3">
+                <input type="radio" name="rating" value="3" style="display: none;" {{if eq .Book.Rating 3}}checked{{end}} />
+                <span class="star-icon">&#9733;</span>
+              </label>
+              <label style="cursor: pointer; color: #d1d5db;" class="star-label" data-star="4">
+                <input type="radio" name="rating" value="4" style="display: none;" {{if eq .Book.Rating 4}}checked{{end}} />
+                <span class="star-icon">&#9733;</span>
+              </label>
+              <label style="cursor: pointer; color: #d1d5db;" class="star-label" data-star="5">
+                <input type="radio" name="rating" value="5" style="display: none;" {{if eq .Book.Rating 5}}checked{{end}} />
+                <span class="star-icon">&#9733;</span>
+              </label>
               <label style="cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; margin-left: 4px; color: var(--text-tertiary);">
                 <input type="radio" name="rating" value="0" style="display: none;" {{if not .Book.Rating}}checked{{end}} />
                 <span>Clear</span>
