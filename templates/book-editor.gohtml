@@ -111,7 +111,10 @@
           <!-- Link URL -->
           <div style="flex: 0 0 auto; min-width: 200px;">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Link URL</label>
-            <input type="url" name="link_url" placeholder="https://goodreads.com/..." class="form-input w-full" value="{{.Book.LinkURL}}" />
+            <input type="url" name="link_url" placeholder="https://amazon.ca/dp/... or any URL" class="form-input w-full" value="{{.Book.LinkURL}}" />
+            <p style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px;">
+              Amazon links auto-get your affiliate tag. ISBN also generates an Amazon link if no URL is set.
+            </p>
           </div>
 
           <!-- Cover Image -->

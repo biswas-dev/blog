@@ -46,6 +46,57 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 			"icon": func(name, class string) template.HTML {
 				return icons.Icon(name, class)
 			},
+			// amazonLink generates an Amazon affiliate URL for a book.
+			// If linkURL is already an Amazon URL, it appends/replaces the tag.
+			// If ISBN is provided, links to the product page.
+			// Otherwise, searches by title + author.
+			"amazonLink": func(isbn, title, bookAuthor, linkURL string) string {
+				tag := ""
+				if SiteConfigFunc != nil {
+					tag = SiteConfigFunc("amazon_affiliate_tag", "")
+				}
+				if tag == "" {
+					// No affiliate tag configured — return original link or empty
+					if linkURL != "" {
+						return linkURL
+					}
+					return ""
+				}
+				// If linkURL is already an Amazon URL, append tag
+				if strings.Contains(linkURL, "amazon.") {
+					sep := "?"
+					if strings.Contains(linkURL, "?") {
+						sep = "&"
+					}
+					// Remove existing tag param if present
+					if idx := strings.Index(linkURL, "tag="); idx > 0 {
+						end := strings.IndexByte(linkURL[idx:], '&')
+						if end < 0 {
+							linkURL = linkURL[:idx-1] // remove ?tag= or &tag=
+						} else {
+							linkURL = linkURL[:idx-1] + linkURL[idx+end:]
+						}
+						sep = "?"
+						if strings.Contains(linkURL, "?") {
+							sep = "&"
+						}
+					}
+					return linkURL + sep + "tag=" + tag
+				}
+				// Generate Amazon URL from ISBN or title search
+				base := "https://www.amazon.ca"
+				if isbn != "" {
+					// Clean ISBN (remove hyphens)
+					clean := strings.ReplaceAll(strings.ReplaceAll(isbn, "-", ""), " ", "")
+					return base + "/dp/" + clean + "?tag=" + tag
+				}
+				// Fallback: search by title + author
+				q := strings.TrimSpace(title)
+				if bookAuthor != "" {
+					q += " " + strings.TrimSpace(bookAuthor)
+				}
+				return base + "/s?k=" + strings.ReplaceAll(strings.ReplaceAll(q, " ", "+"), "&", "") + "&tag=" + tag
+			},
 			"ratingStars": func(rating float64) template.HTML {
 				var b strings.Builder
 				for i := 1; i <= 5; i++ {

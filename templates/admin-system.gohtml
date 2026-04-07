@@ -712,7 +712,8 @@
                     </div>
                 </div>
             </div>
-            <div class="sys-section-body" style="padding: 16px 20px;">
+            <div class="sys-section-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 20px;">
+                <!-- Draw Hover Delay -->
                 <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                     <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 180px;">
                         Draw Hover Delay (seconds)
@@ -730,9 +731,55 @@
                         Readers must hover over a go-draw diagram for this many seconds before scroll-to-zoom activates. Min 1s, max 30s.
                     </p>
                 </div>
+                <!-- Amazon Affiliate Tag -->
+                <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--border-light);">
+                    <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 180px;">
+                        Amazon Affiliate Tag
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="text" id="amazon-affiliate-tag"
+                               value="{{siteConfig "amazon_affiliate_tag" ""}}"
+                               placeholder="yourname-20"
+                               class="sys-input" style="width: 200px; padding: 6px 10px;">
+                        <button onclick="saveAmazonTag()" class="sys-btn-outline" style="padding: 6px 14px;">
+                            Save
+                        </button>
+                        <span id="amazon-tag-status" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-tertiary); width: 100%;">
+                        Amazon Associates tracking tag. Appended to all Amazon book links as <code>?tag=...</code> for affiliate income. Get yours at <a href="https://associates.amazon.ca/" target="_blank" style="color: var(--accent);">associates.amazon.ca</a>.
+                    </p>
+                </div>
             </div>
         </div>
         <script>
+        async function saveSiteSetting(key, inputId, statusId, validate) {
+            const input = document.getElementById(inputId);
+            const status = document.getElementById(statusId);
+            const val = input.value.trim();
+            if (validate && !validate(val)) return;
+            try {
+                const res = await fetch('/api/admin/site-settings/' + key, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({value: val})
+                });
+                if (res.ok) {
+                    status.textContent = 'Saved';
+                    status.style.color = '#16a34a';
+                } else {
+                    status.textContent = (await res.text()) || 'Error';
+                    status.style.color = '#dc2626';
+                }
+            } catch (e) {
+                status.textContent = 'Network error';
+                status.style.color = '#dc2626';
+            }
+            setTimeout(() => { status.textContent = ''; }, 3000);
+        }
+        function saveAmazonTag() {
+            saveSiteSetting('amazon_affiliate_tag', 'amazon-affiliate-tag', 'amazon-tag-status');
+        }
         async function saveDrawHoverDelay() {
             const input = document.getElementById('draw-hover-delay');
             const status = document.getElementById('draw-delay-status');
