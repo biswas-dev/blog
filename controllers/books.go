@@ -280,7 +280,7 @@ func (b Books) AdminBooks(w http.ResponseWriter, r *http.Request) {
 		SignupDisabled  bool
 		Description     string
 		CurrentPage     string
-		Books           *models.BooksList
+		Books           []models.Book
 		Genres          []models.BookGenre
 		StatusFilter    string
 		UserPermissions models.UserPermissions
@@ -291,7 +291,7 @@ func (b Books) AdminBooks(w http.ResponseWriter, r *http.Request) {
 		SignupDisabled:  true,
 		Description:     "Manage Books - Anshuman Biswas Blog",
 		CurrentPage:     "admin-books",
-		Books:           booksList,
+		Books:           booksList.Books,
 		Genres:          genres,
 		StatusFilter:    statusFilter,
 		UserPermissions: models.GetPermissions(user.Role),
