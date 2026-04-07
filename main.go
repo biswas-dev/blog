@@ -334,6 +334,8 @@ func main() {
 
 	// Backfill avatar thumbnails for existing uploads
 	go controllers.BackfillAvatarThumbnails()
+	// Compress any oversized featured images (uploaded before auto-compression)
+	go controllers.CompressOversizedImages()
 
 	// Initialize DatabaseBackupService
 	databaseBackupService := models.NewDatabaseBackupService(DB)
