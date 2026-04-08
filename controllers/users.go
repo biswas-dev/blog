@@ -124,18 +124,19 @@ type Users struct {
 // or falls back to the filename extension. Returns (ext, ok).
 func extensionForContent(filetype, filename string) (string, bool) {
 	allowed := map[string]string{
-		"image/jpeg":    ".jpg",
-		"image/png":     ".png",
-		"image/gif":     ".gif",
-		"image/webp":    ".webp",
-		"image/svg+xml": ".svg",
+		"image/jpeg":      ".jpg",
+		"image/png":       ".png",
+		"image/gif":       ".gif",
+		"image/webp":      ".webp",
+		"image/svg+xml":   ".svg",
+		"application/pdf": ".pdf",
 	}
 	if ext, ok := allowed[filetype]; ok {
 		return ext, true
 	}
 	ext := strings.ToLower(filepath.Ext(filename))
 	switch ext {
-	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg":
+	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".pdf":
 		if ext == ".jpeg" {
 			ext = ".jpg"
 		}
@@ -180,6 +181,11 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		if slug != "" {
 			base = filepath.Join(base, slug)
 		}
+	} else if uploadType == "paper" {
+		base = filepath.Join(base, "papers")
+		if slug != "" {
+			base = filepath.Join(base, slug)
+		}
 	} else if slug != "" {
 		base = filepath.Join(base, "post", slug)
 	}
@@ -206,6 +212,11 @@ func saveUploadedFile(file io.ReadSeeker, filename, uploadType, slug string) (st
 		urlBase += "/avatars"
 	} else if uploadType == "slide" {
 		urlBase += "/slide"
+		if slug != "" {
+			urlBase += "/" + slug
+		}
+	} else if uploadType == "paper" {
+		urlBase += "/papers"
 		if slug != "" {
 			urlBase += "/" + slug
 		}
@@ -432,7 +443,7 @@ func (u Users) UploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(20 << 20); err != nil { // 20MB
+	if err := r.ParseMultipartForm(50 << 20); err != nil { // 50MB (PDFs can be large)
 		http.Error(w, "Invalid form", http.StatusBadRequest)
 		return
 	}

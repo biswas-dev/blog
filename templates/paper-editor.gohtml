@@ -1,0 +1,485 @@
+{{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
+{{template "modern-header" .}}
+
+<section class="editor-container formatting-guide">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{if eq .Mode "edit"}}Edit Paper{{else}}New Paper{{end}}</h1>
+    <a href="/admin/papers" class="nav-link">Back to Papers</a>
+  </div>
+
+  {{if eq .Mode "edit"}}
+  <!-- PDF Viewer + Annotations (top section) -->
+  <div class="mb-6">
+    {{if .Paper.PdfFileURL}}
+    <!-- PDF Viewer Container -->
+    <div id="pdf-viewer-container"
+         data-paper-id="{{.Paper.ID}}"
+         data-pdf-url="/admin/papers/{{.Paper.ID}}/pdf"
+         style="min-height: 500px; background: #525659; border-radius: 0.75rem; overflow: hidden; position: relative;">
+
+      <!-- PDF Toolbar -->
+      <div id="pdf-toolbar" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #3b3b3b; color: #fff; font-size: 13px; flex-wrap: wrap;">
+        <button type="button" id="pdf-prev-page" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;" title="Previous page">&laquo; Prev</button>
+        <span id="pdf-page-indicator" style="min-width: 80px; text-align: center;">Page 1 / 1</span>
+        <button type="button" id="pdf-next-page" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;" title="Next page">Next &raquo;</button>
+        <span style="border-left: 1px solid #666; height: 20px; margin: 0 4px;"></span>
+        <button type="button" id="pdf-zoom-out" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;" title="Zoom out">&minus;</button>
+        <span id="pdf-zoom-level" style="min-width: 40px; text-align: center;">150%</span>
+        <button type="button" id="pdf-zoom-in" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;" title="Zoom in">&plus;</button>
+        <span style="border-left: 1px solid #666; height: 20px; margin: 0 4px;"></span>
+        <!-- Highlight colors -->
+        <span style="font-size: 12px; opacity: 0.7;">Highlight:</span>
+        <button type="button" class="pdf-color-btn" data-color="yellow" style="width: 20px; height: 20px; border-radius: 50%; background: #fef08a; border: 2px solid #ca8a04; cursor: pointer;" title="Yellow"></button>
+        <button type="button" class="pdf-color-btn" data-color="green" style="width: 20px; height: 20px; border-radius: 50%; background: #bbf7d0; border: 2px solid #16a34a; cursor: pointer;" title="Green"></button>
+        <button type="button" class="pdf-color-btn" data-color="blue" style="width: 20px; height: 20px; border-radius: 50%; background: #bfdbfe; border: 2px solid #2563eb; cursor: pointer;" title="Blue"></button>
+        <button type="button" class="pdf-color-btn" data-color="pink" style="width: 20px; height: 20px; border-radius: 50%; background: #fbcfe8; border: 2px solid #db2777; cursor: pointer;" title="Pink"></button>
+        <button type="button" class="pdf-color-btn" data-color="orange" style="width: 20px; height: 20px; border-radius: 50%; background: #fed7aa; border: 2px solid #ea580c; cursor: pointer;" title="Orange"></button>
+        <span style="border-left: 1px solid #666; height: 20px; margin: 0 4px;"></span>
+        <button type="button" id="pdf-add-note" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Add Note</button>
+        <button type="button" id="pdf-toggle-annotations" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Toggle Annotations</button>
+      </div>
+
+      <!-- PDF pages render here -->
+      <div id="pdf-pages-container" style="overflow: auto; max-height: 700px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+      </div>
+    </div>
+    {{else}}
+    <!-- No PDF yet: upload zone -->
+    <div id="pdf-upload-zone" style="border: 2px dashed #d1d5db; border-radius: 0.75rem; padding: 3rem; text-align: center; cursor: pointer; background: #f9fafb;" class="dark:border-gray-600 dark:bg-slate-800">
+      <div style="font-size: 2rem; color: #9ca3af; margin-bottom: 0.5rem;">&#128196;</div>
+      <p class="text-gray-500 dark:text-gray-400" style="font-size: 14px;">Drag and drop a PDF file here, or click to upload</p>
+      <p class="text-gray-400 dark:text-gray-500" style="font-size: 12px; margin-top: 4px;">PDF will be available after saving</p>
+      <input type="file" id="pdf-file-input" accept="application/pdf" style="display: none;" />
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+
+  <form method="POST" action="{{if eq .Mode "edit"}}/admin/papers/{{.Paper.ID}}{{else}}/admin/papers{{end}}">
+    {{csrfField}}
+    <input type="hidden" name="pdf_file_url" id="pdf-file-url" value="{{.Paper.PdfFileURL}}" />
+    <input type="hidden" name="pdf_file_size" id="pdf-file-size" value="{{.Paper.PdfFileSize}}" />
+
+    <div class="editor-layout" style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 1.5rem !important; width: 100% !important; flex-wrap: nowrap !important;">
+
+      <!-- Sidebar -->
+      <div class="editor-sidebar" style="display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; border-radius: 0.75rem !important; box-sizing: border-box !important; flex: 0 0 320px !important; width: 320px !important; min-width: 320px !important; max-width: 320px !important; position: sticky !important; top: 1rem !important; align-self: flex-start !important; overflow: hidden !important;">
+        <div class="sidebar-scrollable-content" style="flex: 1 1 auto; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+
+          <!-- Slug -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slug</label>
+            <input type="text" name="slug" placeholder="paper-slug (optional)" class="form-input w-full" value="{{.Paper.Slug}}" />
+          </div>
+
+          <!-- Description -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <textarea name="description" placeholder="Brief description of the paper" class="form-input w-full" rows="3">{{.Paper.Description}}</textarea>
+          </div>
+
+          <!-- Paper Authors -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paper Authors</label>
+            <input type="text" name="paper_authors" placeholder="Author names (comma-separated)" class="form-input w-full" value="{{.Paper.PaperAuthors}}" />
+          </div>
+
+          <!-- Abstract -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Abstract</label>
+            <textarea name="abstract" placeholder="Paper abstract" class="form-input w-full" rows="3">{{.Paper.Abstract}}</textarea>
+          </div>
+
+          <!-- Year -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Year</label>
+            <input type="number" name="year" placeholder="2024" class="form-input w-full" value="{{.Paper.Year}}" min="1900" max="2100" />
+          </div>
+
+          <!-- Conference -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conference</label>
+            <input type="text" name="conference" placeholder="e.g. NeurIPS, ICML, ACL" class="form-input w-full" value="{{.Paper.Conference}}" />
+          </div>
+
+          <!-- DOI -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">DOI</label>
+            <input type="text" name="doi" placeholder="10.xxxx/xxxxx" class="form-input w-full" value="{{.Paper.DOI}}" />
+          </div>
+
+          <!-- arXiv ID -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">arXiv ID</label>
+            <input type="text" name="arxiv_id" placeholder="2301.12345" class="form-input w-full" value="{{.Paper.ArxivID}}" />
+          </div>
+
+          <!-- Cover Image -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cover Image</label>
+            <input type="text" name="cover_image_url" id="featured-url" placeholder="Cover Image URL" class="form-input w-full" value="{{.Paper.CoverImageURL}}" />
+            <div class="cover-upload-section mt-2">
+              <div id="current-cover-preview" class="current-cover-preview" style="display: {{if .Paper.CoverImageURL}}block{{else}}none{{end}};">
+                <img id="current-cover-img" src="{{.Paper.CoverImageURL}}" alt="Current cover image" style="max-width: 120px; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px;" />
+                <button type="button" id="remove-cover-btn" class="remove-cover-btn" aria-label="Remove cover image" style="margin-top: 4px; background: none; border: 1px solid #ef4444; color: #ef4444; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;">&times; Remove</button>
+              </div>
+              <div id="cover-upload-zone" class="cover-drop-zone" style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 1rem; text-align: center; cursor: pointer; margin-top: 0.5rem;">
+                <div class="cover-drop-content">
+                  {{icon "cloud-upload" "w-6 h-6"}}
+                  <div style="font-size: 13px; color: #6b7280;">Drop cover image here or click Upload</div>
+                </div>
+              </div>
+              <div class="cover-upload-controls" style="display: flex; gap: 8px; margin-top: 8px;">
+                <input type="file" id="cover-upload" accept="image/*" style="display:none" />
+                <button type="button" id="upload-new-cover-btn" class="btn btn-secondary" style="font-size: 13px; padding: 6px 12px;">Upload New</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rating (supports half-stars: 0.5 increments) -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rating</label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <select name="rating" id="rating-select" class="block w-24 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 shadow-sm text-sm py-1.5 px-2">
+                <option value="0" {{if not .Paper.Rating}}selected{{end}}>---</option>
+                <option value="0.5" {{if eq (printf "%.1f" .Paper.Rating) "0.5"}}selected{{end}}>0.5</option>
+                <option value="1" {{if eq (printf "%.1f" .Paper.Rating) "1.0"}}selected{{end}}>1</option>
+                <option value="1.5" {{if eq (printf "%.1f" .Paper.Rating) "1.5"}}selected{{end}}>1.5</option>
+                <option value="2" {{if eq (printf "%.1f" .Paper.Rating) "2.0"}}selected{{end}}>2</option>
+                <option value="2.5" {{if eq (printf "%.1f" .Paper.Rating) "2.5"}}selected{{end}}>2.5</option>
+                <option value="3" {{if eq (printf "%.1f" .Paper.Rating) "3.0"}}selected{{end}}>3</option>
+                <option value="3.5" {{if eq (printf "%.1f" .Paper.Rating) "3.5"}}selected{{end}}>3.5</option>
+                <option value="4" {{if eq (printf "%.1f" .Paper.Rating) "4.0"}}selected{{end}}>4</option>
+                <option value="4.5" {{if eq (printf "%.1f" .Paper.Rating) "4.5"}}selected{{end}}>4.5</option>
+                <option value="5" {{if eq (printf "%.1f" .Paper.Rating) "5.0"}}selected{{end}}>5</option>
+              </select>
+              <span id="rating-preview" style="font-size: 1.25rem; letter-spacing: 0.05em;">{{ratingStars .Paper.Rating}}</span>
+            </div>
+            <script>
+              document.getElementById('rating-select').addEventListener('change', function() {
+                var val = parseFloat(this.value) || 0;
+                var html = '';
+                for (var i = 1; i <= 5; i++) {
+                  if (val >= i) html += '<span style="color:#f59e0b;">&#9733;</span>';
+                  else if (val >= i - 0.5) html += '<span style="position:relative;display:inline-block;color:#d1d5db;">&#9733;<span style="position:absolute;left:0;top:0;overflow:hidden;width:50%;color:#f59e0b;">&#9733;</span></span>';
+                  else html += '<span style="color:#d1d5db;">&#9733;</span>';
+                }
+                document.getElementById('rating-preview').innerHTML = html;
+              });
+            </script>
+          </div>
+
+          <!-- Research Areas -->
+          <div style="flex: 0 0 auto; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Research Areas</label>
+            <div class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-2 max-h-48 overflow-y-auto">
+              {{if .ResearchAreas}}
+                {{range .ResearchAreas}}
+                <label class="flex items-center space-x-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 cursor-pointer">
+                  <input type="checkbox"
+                         name="research_areas"
+                         value="{{.ID}}"
+                         class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                         {{if index $.SelectedAreaMap .ID}}checked{{end}}>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">{{.Name}}</span>
+                </label>
+                {{end}}
+              {{else}}
+                <p class="text-sm text-gray-500 dark:text-gray-400">No research areas available</p>
+              {{end}}
+            </div>
+          </div>
+
+          <!-- Publish -->
+          <div style="flex: 0 0 auto;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Publish</label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" name="is_published" {{if .Paper.IsPublished}}checked{{end}}
+                     class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+              <span class="text-sm text-gray-700 dark:text-gray-300">Published</span>
+            </label>
+          </div>
+
+        </div>
+        <!-- Fixed button area at bottom -->
+        <div class="sidebar-button-area" style="flex: 0 0 auto; padding: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px 24px; font-size: 16px; font-weight: 600;">
+            {{if eq .Mode "edit"}}Update Paper{{else}}Create Paper{{end}}
+          </button>
+        </div>
+      </div>
+
+      <!-- Main content area -->
+      <div class="editor-main" style="display: flex !important; flex-direction: column !important; gap: 1rem !important; width: 100% !important;">
+        <input type="text" name="title" placeholder="Paper Title" class="form-input w-full" value="{{.Paper.Title}}" required style="font-size: 1.25rem; padding: 0.75rem;" />
+
+        <!-- go-wiki content editor for the review -->
+        {{.EditorHTML}}
+
+        <!-- My Notes (plain textarea) -->
+        <div style="margin-top: 1rem;">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">My Notes <span style="color: var(--text-tertiary); font-weight: normal;">(personal notes, supports markdown)</span></label>
+          <textarea name="my_notes" class="form-input w-full" rows="8" placeholder="Your personal notes, key takeaways, and reflections on this paper...">{{.Paper.MyNotes}}</textarea>
+        </div>
+
+        {{if eq .Mode "new"}}
+        <!-- PDF Upload section for new papers -->
+        <div style="margin-top: 1rem;">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">PDF Upload</label>
+          <div id="pdf-upload-zone-new" style="border: 2px dashed #d1d5db; border-radius: 0.75rem; padding: 2rem; text-align: center; cursor: pointer; background: #f9fafb;" class="dark:border-gray-600 dark:bg-slate-800">
+            <div style="font-size: 2rem; color: #9ca3af; margin-bottom: 0.5rem;">&#128196;</div>
+            <p class="text-gray-500 dark:text-gray-400" style="font-size: 14px;">Drag and drop a PDF file here, or click to upload</p>
+            <p id="pdf-upload-status" class="text-gray-400 dark:text-gray-500" style="font-size: 12px; margin-top: 4px;"></p>
+            <input type="file" id="pdf-file-input-new" accept="application/pdf" style="display: none;" />
+          </div>
+        </div>
+        {{end}}
+      </div>
+
+    </div>
+  </form>
+
+  {{if eq .Mode "edit"}}
+  {{if .Annotations}}
+  <!-- Annotations List Section -->
+  <div style="margin-top: 2rem;">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-gray-50 mb-4">Annotations</h2>
+    <div class="bg-white dark:bg-slate-800 shadow overflow-hidden rounded-lg">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-slate-700">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Page</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Quote</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Note</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Color</th>
+            <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Public</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+          {{range .Annotations}}
+          <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors" data-annotation-id="{{.ID}}">
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">{{.PageNumber}}</td>
+            <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-300" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{.SelectedText}}</td>
+            <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{if .Note}}{{.Note}}{{else}}&mdash;{{end}}</td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: {{if eq .Color "yellow"}}#fef08a{{else if eq .Color "green"}}#bbf7d0{{else if eq .Color "blue"}}#bfdbfe{{else if eq .Color "pink"}}#fbcfe8{{else if eq .Color "orange"}}#fed7aa{{else}}#fef08a{{end}}; border: 1px solid #d1d5db;"></span>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-center">
+              <label class="cursor-pointer">
+                <input type="checkbox" class="annotation-public-toggle rounded border-gray-300 text-blue-600" data-id="{{.ID}}" {{if .IsPublic}}checked{{end}} />
+              </label>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+              <button type="button" class="annotation-delete-btn text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300" data-id="{{.ID}}">Delete</button>
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{end}}
+  {{end}}
+</section>
+
+{{if eq .Mode "edit"}}
+<script>
+if (window.__goWikiConfig) {
+  window.__goWikiConfig.paperId = "{{.Paper.ID}}";
+  window.__goWikiConfig.cloudinaryFolder = "blog/papers/{{.Paper.ID}}";
+}
+</script>
+{{end}}
+
+<!-- Cover image sidebar JS -->
+<script>
+(function() {
+  'use strict';
+  document.addEventListener('DOMContentLoaded', function() {
+    var featuredURL = document.getElementById('featured-url');
+    var coverPreview = document.getElementById('current-cover-preview');
+    var coverImg = document.getElementById('current-cover-img');
+    var removeBtn = document.getElementById('remove-cover-btn');
+    var uploadInput = document.getElementById('cover-upload');
+    var uploadBtn = document.getElementById('upload-new-cover-btn');
+    var dropZone = document.getElementById('cover-upload-zone');
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', function() {
+        featuredURL.value = '';
+        coverPreview.style.display = 'none';
+      });
+    }
+
+    if (uploadBtn) {
+      uploadBtn.addEventListener('click', function() { uploadInput.click(); });
+    }
+
+    if (uploadInput) {
+      uploadInput.addEventListener('change', function() {
+        if (!uploadInput.files.length) return;
+        var fd = new FormData();
+        fd.append('file', uploadInput.files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    if (dropZone) {
+      dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.borderColor = '#6366f1'; });
+      dropZone.addEventListener('dragleave', function() { dropZone.style.borderColor = '#d1d5db'; });
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.style.borderColor = '#d1d5db';
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length || !files[0].type.startsWith('image/')) return;
+        var fd = new FormData();
+        fd.append('file', files[0]);
+        fetch('/admin/uploads?type=featured', { method: 'POST', body: fd })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.url) {
+              featuredURL.value = data.url;
+              coverImg.src = data.url;
+              coverPreview.style.display = 'block';
+            }
+          })
+          .catch(function(err) { alert('Upload failed: ' + err.message); });
+      });
+    }
+
+    // PDF upload for new papers
+    var pdfZoneNew = document.getElementById('pdf-upload-zone-new');
+    var pdfInputNew = document.getElementById('pdf-file-input-new');
+    var pdfFileUrl = document.getElementById('pdf-file-url');
+    var pdfFileSize = document.getElementById('pdf-file-size');
+    var pdfStatus = document.getElementById('pdf-upload-status');
+
+    function uploadPdf(file) {
+      if (!file || file.type !== 'application/pdf') {
+        alert('Please select a PDF file.');
+        return;
+      }
+      var slugInput = document.querySelector('input[name="slug"]');
+      var slug = slugInput ? slugInput.value : '';
+      var fd = new FormData();
+      fd.append('file', file);
+      if (pdfStatus) pdfStatus.textContent = 'Uploading...';
+      fetch('/admin/uploads?type=paper&slug=' + encodeURIComponent(slug), { method: 'POST', body: fd })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.url) {
+            if (pdfFileUrl) pdfFileUrl.value = data.url;
+            if (pdfFileSize) pdfFileSize.value = data.size || file.size;
+            if (pdfStatus) pdfStatus.textContent = 'Uploaded: ' + data.url;
+          }
+        })
+        .catch(function(err) {
+          if (pdfStatus) pdfStatus.textContent = 'Upload failed: ' + err.message;
+        });
+    }
+
+    if (pdfZoneNew) {
+      pdfZoneNew.addEventListener('click', function() { if (pdfInputNew) pdfInputNew.click(); });
+      pdfZoneNew.addEventListener('dragover', function(e) { e.preventDefault(); pdfZoneNew.style.borderColor = '#6366f1'; });
+      pdfZoneNew.addEventListener('dragleave', function() { pdfZoneNew.style.borderColor = '#d1d5db'; });
+      pdfZoneNew.addEventListener('drop', function(e) {
+        e.preventDefault();
+        pdfZoneNew.style.borderColor = '#d1d5db';
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length) uploadPdf(files[0]);
+      });
+    }
+    if (pdfInputNew) {
+      pdfInputNew.addEventListener('change', function() {
+        if (pdfInputNew.files.length) uploadPdf(pdfInputNew.files[0]);
+      });
+    }
+
+    // PDF upload for edit mode (top zone)
+    var pdfZoneEdit = document.getElementById('pdf-upload-zone');
+    var pdfInputEdit = document.getElementById('pdf-file-input');
+    if (pdfZoneEdit) {
+      pdfZoneEdit.addEventListener('click', function() { if (pdfInputEdit) pdfInputEdit.click(); });
+      pdfZoneEdit.addEventListener('dragover', function(e) { e.preventDefault(); pdfZoneEdit.style.borderColor = '#6366f1'; });
+      pdfZoneEdit.addEventListener('dragleave', function() { pdfZoneEdit.style.borderColor = '#d1d5db'; });
+      pdfZoneEdit.addEventListener('drop', function(e) {
+        e.preventDefault();
+        pdfZoneEdit.style.borderColor = '#d1d5db';
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length) uploadPdf(files[0]);
+      });
+    }
+    if (pdfInputEdit) {
+      pdfInputEdit.addEventListener('change', function() {
+        if (pdfInputEdit.files.length) {
+          uploadPdf(pdfInputEdit.files[0]);
+        }
+      });
+    }
+
+    // Annotation public toggle
+    document.querySelectorAll('.annotation-public-toggle').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var id = this.getAttribute('data-id');
+        var isPublic = this.checked;
+        fetch('/api/papers/annotations/' + id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_public: isPublic })
+        }).catch(function(err) { alert('Failed to update annotation: ' + err.message); });
+      });
+    });
+
+    // Annotation delete
+    document.querySelectorAll('.annotation-delete-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = this.getAttribute('data-id');
+        if (!confirm('Delete this annotation?')) return;
+        fetch('/api/papers/annotations/' + id, { method: 'DELETE' })
+          .then(function() {
+            var row = document.querySelector('tr[data-annotation-id="' + id + '"]');
+            if (row) row.remove();
+          })
+          .catch(function(err) { alert('Failed to delete annotation: ' + err.message); });
+      });
+    });
+
+    // Initialize PDF annotator if viewer container exists
+    var pdfContainer = document.getElementById('pdf-viewer-container');
+    if (pdfContainer && window.PdfAnnotator) {
+      var pdfUrl = pdfContainer.getAttribute('data-pdf-url');
+      var paperId = pdfContainer.getAttribute('data-paper-id');
+      var annotator = new PdfAnnotator(pdfContainer, pdfUrl, paperId);
+      annotator.loadPdf();
+    }
+  });
+})();
+</script>
+
+<!-- Load PDF annotator script -->
+<script src="/static/js/pdf-annotator.js"></script>
+
+<style>
+/* Blog-specific sidebar styles */
+.editor-sidebar {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+.dark .editor-sidebar {
+  background: #1e293b;
+  border-color: #334155;
+}
+</style>
+
+{{template "modern-footer" .}}
