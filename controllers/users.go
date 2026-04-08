@@ -431,12 +431,31 @@ func CompressOversizedImages() {
 	}
 }
 
-// UploadImage handles image uploads (cover or inline). Returns JSON {url}
+// UploadImage handles image uploads (cover or inline). Returns JSON {url}.
+// Supports both session auth and API token auth (Bearer token in Authorization header).
 func (u Users) UploadImage(w http.ResponseWriter, r *http.Request) {
 	user, err := u.isUserLoggedIn(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		// Fall back to API token auth (Bearer token in Authorization header)
+		if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+			token := strings.TrimPrefix(authHeader, "Bearer ")
+			// Check legacy env token
+			if envToken := os.Getenv("API_TOKEN"); envToken != "" && token == envToken {
+				user = &models.User{Role: models.RoleAdministrator}
+				err = nil
+			}
+			// Check user API tokens
+			if err != nil && u.APITokenService != nil {
+				if _, apiErr := u.APITokenService.ValidateToken(token); apiErr == nil {
+					user = &models.User{Role: models.RoleAdministrator}
+					err = nil
+				}
+			}
+		}
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 	}
 	if !models.CanEditPosts(user.Role) && !models.IsAdmin(user.Role) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
