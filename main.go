@@ -321,8 +321,14 @@ func main() {
 	bookService := models.BookService{DB: DB}
 	bookVersionService := &models.BookVersionService{DB: DB}
 
+	// Initialize PaperService, PaperResearchAreaService, PaperAnnotationService, PaperVersionService
+	paperResearchAreaService := models.PaperResearchAreaService{DB: DB}
+	paperService := models.PaperService{DB: DB}
+	paperVersionService := &models.PaperVersionService{DB: DB}
+	paperAnnotationService := &models.PaperAnnotationService{DB: DB}
+
 	// sitemap.xml — dynamic XML sitemap (depends on post/slide/guide/book/category services)
-	r.Get("/sitemap.xml", sitemapHandler(&postService, &slideService, &guideService, &bookService, &categoryService, &bookGenreService))
+	r.Get("/sitemap.xml", sitemapHandler(&postService, &slideService, &guideService, &bookService, &paperService, &categoryService, &bookGenreService))
 
 	slideVersionService := &models.SlideVersionService{DB: DB}
 
@@ -452,6 +458,16 @@ func main() {
 		BlogWiki:           blogWiki,
 	}
 
+	// Initialize Papers controller
+	papersC := controllers.Papers{
+		PaperService:           &paperService,
+		PaperVersionService:    paperVersionService,
+		PaperAnnotationService: paperAnnotationService,
+		SessionService:         &sessionService,
+		ResearchAreaService:    &paperResearchAreaService,
+		BlogWiki:               blogWiki,
+	}
+
 	// Initialize SlideVersions controller
 	slideVersionsC := controllers.SlideVersions{
 		SlideVersionService: slideVersionService,
@@ -576,6 +592,16 @@ func main() {
 	booksC.Templates.BookEditor = views.Must(views.ParseFS(
 		templates.FS, "book-editor.gohtml", "tailwind.gohtml"))
 
+	// Initialize Papers templates
+	papersC.Templates.PapersList = views.Must(views.ParseFS(
+		templates.FS, "papers-list.gohtml", "tailwind.gohtml"))
+	papersC.Templates.PaperPage = views.Must(views.ParseFS(
+		templates.FS, "paper-page.gohtml", "tailwind.gohtml"))
+	papersC.Templates.AdminPapers = views.Must(views.ParseFS(
+		templates.FS, "admin-papers.gohtml", "tailwind.gohtml"))
+	papersC.Templates.PaperEditor = views.Must(views.ParseFS(
+		templates.FS, "paper-editor.gohtml", "tailwind.gohtml"))
+
 	// Initialize Analytics controller
 	analyticsC := controllers.Analytics{
 		DB:               DB,
@@ -678,6 +704,28 @@ func main() {
 	r.Post("/admin/books/{bookID}", booksC.UpdateBook)
 	r.Post("/admin/books/{bookID}/delete", booksC.DeleteBook)
 	r.Post("/admin/books/preview", booksC.PreviewBook)
+
+	// Public Paper Routes (literal paths before {slug})
+	r.Get("/papers", papersC.PublicPapersList)
+	r.Get("/papers/area/{name}", papersC.AreaPage)
+	r.Get("/papers/{slug}", papersC.ViewPaper)
+
+	// Admin Paper Routes
+	r.Get("/admin/papers", papersC.AdminPapers)
+	r.Get("/admin/papers/new", papersC.NewPaper)
+	r.Post("/admin/papers", papersC.CreatePaper)
+	r.Get("/admin/papers/{paperID}/edit", papersC.EditPaper)
+	r.Post("/admin/papers/{paperID}", papersC.UpdatePaper)
+	r.Post("/admin/papers/{paperID}/delete", papersC.DeletePaper)
+	r.Post("/admin/papers/preview", papersC.PreviewPaper)
+	r.Get("/admin/papers/{paperID}/pdf", papersC.ServePDF)
+
+	// Paper Annotation API (admin/editor only via session auth)
+	r.Get("/api/papers/{paperID}/annotations", papersC.ListAnnotations)
+	r.Post("/api/papers/{paperID}/annotations", papersC.CreateAnnotation)
+	r.Put("/api/papers/annotations/{annotationID}", papersC.UpdateAnnotation)
+	r.Delete("/api/papers/annotations/{annotationID}", papersC.DeleteAnnotation)
+	r.Post("/api/papers/{paperID}/annotations/reorder", papersC.ReorderAnnotations)
 
 	// Slide Version API Routes
 	r.Get("/api/slides/{slideID}/versions", slideVersionsC.HandleListVersions)
@@ -918,6 +966,25 @@ func main() {
 		r.Post("/", createBookGenreAPI(&bookGenreService))
 		r.Put("/{genreID}", updateBookGenreAPI(&bookGenreService))
 		r.Delete("/{genreID}", deleteBookGenreAPI(&bookGenreService))
+	})
+
+	// Papers API
+	r.Route("/api/papers", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listPapersAPI(&paperService))
+		r.Get("/{paperID}", getPaperAPI(&paperService))
+		r.Post("/", createPaperAPI(&paperService))
+		r.Put("/{paperID}", updatePaperAPI(&paperService))
+		r.Delete("/{paperID}", deletePaperAPI(&paperService))
+	})
+
+	// Paper Research Areas API
+	r.Route("/api/paper-research-areas", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listPaperAreasAPI(&paperResearchAreaService))
+		r.Post("/", createPaperAreaAPI(&paperResearchAreaService))
+		r.Put("/{areaID}", updatePaperAreaAPI(&paperResearchAreaService))
+		r.Delete("/{areaID}", deletePaperAreaAPI(&paperResearchAreaService))
 	})
 
 	// Comments API (token-authenticated)
@@ -2025,6 +2092,194 @@ func deleteBookGenreAPI(bgs *models.BookGenreService) http.HandlerFunc {
 	}
 }
 
+// ── Paper API handlers ──────────────────────────────────────────────────────
+
+func listPapersAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		papers, err := ps.GetAllPapers()
+		if err != nil {
+			http.Error(w, "Failed to fetch papers", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, papers, http.StatusOK)
+	}
+}
+
+func getPaperAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "paperID"))
+		if err != nil {
+			http.Error(w, "Invalid paper ID", http.StatusBadRequest)
+			return
+		}
+		paper, err := ps.GetByID(id)
+		if err != nil {
+			http.Error(w, "Paper not found", http.StatusNotFound)
+			return
+		}
+		jsonResponse(w, paper, http.StatusOK)
+	}
+}
+
+func createPaperAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			UserID       int     `json:"user_id"`
+			Title        string  `json:"title"`
+			Slug         string  `json:"slug"`
+			PaperAuthors string  `json:"paper_authors"`
+			Abstract     string  `json:"abstract"`
+			PaperYear    int     `json:"paper_year"`
+			Conference   string  `json:"conference"`
+			DOI          string  `json:"doi"`
+			ArxivID      string  `json:"arxiv_id"`
+			PDFFileURL   string  `json:"pdf_file_url"`
+			PDFFileSize  int64   `json:"pdf_file_size"`
+			CoverImage   string  `json:"cover_image_url"`
+			Content      string  `json:"content"`
+			Description  string  `json:"description"`
+			MyNotes      string  `json:"my_notes"`
+			Rating       float64 `json:"rating"`
+			IsPublished  bool    `json:"is_published"`
+			Areas        []int   `json:"areas"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		paper, err := ps.Create(req.UserID, req.Title, req.Slug, req.PaperAuthors, req.Abstract,
+			req.PaperYear, req.Conference, req.DOI, req.ArxivID, req.PDFFileURL, req.PDFFileSize,
+			req.CoverImage, req.Content, req.Description, req.MyNotes, req.Rating, req.IsPublished, req.Areas)
+		if err != nil {
+			http.Error(w, "Failed to create paper: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, paper, http.StatusCreated)
+	}
+}
+
+func updatePaperAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "paperID"))
+		if err != nil {
+			http.Error(w, "Invalid paper ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Title        string  `json:"title"`
+			Slug         string  `json:"slug"`
+			PaperAuthors string  `json:"paper_authors"`
+			Abstract     string  `json:"abstract"`
+			PaperYear    int     `json:"paper_year"`
+			Conference   string  `json:"conference"`
+			DOI          string  `json:"doi"`
+			ArxivID      string  `json:"arxiv_id"`
+			PDFFileURL   string  `json:"pdf_file_url"`
+			PDFFileSize  int64   `json:"pdf_file_size"`
+			CoverImage   string  `json:"cover_image_url"`
+			Content      string  `json:"content"`
+			Description  string  `json:"description"`
+			MyNotes      string  `json:"my_notes"`
+			Rating       float64 `json:"rating"`
+			IsPublished  bool    `json:"is_published"`
+			Areas        []int   `json:"areas"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		if err := ps.Update(id, req.Title, req.Slug, req.PaperAuthors, req.Abstract,
+			req.PaperYear, req.Conference, req.DOI, req.ArxivID, req.PDFFileURL, req.PDFFileSize,
+			req.CoverImage, req.Content, req.Description, req.MyNotes, req.Rating, req.IsPublished, req.Areas); err != nil {
+			http.Error(w, "Failed to update paper: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "updated"}, http.StatusOK)
+	}
+}
+
+func deletePaperAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "paperID"))
+		if err != nil {
+			http.Error(w, "Invalid paper ID", http.StatusBadRequest)
+			return
+		}
+		if err := ps.Delete(id); err != nil {
+			http.Error(w, "Failed to delete paper: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
+	}
+}
+
+func listPaperAreasAPI(as *models.PaperResearchAreaService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		areas, err := as.GetAll()
+		if err != nil {
+			http.Error(w, "Failed to fetch areas", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, areas, http.StatusOK)
+	}
+}
+
+func createPaperAreaAPI(as *models.PaperResearchAreaService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		area, err := as.Create(req.Name)
+		if err != nil {
+			http.Error(w, "Failed to create area: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, area, http.StatusCreated)
+	}
+}
+
+func updatePaperAreaAPI(as *models.PaperResearchAreaService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "areaID"))
+		if err != nil {
+			http.Error(w, "Invalid area ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		area, err := as.Update(id, req.Name)
+		if err != nil {
+			http.Error(w, "Failed to update area: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, area, http.StatusOK)
+	}
+}
+
+func deletePaperAreaAPI(as *models.PaperResearchAreaService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "areaID"))
+		if err != nil {
+			http.Error(w, "Invalid area ID", http.StatusBadRequest)
+			return
+		}
+		if err := as.Delete(id); err != nil {
+			http.Error(w, "Failed to delete area: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
+	}
+}
+
 func jsonResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set(headerContentType, "application/json")
 	w.WriteHeader(statusCode)
@@ -2159,6 +2414,7 @@ func sitemapHandler(
 	ss *models.SlideService,
 	gs *models.GuideService,
 	bs *models.BookService,
+	pps *models.PaperService,
 	cs *models.CategoryService,
 	bgs *models.BookGenreService,
 ) http.HandlerFunc {
@@ -2184,6 +2440,7 @@ func sitemapHandler(
 			{"/guides", "0.7"},
 			{"/slides", "0.7"},
 			{"/books", "0.7"},
+			{"/papers", "0.7"},
 		} {
 			fmt.Fprintf(w, "  <url><loc>%s%s</loc><lastmod>%s</lastmod><priority>%s</priority></url>\n",
 				baseURL, page.path, now, page.priority)
@@ -2255,6 +2512,18 @@ func sitemapHandler(
 				encodedName := url.PathEscape(g.Name)
 				fmt.Fprintf(w, "  <url><loc>%s/books/genre/%s</loc><lastmod>%s</lastmod><priority>0.4</priority></url>\n",
 					baseURL, encodedName, now)
+			}
+		}
+
+		// Published papers
+		if papers, err := pps.GetPublishedPapers(); err == nil && papers != nil {
+			for _, p := range papers.Papers {
+				lastmod := p.CreatedAt
+				if p.UpdatedAt != "" {
+					lastmod = p.UpdatedAt
+				}
+				fmt.Fprintf(w, "  <url><loc>%s/papers/%s</loc><lastmod>%s</lastmod><priority>0.6</priority></url>\n",
+					baseURL, xmlEscape(p.Slug), sitemapDate(lastmod))
 			}
 		}
 

@@ -97,6 +97,7 @@
                 <li><a href="/slides" class="nav-link {{if eq .CurrentPage "slides"}}active{{end}}">Slides</a></li>
                 <li><a href="/guides" class="nav-link {{if eq .CurrentPage "guides"}}active{{end}}">Guides</a></li>
                 <li><a href="/books" class="nav-link {{if eq .CurrentPage "books"}}active{{end}}">Books</a></li>
+                <li><a href="/papers" class="nav-link {{if eq .CurrentPage "papers"}}active{{end}}">Papers</a></li>
                 <li><a href="/about" class="nav-link {{if eq .CurrentPage "about"}}active{{end}}">About</a></li>
                 {{if .LoggedIn}}
                     {{if .UserPermissions.CanViewAdmin}}
@@ -167,6 +168,21 @@
                                     </a>
                                 </div>
                                 {{end}}
+                                <div class="h-px bg-gray-200 dark:bg-gray-700 my-2"></div>
+                                <div>
+                                    <a href="/admin/papers" class="dropdown-item">
+                                        <span class="flex items-center gap-2">
+                                            {{icon "file-text" "w-4 h-4"}}
+                                            <span>Papers</span>
+                                        </span>
+                                    </a>
+                                    <a href="/admin/papers/new" class="dropdown-item">
+                                        <span class="flex items-center gap-2">
+                                            {{icon "plus" "w-4 h-4"}}
+                                            <span>New Paper</span>
+                                        </span>
+                                    </a>
+                                </div>
                                 <div class="h-px bg-gray-200 dark:bg-gray-700 my-2"></div>
                                 <div>
                                     <a href="/admin/categories" class="dropdown-item">
@@ -300,6 +316,7 @@
                     <li><a href="/slides" class="nav-link {{if eq .CurrentPage "slides"}}active{{end}}">Slides</a></li>
                     <li><a href="/guides" class="nav-link {{if eq .CurrentPage "guides"}}active{{end}}">Guides</a></li>
                     <li><a href="/books" class="nav-link {{if eq .CurrentPage "books"}}active{{end}}">Books</a></li>
+                    <li><a href="/papers" class="nav-link {{if eq .CurrentPage "papers"}}active{{end}}">Papers</a></li>
                     <li><a href="/about" class="nav-link {{if eq .CurrentPage "about"}}active{{end}}">About</a></li>
                     {{if .LoggedIn}}
                         <li><a href="/my-posts" class="nav-link {{if eq .CurrentPage "my-posts"}}active{{end}}">My Activity</a></li>
@@ -315,6 +332,8 @@
                             <li><a href="/admin/books" class="nav-link">Books</a></li>
                             <li><a href="/admin/books/new" class="nav-link">New Book</a></li>
                             {{end}}
+                            <li><a href="/admin/papers" class="nav-link">Papers</a></li>
+                            <li><a href="/admin/papers/new" class="nav-link">New Paper</a></li>
                             <li><a href="/admin/categories" class="nav-link">Categories</a></li>
                             <li><a href="/admin/formatting-guide" class="nav-link">Formatting Guide</a></li>
                             <li><a href="/admin/analytics" class="nav-link">Analytics</a></li>
