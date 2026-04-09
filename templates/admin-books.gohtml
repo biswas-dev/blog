@@ -1,0 +1,132 @@
+{{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
+{{template "modern-header" .}}
+
+<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Books</h1>
+                    <p class="text-gray-600 dark:text-gray-400 mt-1">Track and manage your reading list</p>
+                </div>
+                <div class="flex space-x-3">
+                    <a href="/admin/books/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        {{icon "plus" "w-4 h-4 mr-2"}}
+                        New Book
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Filter Tabs -->
+        <div class="mb-6 flex flex-wrap gap-2">
+            <a href="/admin/books"
+               class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors {{if eq .StatusFilter ""}}bg-indigo-600 text-white{{else}}bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700{{end}}">
+                All
+            </a>
+            <a href="/admin/books?status=reading"
+               class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors {{if eq .StatusFilter "reading"}}bg-indigo-600 text-white{{else}}bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700{{end}}">
+                Reading
+            </a>
+            <a href="/admin/books?status=completed"
+               class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors {{if eq .StatusFilter "completed"}}bg-indigo-600 text-white{{else}}bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700{{end}}">
+                Completed
+            </a>
+            <a href="/admin/books?status=want-to-read"
+               class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors {{if eq .StatusFilter "want-to-read"}}bg-indigo-600 text-white{{else}}bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700{{end}}">
+                Want to Read
+            </a>
+            <a href="/admin/books?status=abandoned"
+               class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors {{if eq .StatusFilter "abandoned"}}bg-indigo-600 text-white{{else}}bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700{{end}}">
+                Abandoned
+            </a>
+        </div>
+
+        <!-- Books Table -->
+        <div class="bg-white dark:bg-slate-800 shadow overflow-hidden rounded-lg">
+            {{if .Books}}
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-slate-700">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cover</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Author</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rating</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date Read</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Published</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {{range .Books}}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <td class="px-6 py-4">
+                            {{if .CoverImageURL}}
+                            <img src="{{.CoverImageURL}}" alt="{{.Title}}" class="rounded" style="width: 40px; height: 60px; object-fit: cover;" width="40" height="60" />
+                            {{else}}
+                            <div style="width: 40px; height: 60px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                {{icon "book-open" "w-4 h-4 text-gray-400"}}
+                            </div>
+                            {{end}}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                <a href="/admin/books/{{.ID}}/edit" class="hover:text-indigo-600 dark:hover:text-indigo-400">{{.Title}}</a>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                            {{.BookAuthor}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {{if eq .ReadingStatus "reading"}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Reading</span>
+                            {{else if eq .ReadingStatus "completed"}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Completed</span>
+                            {{else if eq .ReadingStatus "want-to-read"}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Want to Read</span>
+                            {{else if eq .ReadingStatus "abandoned"}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-400">Abandoned</span>
+                            {{else}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-400">{{.ReadingStatus}}</span>
+                            {{end}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{if .Rating}}
+                                {{ratingStars .Rating}}
+                            {{else}}
+                            &mdash;
+                            {{end}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{if .DateFinished}}{{.DateFinished}}{{else}}&mdash;{{end}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                            {{if .IsPublished}}
+                            <span class="text-green-600 dark:text-green-400">&#10003;</span>
+                            {{else}}
+                            <span class="text-gray-400">&mdash;</span>
+                            {{end}}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="/admin/books/{{.ID}}/edit" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Edit</a>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            <div class="text-center py-12">
+                <p class="text-gray-500 dark:text-gray-400">No books yet. Start tracking your reading!</p>
+                <a href="/admin/books/new" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                    {{icon "plus" "w-4 h-4 mr-2"}}
+                    New Book
+                </a>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</div>
+
+{{template "modern-footer" .}}

@@ -96,6 +96,8 @@
                 <li><a href="/" class="nav-link {{if eq .CurrentPage "home"}}active{{end}}">Home</a></li>
                 <li><a href="/slides" class="nav-link {{if eq .CurrentPage "slides"}}active{{end}}">Slides</a></li>
                 <li><a href="/guides" class="nav-link {{if eq .CurrentPage "guides"}}active{{end}}">Guides</a></li>
+                <li><a href="/books" class="nav-link {{if eq .CurrentPage "books"}}active{{end}}">Books</a></li>
+                <li><a href="/papers" class="nav-link {{if eq .CurrentPage "papers"}}active{{end}}">Papers</a></li>
                 <li><a href="/about" class="nav-link {{if eq .CurrentPage "about"}}active{{end}}">About</a></li>
                 {{if .LoggedIn}}
                     {{if .UserPermissions.CanViewAdmin}}
@@ -146,6 +148,38 @@
                                         <span class="flex items-center gap-2">
                                             {{icon "plus" "w-4 h-4"}}
                                             <span>New Guide</span>
+                                        </span>
+                                    </a>
+                                </div>
+                                {{if .IsAdmin}}
+                                <div class="h-px bg-gray-200 dark:bg-gray-700 my-2"></div>
+                                <div>
+                                    <a href="/admin/books" class="dropdown-item">
+                                        <span class="flex items-center gap-2">
+                                            {{icon "document" "w-4 h-4"}}
+                                            <span>Books</span>
+                                        </span>
+                                    </a>
+                                    <a href="/admin/books/new" class="dropdown-item">
+                                        <span class="flex items-center gap-2">
+                                            {{icon "plus" "w-4 h-4"}}
+                                            <span>New Book</span>
+                                        </span>
+                                    </a>
+                                </div>
+                                {{end}}
+                                <div class="h-px bg-gray-200 dark:bg-gray-700 my-2"></div>
+                                <div>
+                                    <a href="/admin/papers" class="dropdown-item">
+                                        <span class="flex items-center gap-2">
+                                            {{icon "file-text" "w-4 h-4"}}
+                                            <span>Papers</span>
+                                        </span>
+                                    </a>
+                                    <a href="/admin/papers/new" class="dropdown-item">
+                                        <span class="flex items-center gap-2">
+                                            {{icon "plus" "w-4 h-4"}}
+                                            <span>New Paper</span>
                                         </span>
                                     </a>
                                 </div>
@@ -281,6 +315,8 @@
                 <ul class="mobile-nav-links">
                     <li><a href="/slides" class="nav-link {{if eq .CurrentPage "slides"}}active{{end}}">Slides</a></li>
                     <li><a href="/guides" class="nav-link {{if eq .CurrentPage "guides"}}active{{end}}">Guides</a></li>
+                    <li><a href="/books" class="nav-link {{if eq .CurrentPage "books"}}active{{end}}">Books</a></li>
+                    <li><a href="/papers" class="nav-link {{if eq .CurrentPage "papers"}}active{{end}}">Papers</a></li>
                     <li><a href="/about" class="nav-link {{if eq .CurrentPage "about"}}active{{end}}">About</a></li>
                     {{if .LoggedIn}}
                         <li><a href="/my-posts" class="nav-link {{if eq .CurrentPage "my-posts"}}active{{end}}">My Activity</a></li>
@@ -292,6 +328,12 @@
                             <li><a href="/admin/slides/new" class="nav-link">New Slide</a></li>
                             <li><a href="/admin/guides" class="nav-link">Guides</a></li>
                             <li><a href="/admin/guides/new" class="nav-link">New Guide</a></li>
+                            {{if .IsAdmin}}
+                            <li><a href="/admin/books" class="nav-link">Books</a></li>
+                            <li><a href="/admin/books/new" class="nav-link">New Book</a></li>
+                            {{end}}
+                            <li><a href="/admin/papers" class="nav-link">Papers</a></li>
+                            <li><a href="/admin/papers/new" class="nav-link">New Paper</a></li>
                             <li><a href="/admin/categories" class="nav-link">Categories</a></li>
                             <li><a href="/admin/formatting-guide" class="nav-link">Formatting Guide</a></li>
                             <li><a href="/admin/analytics" class="nav-link">Analytics</a></li>
@@ -583,6 +625,79 @@
 
     <!-- Reader engagement tracker (time on page, scroll depth, section attention) -->
     <script src="/static/js/engagement.js?v=2026-04-04c" defer></script>
+
+    <!-- go-draw embed scroll guard: block pointer events on diagram iframes
+         until the reader has hovered for 5 seconds, so normal page scrolling
+         isn't hijacked when the cursor passes over an embedded drawing. -->
+    <style>.godraw-embed iframe { pointer-events: none; transition: opacity 0.2s; }
+           .godraw-embed.draw-active iframe { pointer-events: auto; }
+           .godraw-embed .draw-hover-hint { position:absolute; top:8px; left:50%; transform:translateX(-50%);
+             padding:6px 14px; border-radius:999px; font-size:12px; color:#fff; background:rgba(0,0,0,0.6);
+             backdrop-filter:blur(4px); pointer-events:none; opacity:0; transition:opacity 0.15s; z-index:3;
+             display:flex; align-items:center; gap:8px; font-weight:500; white-space:nowrap; }
+           .godraw-embed:hover .draw-hover-hint { opacity:1; }
+           .godraw-embed.draw-active .draw-hover-hint { opacity:0; }
+           .godraw-embed .draw-hover-ring { width:14px; height:14px; position:relative; }
+           .godraw-embed .draw-hover-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+           .godraw-embed .draw-hover-ring circle { fill:none; stroke-width:2; stroke-linecap:round; }
+           .godraw-embed .draw-hover-ring .draw-ring-bg { stroke:rgba(255,255,255,0.25); }
+           .godraw-embed .draw-hover-ring .draw-ring-fg { stroke:#fff; transition:stroke-dashoffset 0.1s linear; }</style>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const drawHoverDelay = {{siteConfig "draw_hover_delay" "3"}} * 1000;
+      document.querySelectorAll('.godraw-embed').forEach(el => {
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+        // Hint pill with countdown ring + text.
+        const hint = document.createElement('div');
+        hint.className = 'draw-hover-hint';
+        hint.innerHTML =
+          '<span class="draw-hover-ring">' +
+            '<svg viewBox="0 0 20 20">' +
+              '<circle class="draw-ring-bg" cx="10" cy="10" r="8"></circle>' +
+              '<circle class="draw-ring-fg" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="50.27"></circle>' +
+            '</svg>' +
+          '</span>' +
+          '<span class="draw-hover-label">Hover for ' + (drawHoverDelay/1000).toFixed(1) + 's to interact</span>';
+        el.appendChild(hint);
+        const label = hint.querySelector('.draw-hover-label');
+        const ringFg = hint.querySelector('.draw-ring-fg');
+        const CIRC = 50.27; // 2 * PI * r (r=8)
+        let rafId = null;
+        let startTs = 0;
+
+        function reset() {
+          if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+          startTs = 0;
+          label.textContent = 'Hover for ' + (drawHoverDelay/1000).toFixed(1) + 's to interact';
+          ringFg.setAttribute('stroke-dashoffset', CIRC);
+        }
+
+        function tick(now) {
+          if (!startTs) startTs = now;
+          const elapsed = now - startTs;
+          const remaining = Math.max(0, drawHoverDelay - elapsed);
+          label.textContent = 'Hover for ' + (remaining/1000).toFixed(1) + 's to interact';
+          const pct = Math.min(1, elapsed / drawHoverDelay);
+          ringFg.setAttribute('stroke-dashoffset', CIRC * (1 - pct));
+          if (remaining <= 0) {
+            el.classList.add('draw-active');
+            return;
+          }
+          rafId = requestAnimationFrame(tick);
+        }
+
+        el.addEventListener('mouseenter', () => {
+          if (el.classList.contains('draw-active')) return;
+          reset();
+          rafId = requestAnimationFrame(tick);
+        });
+        el.addEventListener('mouseleave', () => {
+          reset();
+          el.classList.remove('draw-active');
+        });
+      });
+    });
+    </script>
 
     <!-- Keyboard navigation (j/k for sections, / for search) -->
     <style>

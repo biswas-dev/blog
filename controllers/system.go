@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,6 +35,7 @@ type System struct {
 	SyncClient            *models.SyncClient
 	CloudinaryService     *models.CloudinaryService
 	BrevoService          *models.BrevoService
+	SiteSettingsService   *models.SiteSettingsService
 	Templates             struct {
 		Dashboard Template
 	}
@@ -921,5 +923,152 @@ func (s *System) TestBrevoConnection(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": msg,
+	})
+}
+
+// --- Site Settings Handlers ---
+
+// secretKeys lists site_settings keys whose values should be masked in API responses.
+var secretKeys = map[string]bool{
+	"cf_api_token": true,
+	"cf_zone_id":   true,
+}
+
+// maskToken shows the first 4 and last 4 chars, masking the middle.
+// "cfut_kdxyRZqUsic8EsjmNVbEqvON8i0lZo18FAfBpHCsa4fc5e41" → "cfut****5e41"
+func maskToken(s string) string {
+	if len(s) <= 8 {
+		return strings.Repeat("*", len(s))
+	}
+	return s[:4] + strings.Repeat("*", len(s)-8) + s[len(s)-4:]
+}
+
+// GetSiteSettings returns a single site setting. Secret keys are masked.
+func (s *System) GetSiteSettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+	key := chi.URLParam(r, "key")
+	if key == "" {
+		http.Error(w, "key required", http.StatusBadRequest)
+		return
+	}
+	value := s.SiteSettingsService.Get(key, "")
+	display := value
+	if secretKeys[key] && value != "" {
+		display = maskToken(value)
+	}
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]string{"key": key, "value": display, "is_set": fmt.Sprintf("%v", value != "")})
+}
+
+// PurgeCloudflareCacheHandler purges all cached assets on Cloudflare.
+// Uses CF_API_TOKEN env var first, falls back to site_settings cf_api_token.
+func (s *System) PurgeCloudflareCacheHandler(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	token := os.Getenv("CF_API_TOKEN")
+	if token == "" {
+		token = s.SiteSettingsService.Get("cf_api_token", "")
+	}
+	zoneID := os.Getenv("CF_ZONE_ID")
+	if zoneID == "" {
+		zoneID = s.SiteSettingsService.Get("cf_zone_id", "")
+	}
+
+	if token == "" || zoneID == "" {
+		w.Header().Set(headerContentType, mimeJSON)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Cloudflare API token or Zone ID not configured",
+		})
+		return
+	}
+
+	// Call Cloudflare API
+	body := `{"purge_everything":true}`
+	req, _ := http.NewRequest("POST",
+		"https://api.cloudflare.com/client/v4/zones/"+zoneID+"/purge_cache",
+		strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("CF cache purge error: %v", err)
+		w.Header().Set(headerContentType, mimeJSON)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Failed to contact Cloudflare: " + err.Error(),
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	var cfResp struct {
+		Success bool `json:"success"`
+		Errors  []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	json.NewDecoder(resp.Body).Decode(&cfResp)
+
+	if !cfResp.Success {
+		msg := "Cloudflare returned an error"
+		if len(cfResp.Errors) > 0 {
+			msg = cfResp.Errors[0].Message
+		}
+		w.Header().Set(headerContentType, mimeJSON)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": msg})
+		return
+	}
+
+	log.Printf("CF cache purged successfully for zone %s", zoneID)
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Cloudflare cache purged",
+	})
+}
+
+// SaveSiteSetting saves a single site setting with validation.
+func (s *System) SaveSiteSetting(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+	key := chi.URLParam(r, "key")
+	if key == "" {
+		http.Error(w, "key required", http.StatusBadRequest)
+		return
+	}
+	var input struct {
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
+		return
+	}
+
+	// Per-key validation
+	switch key {
+	case "draw_hover_delay":
+		v, err := strconv.Atoi(input.Value)
+		if err != nil || v < 1 || v > 30 {
+			http.Error(w, "draw_hover_delay must be 1–30 (seconds)", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := s.SiteSettingsService.Set(key, input.Value); err != nil {
+		log.Printf("Error saving site setting %q: %v", key, err)
+		http.Error(w, "Failed to save setting", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set(headerContentType, mimeJSON)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Setting %q saved", key),
 	})
 }

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -315,8 +316,19 @@ func main() {
 	// Initialize GuideService (early, needed by Users controller)
 	guideService := models.GuideService{DB: DB}
 
-	// sitemap.xml — dynamic XML sitemap (depends on post/slide/guide/category services)
-	r.Get("/sitemap.xml", sitemapHandler(&postService, &slideService, &guideService, &categoryService))
+	// Initialize BookService, BookGenreService, BookVersionService
+	bookGenreService := models.BookGenreService{DB: DB}
+	bookService := models.BookService{DB: DB}
+	bookVersionService := &models.BookVersionService{DB: DB}
+
+	// Initialize PaperService, PaperResearchAreaService, PaperAnnotationService, PaperVersionService
+	paperResearchAreaService := models.PaperResearchAreaService{DB: DB}
+	paperService := models.PaperService{DB: DB}
+	paperVersionService := &models.PaperVersionService{DB: DB}
+	paperAnnotationService := &models.PaperAnnotationService{DB: DB}
+
+	// sitemap.xml — dynamic XML sitemap (depends on post/slide/guide/book/category services)
+	r.Get("/sitemap.xml", sitemapHandler(&postService, &slideService, &guideService, &bookService, &paperService, &categoryService, &bookGenreService))
 
 	slideVersionService := &models.SlideVersionService{DB: DB}
 
@@ -328,6 +340,8 @@ func main() {
 
 	// Backfill avatar thumbnails for existing uploads
 	go controllers.BackfillAvatarThumbnails()
+	// Compress any oversized featured images (uploaded before auto-compression)
+	go controllers.CompressOversizedImages()
 
 	// Initialize DatabaseBackupService
 	databaseBackupService := models.NewDatabaseBackupService(DB)
@@ -435,6 +449,25 @@ func main() {
 		BlogWiki:        blogWiki,
 	}
 
+	// Initialize Books controller
+	booksC := controllers.Books{
+		BookService:        &bookService,
+		BookVersionService: bookVersionService,
+		SessionService:     &sessionService,
+		BookGenreService:   &bookGenreService,
+		BlogWiki:           blogWiki,
+	}
+
+	// Initialize Papers controller
+	papersC := controllers.Papers{
+		PaperService:           &paperService,
+		PaperVersionService:    paperVersionService,
+		PaperAnnotationService: paperAnnotationService,
+		SessionService:         &sessionService,
+		ResearchAreaService:    &paperResearchAreaService,
+		BlogWiki:               blogWiki,
+	}
+
 	// Initialize SlideVersions controller
 	slideVersionsC := controllers.SlideVersions{
 		SlideVersionService: slideVersionService,
@@ -459,6 +492,10 @@ func main() {
 	}
 
 	// Initialize System controller
+	siteSettingsService := models.NewSiteSettingsService(DB)
+	// Wire site settings into templates so {{siteConfig "key" "fallback"}} works.
+	views.SiteConfigFunc = siteSettingsService.Get
+
 	systemC := controllers.System{
 		SystemService:         systemService,
 		DatabaseBackupService: databaseBackupService,
@@ -467,6 +504,7 @@ func main() {
 		SyncClient:            &syncClient,
 		CloudinaryService:     &cloudinaryService,
 		BrevoService:          &brevoService,
+		SiteSettingsService:   siteSettingsService,
 	}
 
 	usersC.Templates.New = views.Must(views.ParseFS(
@@ -543,6 +581,26 @@ func main() {
 		templates.FS, "admin-guides.gohtml", "tailwind.gohtml"))
 	guidesC.Templates.GuideEditor = views.Must(views.ParseFS(
 		templates.FS, "guide-editor.gohtml", "tailwind.gohtml"))
+
+	// Initialize Books templates
+	booksC.Templates.BooksList = views.Must(views.ParseFS(
+		templates.FS, "books-list.gohtml", "tailwind.gohtml"))
+	booksC.Templates.BookPage = views.Must(views.ParseFS(
+		templates.FS, "book-page.gohtml", "tailwind.gohtml"))
+	booksC.Templates.AdminBooks = views.Must(views.ParseFS(
+		templates.FS, "admin-books.gohtml", "tailwind.gohtml"))
+	booksC.Templates.BookEditor = views.Must(views.ParseFS(
+		templates.FS, "book-editor.gohtml", "tailwind.gohtml"))
+
+	// Initialize Papers templates
+	papersC.Templates.PapersList = views.Must(views.ParseFS(
+		templates.FS, "papers-list.gohtml", "tailwind.gohtml"))
+	papersC.Templates.PaperPage = views.Must(views.ParseFS(
+		templates.FS, "paper-page.gohtml", "tailwind.gohtml"))
+	papersC.Templates.AdminPapers = views.Must(views.ParseFS(
+		templates.FS, "admin-papers.gohtml", "tailwind.gohtml"))
+	papersC.Templates.PaperEditor = views.Must(views.ParseFS(
+		templates.FS, "paper-editor.gohtml", "tailwind.gohtml"))
 
 	// Initialize Analytics controller
 	analyticsC := controllers.Analytics{
@@ -630,6 +688,45 @@ func main() {
 	r.Post("/admin/guides/{guideID}/delete", guidesC.DeleteGuide)
 	r.Post("/admin/guides/preview", guidesC.PreviewGuide)
 
+	// Public Book Routes (literal paths before {slug} parameter)
+	r.Get("/books", booksC.PublicBooksList)
+	r.Get("/books/genre/{name}", booksC.GenrePage)
+	r.Get("/books/author/{name}", booksC.AuthorPage)
+	r.Get("/books/publisher/{name}", booksC.PublisherPage)
+	r.Get("/books/{slug}", booksC.ViewBook)
+	r.Get("/books/{slug}/buy", booksC.BuyBook)
+
+	// Admin Book Routes
+	r.Get("/admin/books", booksC.AdminBooks)
+	r.Get("/admin/books/new", booksC.NewBook)
+	r.Post("/admin/books", booksC.CreateBook)
+	r.Get("/admin/books/{bookID}/edit", booksC.EditBook)
+	r.Post("/admin/books/{bookID}", booksC.UpdateBook)
+	r.Post("/admin/books/{bookID}/delete", booksC.DeleteBook)
+	r.Post("/admin/books/preview", booksC.PreviewBook)
+
+	// Public Paper Routes (literal paths before {slug})
+	r.Get("/papers", papersC.PublicPapersList)
+	r.Get("/papers/area/{name}", papersC.AreaPage)
+	r.Get("/papers/{slug}", papersC.ViewPaper)
+
+	// Admin Paper Routes
+	r.Get("/admin/papers", papersC.AdminPapers)
+	r.Get("/admin/papers/new", papersC.NewPaper)
+	r.Post("/admin/papers", papersC.CreatePaper)
+	r.Get("/admin/papers/{paperID}/edit", papersC.EditPaper)
+	r.Post("/admin/papers/{paperID}", papersC.UpdatePaper)
+	r.Post("/admin/papers/{paperID}/delete", papersC.DeletePaper)
+	r.Post("/admin/papers/preview", papersC.PreviewPaper)
+	r.Get("/admin/papers/{paperID}/pdf", papersC.ServePDF)
+
+	// Paper Annotation API (admin/editor only via session auth)
+	r.Get("/api/papers/{paperID}/annotations", papersC.ListAnnotations)
+	r.Post("/api/papers/{paperID}/annotations", papersC.CreateAnnotation)
+	r.Put("/api/papers/annotations/{annotationID}", papersC.UpdateAnnotation)
+	r.Delete("/api/papers/annotations/{annotationID}", papersC.DeleteAnnotation)
+	r.Post("/api/papers/{paperID}/annotations/reorder", papersC.ReorderAnnotations)
+
 	// Slide Version API Routes
 	r.Get("/api/slides/{slideID}/versions", slideVersionsC.HandleListVersions)
 	r.Get("/api/slides/{slideID}/versions/{versionNum}", slideVersionsC.HandleGetVersion)
@@ -712,6 +809,12 @@ func main() {
 	r.Delete(routeBrevo, systemC.DeleteBrevoSettings)
 	r.Post(routeBrevo+"/test", systemC.TestBrevoConnection)
 
+	// Site settings (generic key-value)
+	r.Get("/api/admin/site-settings/{key}", systemC.GetSiteSettings)
+	r.Put("/api/admin/site-settings/{key}", systemC.SaveSiteSetting)
+	// Cloudflare cache purge
+	r.Post("/api/admin/cloudflare/purge", systemC.PurgeCloudflareCacheHandler)
+
 	r.Get("/api/admin/upload-config", usersC.GetUploadConfig)
 
 	r.Get("/users/me", usersC.CurrentUser)
@@ -774,10 +877,12 @@ func main() {
 	// Annotations routes
 	annotationsC := controllers.AnnotationsController{DB: DB}
 	r.Get("/blog/{slug}/annotations", annotationsC.HandleListAnnotations)
+	r.Get("/guides/{slug}/annotations", annotationsC.HandleListGuideAnnotations)
 	r.Group(func(r chi.Router) {
 		r.Use(authmw.AuthenticatedUser(&sessionService, &apiTokenService))
 		r.Use(authmw.RequirePermission(func(p models.UserPermissions) bool { return p.CanComment }))
 		r.Post("/blog/{slug}/annotations", annotationsC.HandleCreateAnnotation)
+		r.Post("/guides/{slug}/annotations", annotationsC.HandleCreateGuideAnnotation)
 		r.Patch("/annotations/{annotationID}", annotationsC.HandleUpdateAnnotation)
 		r.Delete("/annotations/{annotationID}", annotationsC.HandleDeleteAnnotation)
 		r.Post("/annotations/{annotationID}/comments", annotationsC.HandleCreateAnnotationComment)
@@ -844,6 +949,44 @@ func main() {
 		r.Post("/", createGuideAPI(&guideService))
 		r.Put("/{guideID}", updateGuideAPI(&guideService))
 		r.Delete("/{guideID}", deleteGuideAPI(&guideService))
+	})
+
+	// Books API
+	r.Route("/api/books", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listBooksAPI(&bookService))
+		r.Get("/{bookID}", getBookAPI(&bookService))
+		r.Post("/", createBookAPI(&bookService))
+		r.Put("/{bookID}", updateBookAPI(&bookService))
+		r.Delete("/{bookID}", deleteBookAPI(&bookService))
+	})
+
+	// Book Genres API
+	r.Route("/api/book-genres", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listBookGenresAPI(&bookGenreService))
+		r.Post("/", createBookGenreAPI(&bookGenreService))
+		r.Put("/{genreID}", updateBookGenreAPI(&bookGenreService))
+		r.Delete("/{genreID}", deleteBookGenreAPI(&bookGenreService))
+	})
+
+	// Papers API
+	r.Route("/api/papers", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listPapersAPI(&paperService))
+		r.Get("/{paperID}", getPaperAPI(&paperService))
+		r.Post("/", createPaperAPI(&paperService))
+		r.Put("/{paperID}", updatePaperAPI(&paperService))
+		r.Delete("/{paperID}", deletePaperAPI(&paperService))
+	})
+
+	// Paper Research Areas API
+	r.Route("/api/paper-research-areas", func(r chi.Router) {
+		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
+		r.Get("/", listPaperAreasAPI(&paperResearchAreaService))
+		r.Post("/", createPaperAreaAPI(&paperResearchAreaService))
+		r.Put("/{areaID}", updatePaperAreaAPI(&paperResearchAreaService))
+		r.Delete("/{areaID}", deletePaperAreaAPI(&paperResearchAreaService))
 	})
 
 	// Comments API (token-authenticated)
@@ -1019,6 +1162,18 @@ func drawAuthMiddleware(ss *models.SessionService, apiTokenStr string, apiTokenS
 			canEdit = models.IsAdmin(user.Role) || models.CanEditPosts(user.Role)
 		}
 
+		// All go-draw pages (list, viewer, editor) are internal tools — tell
+		// search engines not to index them. Blog posts embed drawings via
+		// iframes so the content is still reachable.
+		isHTMLPage := !strings.HasPrefix(path, "static/") &&
+			!strings.HasPrefix(path, "uploads/") &&
+			!strings.HasPrefix(path, "api/") &&
+			!strings.HasSuffix(path, "/data") &&
+			!strings.HasSuffix(path, "/save")
+		if isHTMLPage {
+			w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+		}
+
 		// For the list page, hide "+", "Edit", "Delete" buttons for non-editors.
 		if !canEdit && (path == "" || path == "/") {
 			w = &drawHideButtonsWriter{
@@ -1029,11 +1184,7 @@ func drawAuthMiddleware(ss *models.SessionService, apiTokenStr string, apiTokenS
 
 		// For viewer pages (/draw/{id}), hide the "+" new-canvas button
 		// rendered by canvas.js inside the iframe.
-		if !canEdit && !writeOp && path != "" && path != "/" &&
-			!strings.HasPrefix(path, "static/") &&
-			!strings.HasPrefix(path, "uploads/") &&
-			!strings.HasPrefix(path, "api/") &&
-			!strings.HasSuffix(path, "/data") {
+		if !canEdit && !writeOp && path != "" && path != "/" && isHTMLPage {
 			w = &drawHideButtonsWriter{
 				ResponseWriter: w,
 				css:            `#btn-new-canvas{display:none!important}`,
@@ -1730,6 +1881,407 @@ func deleteGuideAPI(gs *models.GuideService) http.HandlerFunc {
 }
 
 // jsonResponse sends a JSON response with the given data and status code.
+// ── Book API handlers ────────────────────────────────────────────────────────
+
+func listBooksAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		books, err := bs.GetAllBooks()
+		if err != nil {
+			http.Error(w, "Failed to fetch books", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, books, http.StatusOK)
+	}
+}
+
+func getBookAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "bookID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid book ID", http.StatusBadRequest)
+			return
+		}
+		book, err := bs.GetByID(id)
+		if err != nil {
+			http.Error(w, "Book not found", http.StatusNotFound)
+			return
+		}
+		jsonResponse(w, book, http.StatusOK)
+	}
+}
+
+func createBookAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			UserID        int    `json:"user_id"`
+			Title         string `json:"title"`
+			Slug          string `json:"slug"`
+			BookAuthor    string `json:"book_author"`
+			ISBN          string `json:"isbn"`
+			Publisher     string `json:"publisher"`
+			PageCount     int    `json:"page_count"`
+			CoverImageURL string `json:"cover_image_url"`
+			Content       string `json:"content"`
+			Description   string `json:"description"`
+			MyThoughts    string `json:"my_thoughts"`
+			LinkURL       string `json:"link_url"`
+			ReadingStatus string `json:"reading_status"`
+			Rating        float64 `json:"rating"`
+			AmazonASIN    string  `json:"amazon_asin"`
+			Medium        string  `json:"medium"`
+			EbookReader   string  `json:"ebook_reader"`
+			DateStarted   string `json:"date_started"`
+			DateFinished  string `json:"date_finished"`
+			IsPublished   bool   `json:"is_published"`
+			Genres        []int  `json:"genres"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		if req.Title == "" {
+			http.Error(w, "Title required", http.StatusBadRequest)
+			return
+		}
+		book, err := bs.Create(req.UserID, req.Title, req.Slug, req.BookAuthor,
+			req.ISBN, req.Publisher, req.PageCount, req.CoverImageURL,
+			req.Content, req.Description, req.MyThoughts, req.LinkURL,
+			req.ReadingStatus, req.Rating, req.AmazonASIN, req.Medium, req.EbookReader,
+			req.DateStarted, req.DateFinished,
+			req.IsPublished, req.Genres)
+		if err != nil {
+			http.Error(w, "Failed to create book: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, book, http.StatusCreated)
+	}
+}
+
+func updateBookAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "bookID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid book ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Title         string `json:"title"`
+			Slug          string `json:"slug"`
+			BookAuthor    string `json:"book_author"`
+			ISBN          string `json:"isbn"`
+			Publisher     string `json:"publisher"`
+			PageCount     int    `json:"page_count"`
+			CoverImageURL string `json:"cover_image_url"`
+			Content       string `json:"content"`
+			Description   string `json:"description"`
+			MyThoughts    string `json:"my_thoughts"`
+			LinkURL       string `json:"link_url"`
+			ReadingStatus string `json:"reading_status"`
+			Rating        float64 `json:"rating"`
+			AmazonASIN    string  `json:"amazon_asin"`
+			Medium        string  `json:"medium"`
+			EbookReader   string  `json:"ebook_reader"`
+			DateStarted   string `json:"date_started"`
+			DateFinished  string `json:"date_finished"`
+			IsPublished   bool   `json:"is_published"`
+			Genres        []int  `json:"genres"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		if err := bs.Update(id, req.Title, req.Slug, req.BookAuthor,
+			req.ISBN, req.Publisher, req.PageCount, req.CoverImageURL,
+			req.Content, req.Description, req.MyThoughts, req.LinkURL,
+			req.ReadingStatus, req.Rating, req.AmazonASIN, req.Medium, req.EbookReader,
+			req.DateStarted, req.DateFinished,
+			req.IsPublished, req.Genres); err != nil {
+			http.Error(w, "Failed to update book: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "updated"}, http.StatusOK)
+	}
+}
+
+func deleteBookAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "bookID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid book ID", http.StatusBadRequest)
+			return
+		}
+		if err := bs.Delete(id); err != nil {
+			http.Error(w, "Failed to delete book: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
+	}
+}
+
+// ── Book Genre API handlers ─────────────────────────────────────────────────
+
+func listBookGenresAPI(bgs *models.BookGenreService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		genres, err := bgs.GetAll()
+		if err != nil {
+			http.Error(w, "Failed to fetch genres", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, genres, http.StatusOK)
+	}
+}
+
+func createBookGenreAPI(bgs *models.BookGenreService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name  string `json:"name"`
+			Group string `json:"group"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		genre, err := bgs.Create(req.Name, req.Group)
+		if err != nil {
+			http.Error(w, "Failed to create genre: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, genre, http.StatusCreated)
+	}
+}
+
+func updateBookGenreAPI(bgs *models.BookGenreService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "genreID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid genre ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Name  string `json:"name"`
+			Group string `json:"group"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		genre, err := bgs.Update(id, req.Name, req.Group)
+		if err != nil {
+			http.Error(w, "Failed to update genre: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, genre, http.StatusOK)
+	}
+}
+
+func deleteBookGenreAPI(bgs *models.BookGenreService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "genreID")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid genre ID", http.StatusBadRequest)
+			return
+		}
+		if err := bgs.Delete(id); err != nil {
+			http.Error(w, "Failed to delete genre: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
+	}
+}
+
+// ── Paper API handlers ──────────────────────────────────────────────────────
+
+func listPapersAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		papers, err := ps.GetAllPapers()
+		if err != nil {
+			http.Error(w, "Failed to fetch papers", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, papers, http.StatusOK)
+	}
+}
+
+func getPaperAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "paperID"))
+		if err != nil {
+			http.Error(w, "Invalid paper ID", http.StatusBadRequest)
+			return
+		}
+		paper, err := ps.GetByID(id)
+		if err != nil {
+			http.Error(w, "Paper not found", http.StatusNotFound)
+			return
+		}
+		jsonResponse(w, paper, http.StatusOK)
+	}
+}
+
+func createPaperAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			UserID       int     `json:"user_id"`
+			Title        string  `json:"title"`
+			Slug         string  `json:"slug"`
+			PaperAuthors string  `json:"paper_authors"`
+			Abstract     string  `json:"abstract"`
+			PaperYear    int     `json:"paper_year"`
+			Conference   string  `json:"conference"`
+			DOI          string  `json:"doi"`
+			ArxivID      string  `json:"arxiv_id"`
+			PDFFileURL   string  `json:"pdf_file_url"`
+			PDFFileSize  int64   `json:"pdf_file_size"`
+			CoverImage   string  `json:"cover_image_url"`
+			Content      string  `json:"content"`
+			Description  string  `json:"description"`
+			MyNotes      string  `json:"my_notes"`
+			Rating       float64 `json:"rating"`
+			IsPublished  bool    `json:"is_published"`
+			Areas        []int   `json:"areas"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		paper, err := ps.Create(req.UserID, req.Title, req.Slug, req.PaperAuthors, req.Abstract,
+			req.PaperYear, req.Conference, req.DOI, req.ArxivID, req.PDFFileURL, req.PDFFileSize,
+			req.CoverImage, req.Content, req.Description, req.MyNotes, req.Rating, req.IsPublished, req.Areas)
+		if err != nil {
+			http.Error(w, "Failed to create paper: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, paper, http.StatusCreated)
+	}
+}
+
+func updatePaperAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "paperID"))
+		if err != nil {
+			http.Error(w, "Invalid paper ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Title        string  `json:"title"`
+			Slug         string  `json:"slug"`
+			PaperAuthors string  `json:"paper_authors"`
+			Abstract     string  `json:"abstract"`
+			PaperYear    int     `json:"paper_year"`
+			Conference   string  `json:"conference"`
+			DOI          string  `json:"doi"`
+			ArxivID      string  `json:"arxiv_id"`
+			PDFFileURL   string  `json:"pdf_file_url"`
+			PDFFileSize  int64   `json:"pdf_file_size"`
+			CoverImage   string  `json:"cover_image_url"`
+			Content      string  `json:"content"`
+			Description  string  `json:"description"`
+			MyNotes      string  `json:"my_notes"`
+			Rating       float64 `json:"rating"`
+			IsPublished  bool    `json:"is_published"`
+			Areas        []int   `json:"areas"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		if err := ps.Update(id, req.Title, req.Slug, req.PaperAuthors, req.Abstract,
+			req.PaperYear, req.Conference, req.DOI, req.ArxivID, req.PDFFileURL, req.PDFFileSize,
+			req.CoverImage, req.Content, req.Description, req.MyNotes, req.Rating, req.IsPublished, req.Areas); err != nil {
+			http.Error(w, "Failed to update paper: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "updated"}, http.StatusOK)
+	}
+}
+
+func deletePaperAPI(ps *models.PaperService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "paperID"))
+		if err != nil {
+			http.Error(w, "Invalid paper ID", http.StatusBadRequest)
+			return
+		}
+		if err := ps.Delete(id); err != nil {
+			http.Error(w, "Failed to delete paper: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
+	}
+}
+
+func listPaperAreasAPI(as *models.PaperResearchAreaService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		areas, err := as.GetAll()
+		if err != nil {
+			http.Error(w, "Failed to fetch areas", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, areas, http.StatusOK)
+	}
+}
+
+func createPaperAreaAPI(as *models.PaperResearchAreaService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		area, err := as.Create(req.Name)
+		if err != nil {
+			http.Error(w, "Failed to create area: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, area, http.StatusCreated)
+	}
+}
+
+func updatePaperAreaAPI(as *models.PaperResearchAreaService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "areaID"))
+		if err != nil {
+			http.Error(w, "Invalid area ID", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		area, err := as.Update(id, req.Name)
+		if err != nil {
+			http.Error(w, "Failed to update area: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, area, http.StatusOK)
+	}
+}
+
+func deletePaperAreaAPI(as *models.PaperResearchAreaService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "areaID"))
+		if err != nil {
+			http.Error(w, "Invalid area ID", http.StatusBadRequest)
+			return
+		}
+		if err := as.Delete(id); err != nil {
+			http.Error(w, "Failed to delete area: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
+	}
+}
+
 func jsonResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set(headerContentType, "application/json")
 	w.WriteHeader(statusCode)
@@ -1800,6 +2352,29 @@ func xmlEscape(s string) string {
 	return s
 }
 
+// sitemapDate normalises any date string to ISO 8601 (YYYY-MM-DD) for sitemap
+// <lastmod>. Handles RFC3339, RFC3339Nano, human "January 2, 2006", and bare
+// "2006-01-02". Falls back to the raw string if parsing fails (should not happen).
+func sitemapDate(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Now().Format("2006-01-02")
+	}
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+		"January 2, 2006",
+		"Jan 2, 2006",
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.Format("2006-01-02")
+		}
+	}
+	return s // fallback: return as-is
+}
+
 // robotsTxtHandler returns the robots.txt content for crawlers.
 func robotsTxtHandler() http.HandlerFunc {
 	body := `User-agent: *
@@ -1840,7 +2415,10 @@ func sitemapHandler(
 	ps *models.PostService,
 	ss *models.SlideService,
 	gs *models.GuideService,
+	bs *models.BookService,
+	pps *models.PaperService,
 	cs *models.CategoryService,
+	bgs *models.BookGenreService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const baseURL = "https://anshumanbiswas.com"
@@ -1863,6 +2441,8 @@ func sitemapHandler(
 			{"/about", "0.6"},
 			{"/guides", "0.7"},
 			{"/slides", "0.7"},
+			{"/books", "0.7"},
+			{"/papers", "0.7"},
 		} {
 			fmt.Fprintf(w, "  <url><loc>%s%s</loc><lastmod>%s</lastmod><priority>%s</priority></url>\n",
 				baseURL, page.path, now, page.priority)
@@ -1879,7 +2459,7 @@ func sitemapHandler(
 					lastmod = p.LastEditDate
 				}
 				fmt.Fprintf(w, "  <url><loc>%s/blog/%s</loc><lastmod>%s</lastmod><priority>0.8</priority></url>\n",
-					baseURL, xmlEscape(p.Slug), xmlEscape(lastmod))
+					baseURL, xmlEscape(p.Slug), sitemapDate(lastmod))
 			}
 		}
 
@@ -1891,7 +2471,7 @@ func sitemapHandler(
 					lastmod = s.UpdatedAt
 				}
 				fmt.Fprintf(w, "  <url><loc>%s/slides/%s</loc><lastmod>%s</lastmod><priority>0.7</priority></url>\n",
-					baseURL, xmlEscape(s.Slug), xmlEscape(lastmod))
+					baseURL, xmlEscape(s.Slug), sitemapDate(lastmod))
 			}
 		}
 
@@ -1903,15 +2483,49 @@ func sitemapHandler(
 					lastmod = g.UpdatedAt
 				}
 				fmt.Fprintf(w, "  <url><loc>%s/guides/%s</loc><lastmod>%s</lastmod><priority>0.8</priority></url>\n",
-					baseURL, xmlEscape(g.Slug), xmlEscape(lastmod))
+					baseURL, xmlEscape(g.Slug), sitemapDate(lastmod))
 			}
 		}
 
-		// Tag pages
+		// Tag pages — URL-encode names (spaces → %20)
 		if cats, err := cs.GetAll(); err == nil {
 			for _, c := range cats {
+				encodedName := url.PathEscape(c.Name)
 				fmt.Fprintf(w, "  <url><loc>%s/tags/%s</loc><lastmod>%s</lastmod><priority>0.5</priority></url>\n",
-					baseURL, xmlEscape(c.Name), now)
+					baseURL, encodedName, now)
+			}
+		}
+
+		// Published books
+		if books, err := bs.GetPublishedBooks(); err == nil && books != nil {
+			for _, b := range books.Books {
+				lastmod := b.CreatedAt
+				if b.UpdatedAt != "" {
+					lastmod = b.UpdatedAt
+				}
+				fmt.Fprintf(w, "  <url><loc>%s/books/%s</loc><lastmod>%s</lastmod><priority>0.6</priority></url>\n",
+					baseURL, xmlEscape(b.Slug), sitemapDate(lastmod))
+			}
+		}
+
+		// Book genre pages
+		if genres, err := bgs.GetAll(); err == nil {
+			for _, g := range genres {
+				encodedName := url.PathEscape(g.Name)
+				fmt.Fprintf(w, "  <url><loc>%s/books/genre/%s</loc><lastmod>%s</lastmod><priority>0.4</priority></url>\n",
+					baseURL, encodedName, now)
+			}
+		}
+
+		// Published papers
+		if papers, err := pps.GetPublishedPapers(); err == nil && papers != nil {
+			for _, p := range papers.Papers {
+				lastmod := p.CreatedAt
+				if p.UpdatedAt != "" {
+					lastmod = p.UpdatedAt
+				}
+				fmt.Fprintf(w, "  <url><loc>%s/papers/%s</loc><lastmod>%s</lastmod><priority>0.6</priority></url>\n",
+					baseURL, xmlEscape(p.Slug), sitemapDate(lastmod))
 			}
 		}
 

@@ -1,0 +1,265 @@
+{{define "page-title"}}{{.Paper.Title}} | Paper Review | Anshuman Biswas{{end}}
+{{define "meta-description"}}<meta name="description" content="{{if .Paper.Description}}{{.Paper.Description}}{{else}}{{.Paper.Title}} — review and annotations by Anshuman Biswas{{end}}" />{{end}}
+{{define "og-meta"}}
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Anshuman Biswas" />
+<meta property="og:title" content="{{.Paper.Title}} | Paper Review" />
+<meta property="og:description" content="{{if .Paper.Description}}{{.Paper.Description}}{{else}}Review and annotations of {{.Paper.Title}}{{end}}" />
+<meta property="og:url" content="{{.FullURL}}" />
+{{if .Paper.CoverImageURL}}<meta property="og:image" content="{{.Paper.CoverImageURL}}" />{{end}}
+{{if .Paper.PaperYear}}<meta property="article:published_time" content="{{.Paper.PaperYear}}" />{{end}}
+<meta property="article:author" content="Anshuman Biswas" />
+<meta name="twitter:card" content="{{if .Paper.CoverImageURL}}summary_large_image{{else}}summary{{end}}" />
+<meta name="twitter:site" content="@AnshumanBiswas" />
+<meta name="twitter:title" content="{{.Paper.Title}} | Paper Review" />
+{{end}}
+{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/papers/{{.Paper.Slug}}" />{{end}}
+{{define "head-extra"}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ScholarlyArticle",
+  "headline": "{{.Paper.Title}}",
+  "author": "{{.Paper.PaperAuthors}}",
+  {{if .Paper.PaperYear}}"datePublished": "{{.Paper.PaperYear}}",{{end}}
+  {{if .Paper.Conference}}"publisher": {"@type": "Organization", "name": "{{.Paper.Conference}}"},{{end}}
+  "description": "{{.Paper.Description}}",
+  "url": "{{.FullURL}}"{{if .Paper.CoverImageURL}},
+  "image": "{{.Paper.CoverImageURL}}"{{end}}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://anshumanbiswas.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Papers", "item": "https://anshumanbiswas.com/papers"},
+    {"@type": "ListItem", "position": 3, "name": "{{.Paper.Title}}"}
+  ]
+}
+</script>
+{{end}}
+{{template "modern-header" .}}
+
+<style>
+    .paper-page { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+
+    /* Breadcrumb */
+    .paper-breadcrumb { margin-bottom: 2rem; font-size: 0.875rem; }
+    .paper-breadcrumb a { color: var(--accent); text-decoration: none; }
+    .paper-breadcrumb a:hover { text-decoration: underline; }
+    .paper-breadcrumb span { color: var(--text-tertiary); }
+
+    /* Hero section */
+    .paper-hero { display: flex; gap: 2rem; margin-bottom: 3rem; }
+    .paper-cover-wrapper { flex-shrink: 0; }
+    .paper-cover-wrapper img {
+        width: 16rem;
+        aspect-ratio: 3/4;
+        object-fit: cover;
+        border-radius: 0.75rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .cover-placeholder-lg {
+        width: 16rem;
+        aspect-ratio: 3/4;
+        border-radius: 0.75rem;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, var(--bg-secondary), var(--border-light));
+        color: var(--text-tertiary);
+        font-size: 3rem;
+        text-align: center;
+        padding: 1rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .paper-details { display: flex; flex-direction: column; gap: 0.5rem; }
+    .paper-details h1 { font-size: 2rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; margin: 0; }
+    .paper-details .paper-authors { font-size: 1.125rem; color: var(--text-secondary); }
+    .paper-details .paper-rating { font-size: 1.25rem; color: #f59e0b; letter-spacing: 0.05em; }
+    .paper-details .paper-venue { font-size: 0.9375rem; color: var(--text-tertiary); }
+
+    .paper-meta-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.875rem; color: var(--text-secondary); }
+    .paper-meta-list li strong { color: var(--text-primary); font-weight: 600; margin-right: 0.375rem; }
+
+    .paper-areas { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem; }
+    .area-pill {
+        font-size: 0.6875rem;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        background: rgba(13,148,136,0.1);
+        color: var(--accent);
+        font-weight: 500;
+    }
+
+    .paper-external-links { display: flex; flex-wrap: wrap; gap: 0.625rem; margin-top: 1rem; }
+    .paper-link-btn {
+        display: inline-flex; align-items: center; gap: 0.375rem;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: opacity 0.15s;
+    }
+    .paper-link-btn:hover { opacity: 0.85; }
+
+    .edit-link { font-size: 0.8125rem; color: var(--accent); text-decoration: none; font-weight: 500; margin-top: 0.5rem; }
+    .edit-link:hover { text-decoration: underline; }
+
+    /* Content sections */
+    .paper-section { margin-bottom: 3rem; }
+    .paper-section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border-light);
+    }
+    .paper-content { font-size: 1rem; line-height: 1.75; color: var(--text-primary); }
+    .paper-content p { margin-bottom: 1rem; }
+
+    /* Key Passages / Annotations */
+    .annotation-card {
+        margin-bottom: 1.5rem;
+        padding: 1.25rem 1.25rem 1.25rem 1.5rem;
+        border-radius: 0.5rem;
+        background: var(--surface);
+        border: 1px solid var(--border-light);
+    }
+    .annotation-quote {
+        font-style: italic;
+        font-size: 1rem;
+        line-height: 1.6;
+        color: var(--text-primary);
+        margin: 0 0 0.5rem;
+    }
+    .annotation-cite {
+        font-size: 0.8125rem;
+        color: var(--text-tertiary);
+        font-style: normal;
+    }
+    .annotation-note {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border-light);
+        font-size: 0.9375rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+    }
+
+    /* Back link */
+    .back-link { display: inline-block; margin-top: 1rem; color: var(--accent); text-decoration: none; font-size: 0.9375rem; font-weight: 500; }
+    .back-link:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+        .paper-hero { flex-direction: column; align-items: center; text-align: center; }
+        .paper-cover-wrapper img, .cover-placeholder-lg { width: 12rem; }
+        .paper-details h1 { font-size: 1.5rem; }
+        .paper-areas { justify-content: center; }
+        .paper-external-links { justify-content: center; }
+    }
+</style>
+
+<div class="paper-page">
+    <!-- Breadcrumb -->
+    <nav class="paper-breadcrumb">
+        <a href="/">Home</a> <span>/</span>
+        <a href="/papers">Papers</a> <span>/</span>
+        <span style="color: var(--text-primary);">{{.Paper.Title}}</span>
+    </nav>
+
+    <!-- Hero -->
+    <div class="paper-hero">
+        <div class="paper-cover-wrapper">
+            {{if .Paper.CoverImageURL}}
+            <img src="{{.Paper.CoverImageURL}}" alt="{{.Paper.Title}}" />
+            {{else}}
+            <div class="cover-placeholder-lg">&#128196;</div>
+            {{end}}
+        </div>
+        <div class="paper-details">
+            <h1>{{.Paper.Title}}</h1>
+
+            {{if .Paper.PaperAuthors}}
+            <span class="paper-authors">{{authorLinks .Paper.PaperAuthors ""}}</span>
+            {{end}}
+
+            <span class="paper-venue">
+                {{if .Paper.Conference}}{{publisherLink .Paper.Conference ""}}{{end}}{{if and .Paper.Conference .Paper.PaperYear}} &middot; {{end}}{{if .Paper.PaperYear}}{{.Paper.PaperYear}}{{end}}
+            </span>
+
+            {{if .Paper.Rating}}
+            <span class="paper-rating">{{ratingStars .Paper.Rating}} <span style="font-size:0.875rem; color: var(--text-tertiary);">{{.Paper.Rating}}/5</span></span>
+            {{end}}
+
+            {{if .Paper.ResearchAreas}}
+            <div class="paper-areas">
+                {{range .Paper.ResearchAreas}}
+                <span class="area-pill">{{.Name}}</span>
+                {{end}}
+            </div>
+            {{end}}
+
+            <div class="paper-external-links">
+                {{if .Paper.DOI}}
+                <a href="https://doi.org/{{.Paper.DOI}}" target="_blank" rel="noopener noreferrer" class="paper-link-btn" style="background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-light);">
+                    DOI {{icon "external" "w-4 h-4"}}
+                </a>
+                {{end}}
+                {{if .Paper.ArxivID}}
+                <a href="https://arxiv.org/abs/{{.Paper.ArxivID}}" target="_blank" rel="noopener noreferrer" class="paper-link-btn" style="background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-light);">
+                    arXiv {{icon "external" "w-4 h-4"}}
+                </a>
+                {{end}}
+            </div>
+
+            {{if .IsAdmin}}
+            <a class="edit-link" href="/admin/papers/{{.Paper.Slug}}/edit">{{icon "edit" "w-4 h-4"}} Edit Paper</a>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- Summary & Review -->
+    {{if .Paper.ContentHTML}}
+    <section class="paper-section">
+        <h2 class="paper-section-title">Summary &amp; Review</h2>
+        <div class="paper-content">
+            {{.Paper.ContentHTML}}
+        </div>
+    </section>
+    {{end}}
+
+    <!-- Key Passages & Annotations -->
+    {{if .PublicAnnotations}}
+    <section class="paper-section">
+        <h2 class="paper-section-title">Key Passages &amp; Annotations</h2>
+        {{range .PublicAnnotations}}
+        <div class="annotation-card" style="border-left: 4px solid {{if .Color}}{{.Color}}{{else}}var(--accent){{end}};">
+            <p class="annotation-quote">&ldquo;{{.SelectedText}}&rdquo;</p>
+            {{if .PageNumber}}
+            <span class="annotation-cite">&mdash; p. {{.PageNumber}}</span>
+            {{end}}
+            {{if .Note}}
+            <div class="annotation-note">{{.Note}}</div>
+            {{end}}
+        </div>
+        {{end}}
+    </section>
+    {{end}}
+
+    <!-- My Notes -->
+    {{if .Paper.MyNotesHTML}}
+    <section class="paper-section">
+        <h2 class="paper-section-title">My Notes</h2>
+        <div class="paper-content">
+            {{.Paper.MyNotesHTML}}
+        </div>
+    </section>
+    {{end}}
+
+    <a class="back-link" href="/papers">&larr; All Papers</a>
+</div>
+
+{{template "modern-footer" .}}

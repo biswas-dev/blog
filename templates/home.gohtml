@@ -1,4 +1,19 @@
-{{define "head-extra"}}{{with index .Posts.Posts 0}}{{if .FeaturedImageURL}}<link rel="preload" as="image" href="{{.FeaturedImageURL}}" fetchpriority="high">{{end}}{{end}}{{end}}
+{{define "head-extra"}}{{with index .Posts.Posts 0}}{{if .FeaturedImageURL}}<link rel="preload" as="image" href="{{.FeaturedImageURL}}" fetchpriority="high">{{end}}{{end}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Anshuman Biswas",
+  "url": "https://anshumanbiswas.com/",
+  "description": "Software engineering, cloud architecture, and AI agent security — by Anshuman Biswas",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://anshumanbiswas.com/search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+{{end}}
 {{template "modern-header" .}}
 
 <!-- Hero Section -->

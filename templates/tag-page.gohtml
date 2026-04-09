@@ -1,3 +1,4 @@
+{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/tags/{{.TagName}}" />{{end}}
 {{template "modern-header" .}}
 
 <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -163,7 +164,7 @@
 
     {{if and (not .Posts) (not .Slides) (not .Guides)}}
     <div class="text-center py-16">
-        {{icon "tag" "w-16 h-16 mx-auto mb-4" "color: var(--text-tertiary)"}}
+        {{icon "tag" "w-16 h-16 mx-auto mb-4"}}
         <h3 class="text-xl font-semibold mb-2" style="color: var(--text-primary);">No content yet</h3>
         <p style="color: var(--text-secondary);">No posts, presentations, or guides have been tagged with "{{.TagName}}" yet.</p>
     </div>

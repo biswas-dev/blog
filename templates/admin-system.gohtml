@@ -699,6 +699,220 @@
             </div>
         </div>
 
+        <!-- Cloudflare CDN Section -->
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-amber">
+                        {{icon "cloud" "w-4 h-4"}}
+                    </div>
+                    <div>
+                        <h3>Cloudflare CDN</h3>
+                        <p>Cache management and CDN configuration</p>
+                    </div>
+                </div>
+                <button onclick="purgeCloudflareCache()" class="sys-btn-outline" id="cf-purge-btn" style="display: flex; align-items: center; gap: 6px;">
+                    {{icon "refresh" "w-4 h-4"}}
+                    Purge All Cache
+                </button>
+            </div>
+            <div class="sys-section-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 16px;">
+                <div id="cf-purge-status" style="display:none; padding: 8px 12px; border-radius: 6px; font-size: 0.8125rem;"></div>
+                <p style="font-size: 0.8125rem; color: var(--text-secondary);">
+                    Cloudflare API credentials are injected via CI environment variables. You can also set them manually below (overrides env vars).
+                </p>
+                <!-- CF API Token -->
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 120px;">API Token</label>
+                    <input type="text" id="cf-api-token"
+                           value=""
+                           placeholder="cfut_..."
+                           class="sys-input" style="width: 320px; padding: 6px 10px; font-family: monospace; font-size: 0.8125rem;">
+                    <button onclick="saveCFSetting('cf_api_token','cf-api-token','cf-token-status')" class="sys-btn-outline" style="padding: 6px 14px;">Save</button>
+                    <span id="cf-token-status" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                </div>
+                <!-- CF Zone ID -->
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 120px;">Zone ID</label>
+                    <input type="text" id="cf-zone-id"
+                           value=""
+                           placeholder="39baf63f..."
+                           class="sys-input" style="width: 320px; padding: 6px 10px; font-family: monospace; font-size: 0.8125rem;">
+                    <button onclick="saveCFSetting('cf_zone_id','cf-zone-id','cf-zone-status')" class="sys-btn-outline" style="padding: 6px 14px;">Save</button>
+                    <span id="cf-zone-status" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-tertiary);">
+                    Once saved, token values are masked. Get your token at <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" style="color: var(--accent);">Cloudflare Dashboard</a> with "Cache Purge" + "Zone Read" permissions.
+                </p>
+            </div>
+        </div>
+        <script>
+        // Load masked CF values on page load
+        (async function() {
+            for (var pair of [['cf_api_token','cf-api-token'],['cf_zone_id','cf-zone-id']]) {
+                try {
+                    var res = await fetch('/api/admin/site-settings/' + pair[0]);
+                    if (res.ok) {
+                        var data = await res.json();
+                        if (data.value) document.getElementById(pair[1]).value = data.value;
+                    }
+                } catch(e) {}
+            }
+        })();
+        function saveCFSetting(key, inputId, statusId) {
+            saveSiteSetting(key, inputId, statusId);
+            // After saving, mask the displayed value
+            setTimeout(function() {
+                var input = document.getElementById(inputId);
+                var val = input.value;
+                if (val && val.length > 8 && !val.includes('*')) {
+                    input.value = val.substring(0, 4) + '*'.repeat(val.length - 8) + val.substring(val.length - 4);
+                }
+            }, 500);
+        }
+        async function purgeCloudflareCache() {
+            var btn = document.getElementById('cf-purge-btn');
+            var status = document.getElementById('cf-purge-status');
+            btn.disabled = true;
+            btn.textContent = 'Purging...';
+            status.style.display = 'none';
+            try {
+                var res = await fetch('/api/admin/cloudflare/purge', {method: 'POST'});
+                var data = await res.json();
+                status.style.display = 'block';
+                if (data.success) {
+                    status.textContent = '✓ ' + data.message;
+                    status.style.background = 'rgba(22,163,74,0.1)';
+                    status.style.color = '#16a34a';
+                } else {
+                    status.textContent = '✗ ' + data.message;
+                    status.style.background = 'rgba(220,38,38,0.1)';
+                    status.style.color = '#dc2626';
+                }
+            } catch (e) {
+                status.style.display = 'block';
+                status.textContent = '✗ Network error';
+                status.style.background = 'rgba(220,38,38,0.1)';
+                status.style.color = '#dc2626';
+            }
+            btn.disabled = false;
+            btn.textContent = 'Purge All Cache';
+            setTimeout(function() { status.style.display = 'none'; }, 5000);
+        }
+        </script>
+
+        <!-- Site Settings Section -->
+        <div class="sys-section-card">
+            <div class="sys-section-header">
+                <div class="sys-section-header-left">
+                    <div class="sys-icon sys-icon-blue">
+                        {{icon "settings" "w-4 h-4"}}
+                    </div>
+                    <div>
+                        <h3>Site Settings</h3>
+                        <p>Configurable site-wide parameters</p>
+                    </div>
+                </div>
+            </div>
+            <div class="sys-section-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 20px;">
+                <!-- Draw Hover Delay -->
+                <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 180px;">
+                        Draw Hover Delay (seconds)
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="number" id="draw-hover-delay" min="1" max="30" step="1"
+                               value="{{siteConfig "draw_hover_delay" "3"}}"
+                               class="sys-input" style="width: 80px; padding: 6px 10px; text-align: center;">
+                        <button onclick="saveDrawHoverDelay()" class="sys-btn-outline" style="padding: 6px 14px;">
+                            Save
+                        </button>
+                        <span id="draw-delay-status" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-tertiary); width: 100%;">
+                        Readers must hover over a go-draw diagram for this many seconds before scroll-to-zoom activates. Min 1s, max 30s.
+                    </p>
+                </div>
+                <!-- Amazon Affiliate Tag -->
+                <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--border-light);">
+                    <label style="font-size: 0.8125rem; color: var(--text-secondary); min-width: 180px;">
+                        Amazon Affiliate Tag
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="text" id="amazon-affiliate-tag"
+                               value="{{siteConfig "amazon_affiliate_tag" ""}}"
+                               placeholder="yourname-20"
+                               class="sys-input" style="width: 200px; padding: 6px 10px;">
+                        <button onclick="saveAmazonTag()" class="sys-btn-outline" style="padding: 6px 14px;">
+                            Save
+                        </button>
+                        <span id="amazon-tag-status" style="font-size: 0.75rem; color: var(--text-tertiary);"></span>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-tertiary); width: 100%;">
+                        Amazon Associates tracking tag. Appended to all Amazon book links as <code>?tag=...</code> for affiliate income. Get yours at <a href="https://associates.amazon.ca/" target="_blank" style="color: var(--accent);">associates.amazon.ca</a>.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <script>
+        async function saveSiteSetting(key, inputId, statusId, validate) {
+            const input = document.getElementById(inputId);
+            const status = document.getElementById(statusId);
+            const val = input.value.trim();
+            if (validate && !validate(val)) return;
+            try {
+                const res = await fetch('/api/admin/site-settings/' + key, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({value: val})
+                });
+                if (res.ok) {
+                    status.textContent = 'Saved';
+                    status.style.color = '#16a34a';
+                } else {
+                    status.textContent = (await res.text()) || 'Error';
+                    status.style.color = '#dc2626';
+                }
+            } catch (e) {
+                status.textContent = 'Network error';
+                status.style.color = '#dc2626';
+            }
+            setTimeout(() => { status.textContent = ''; }, 3000);
+        }
+        function saveAmazonTag() {
+            saveSiteSetting('amazon_affiliate_tag', 'amazon-affiliate-tag', 'amazon-tag-status');
+        }
+        async function saveDrawHoverDelay() {
+            const input = document.getElementById('draw-hover-delay');
+            const status = document.getElementById('draw-delay-status');
+            const val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 1 || val > 30) {
+                status.textContent = 'Must be 1–30';
+                status.style.color = '#dc2626';
+                return;
+            }
+            try {
+                const res = await fetch('/api/admin/site-settings/draw_hover_delay', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({value: String(val)})
+                });
+                if (res.ok) {
+                    status.textContent = 'Saved';
+                    status.style.color = '#16a34a';
+                } else {
+                    const text = await res.text();
+                    status.textContent = text || 'Error';
+                    status.style.color = '#dc2626';
+                }
+            } catch (e) {
+                status.textContent = 'Network error';
+                status.style.color = '#dc2626';
+            }
+            setTimeout(() => { status.textContent = ''; }, 3000);
+        }
+        </script>
+
         <!-- Brevo Settings Modal -->
         <div id="brevo-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">

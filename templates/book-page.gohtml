@@ -1,0 +1,285 @@
+{{define "page-title"}}{{.Book.Title}} by {{.Book.BookAuthor}} | Anshuman Biswas{{end}}
+{{define "meta-description"}}<meta name="description" content="{{if .Book.Description}}{{.Book.Description}}{{else}}{{.Book.Title}} by {{.Book.BookAuthor}} — review and notes by Anshuman Biswas{{end}}" />{{end}}
+{{define "og-meta"}}
+<meta property="og:type" content="book" />
+<meta property="og:site_name" content="Anshuman Biswas" />
+<meta property="og:title" content="{{.Book.Title}} by {{.Book.BookAuthor}}" />
+<meta property="og:description" content="{{if .Book.Description}}{{.Book.Description}}{{else}}{{.Book.Title}} — review and notes{{end}}" />
+<meta property="og:url" content="{{.FullURL}}" />
+{{if .Book.CoverImageURL}}<meta property="og:image" content="{{.Book.CoverImageURL}}" />{{end}}
+<meta property="book:author" content="{{.Book.BookAuthor}}" />
+{{if .Book.ISBN}}<meta property="book:isbn" content="{{.Book.ISBN}}" />{{end}}
+<meta name="twitter:card" content="{{if .Book.CoverImageURL}}summary_large_image{{else}}summary{{end}}" />
+<meta name="twitter:site" content="@AnshumanBiswas" />
+<meta name="twitter:title" content="{{.Book.Title}} by {{.Book.BookAuthor}}" />
+{{end}}
+{{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/books/{{.Book.Slug}}" />{{end}}
+{{define "head-extra"}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Book",
+  "name": "{{.Book.Title}}",
+  "author": {"@type": "Person", "name": "{{.Book.BookAuthor}}"},
+  {{if .Book.ISBN}}"isbn": "{{.Book.ISBN}}",{{end}}
+  {{if .Book.Publisher}}"publisher": {"@type": "Organization", "name": "{{.Book.Publisher}}"},{{end}}
+  {{if .Book.PageCount}}"numberOfPages": {{.Book.PageCount}},{{end}}
+  "url": "{{.FullURL}}"{{if .Book.CoverImageURL}},
+  "image": "{{.Book.CoverImageURL}}"{{end}}
+}
+</script>
+{{if .Book.Rating}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Review",
+  "itemReviewed": {"@type": "Book", "name": "{{.Book.Title}}"},
+  "author": {"@type": "Person", "name": "Anshuman Biswas", "url": "https://anshumanbiswas.com"},
+  "reviewRating": {"@type": "Rating", "ratingValue": "{{.Book.Rating}}", "bestRating": "5"},
+  "reviewBody": "{{.Book.Description}}"
+}
+</script>
+{{end}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://anshumanbiswas.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Books", "item": "https://anshumanbiswas.com/books"},
+    {"@type": "ListItem", "position": 3, "name": "{{.Book.Title}}"}
+  ]
+}
+</script>
+{{end}}
+{{template "modern-header" .}}
+
+<style>
+    .book-page { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+
+    /* Breadcrumb */
+    .book-breadcrumb { margin-bottom: 2rem; font-size: 0.875rem; }
+    .book-breadcrumb a { color: var(--accent); text-decoration: none; }
+    .book-breadcrumb a:hover { text-decoration: underline; }
+    .book-breadcrumb span { color: var(--text-tertiary); }
+
+    /* Hero section */
+    .book-hero { display: flex; gap: 2rem; margin-bottom: 3rem; }
+    .book-cover-wrapper { flex-shrink: 0; }
+    .book-cover-wrapper img {
+        width: 16rem;
+        aspect-ratio: 2/3;
+        object-fit: cover;
+        border-radius: 0.75rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .cover-placeholder-lg {
+        width: 16rem;
+        aspect-ratio: 2/3;
+        border-radius: 0.75rem;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, var(--bg-secondary), var(--border-light));
+        color: var(--text-tertiary);
+        font-size: 1rem;
+        text-align: center;
+        padding: 1rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .book-details { display: flex; flex-direction: column; gap: 0.5rem; }
+    .book-details h1 { font-size: 2rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; margin: 0; }
+    .book-details .book-author { font-size: 1.125rem; color: var(--text-secondary); }
+    .book-details .book-rating { font-size: 1.25rem; color: #f59e0b; letter-spacing: 0.05em; }
+
+    /* Status badge */
+    .status-badge {
+        display: inline-flex; align-items: center; gap: 0.375rem;
+        font-size: 0.8125rem; font-weight: 600;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        width: fit-content;
+    }
+    .status-completed { background: rgba(16,185,129,0.12); color: #059669; }
+    .status-reading { background: rgba(59,130,246,0.12); color: #2563eb; }
+    .status-want-to-read { background: rgba(245,158,11,0.12); color: #d97706; }
+    .status-abandoned { background: rgba(107,114,128,0.12); color: #6b7280; }
+
+    .book-meta-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: flex; flex-direction: column; gap: 0.375rem; }
+    .book-meta-list li { font-size: 0.875rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; }
+    .book-meta-list li strong { color: var(--text-primary); font-weight: 600; min-width: 5.5rem; }
+
+    .book-genres { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem; }
+    .genre-pill { font-size: 0.75rem; padding: 0.1875rem 0.625rem; border-radius: 9999px; background: rgba(13,148,136,0.1); color: var(--accent); font-weight: 500; }
+
+    .book-link-btn {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem; font-weight: 600;
+        background: var(--accent); color: #fff;
+        text-decoration: none;
+        transition: opacity 0.15s;
+    }
+    .book-link-btn:hover { opacity: 0.85; }
+
+    /* Content sections */
+    .book-content-section { margin-bottom: 2.5rem; }
+    .book-content-section h2 {
+        font-size: 1.375rem; font-weight: 700; color: var(--text-primary);
+        margin-bottom: 1rem; padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border-light);
+    }
+    .book-prose {
+        font-size: 1.0625rem; line-height: 1.75; color: var(--text-primary);
+    }
+    .book-prose p { margin-bottom: 1em; }
+    .book-prose h2 { font-size: 1.375rem; font-weight: 700; margin: 1.5em 0 0.75em; }
+    .book-prose h3 { font-size: 1.125rem; font-weight: 600; margin: 1.25em 0 0.5em; }
+    .book-prose ul, .book-prose ol { padding-left: 1.5rem; margin-bottom: 1em; }
+    .book-prose li { margin-bottom: 0.25em; }
+    .book-prose blockquote { border-left: 3px solid var(--accent); padding-left: 1rem; margin: 1em 0; color: var(--text-secondary); font-style: italic; }
+    .book-prose a { color: var(--accent); text-decoration: underline; }
+    .book-prose code { font-size: 0.875em; background: var(--bg-secondary); padding: 0.15em 0.35em; border-radius: 0.25em; }
+    .book-prose pre { background: var(--bg-secondary); border-radius: 0.5rem; padding: 1rem; overflow-x: auto; margin: 1em 0; }
+    .book-prose pre code { background: none; padding: 0; }
+    .book-prose img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1em 0; }
+
+    /* My Thoughts — personal note feel */
+    .my-thoughts-section {
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem 1.5rem 1.5rem 2rem;
+        background: var(--bg-secondary);
+        border-radius: 0 0.75rem 0.75rem 0;
+        margin-bottom: 2.5rem;
+    }
+    .my-thoughts-section h2 {
+        font-size: 1.25rem; font-weight: 700; color: var(--text-primary);
+        margin: 0 0 1rem; padding: 0; border: none;
+    }
+
+    .book-admin-link { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; color: var(--accent); text-decoration: none; font-weight: 500; margin-bottom: 1.5rem; }
+    .book-admin-link:hover { text-decoration: underline; }
+
+    .book-back-link { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.9375rem; color: var(--accent); text-decoration: none; font-weight: 500; }
+    .book-back-link:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+        .book-hero { flex-direction: column; align-items: center; text-align: center; }
+        .book-cover-wrapper img, .cover-placeholder-lg { width: 12rem; }
+        .book-details { align-items: center; }
+        .book-details h1 { font-size: 1.5rem; }
+        .book-meta-list li { justify-content: center; }
+        .book-genres { justify-content: center; }
+    }
+</style>
+
+<div class="book-page">
+    <!-- Breadcrumb -->
+    <nav class="book-breadcrumb">
+        <a href="/">Home</a> <span>/</span>
+        <a href="/books">Books</a> <span>/</span>
+        <span style="color: var(--text-secondary);">{{.Book.Title}}</span>
+    </nav>
+
+    {{if .IsAdmin}}
+    <a href="/admin/books/{{.Book.Slug}}/edit" class="book-admin-link">
+        {{icon "pencil" "w-4 h-4"}} Edit Book
+    </a>
+    {{end}}
+
+    <!-- Hero -->
+    <div class="book-hero">
+        <div class="book-cover-wrapper">
+            {{if .Book.CoverImageURL}}
+                <img src="{{.Book.CoverImageURL}}" alt="{{.Book.Title}}" loading="lazy">
+            {{else}}
+                <div class="cover-placeholder-lg">{{.Book.Title}}</div>
+            {{end}}
+        </div>
+        <div class="book-details">
+            <h1>{{.Book.Title}}</h1>
+            <span class="book-author">by {{authorLinks .Book.BookAuthor ""}}</span>
+
+            {{if .Book.Rating}}
+            <span class="book-rating">{{ratingStars .Book.Rating}} <span style="font-size:0.875rem; color: var(--text-tertiary);">{{.Book.Rating}}/5</span></span>
+            {{end}}
+
+            {{if eq .Book.ReadingStatus "completed"}}
+                <span class="status-badge status-completed">Completed</span>
+            {{else if eq .Book.ReadingStatus "reading"}}
+                <span class="status-badge status-reading">Currently Reading</span>
+            {{else if eq .Book.ReadingStatus "want-to-read"}}
+                <span class="status-badge status-want-to-read">Want to Read</span>
+            {{else if eq .Book.ReadingStatus "abandoned"}}
+                <span class="status-badge status-abandoned">Abandoned</span>
+            {{end}}
+
+            <ul class="book-meta-list">
+                {{if .Book.DateStarted}}
+                <li><strong>Started</strong> {{.Book.DateStarted}}</li>
+                {{end}}
+                {{if .Book.DateFinished}}
+                <li><strong>Finished</strong> {{.Book.DateFinished}}</li>
+                {{end}}
+                {{if .Book.PageCount}}
+                <li><strong>Pages</strong> {{.Book.PageCount}}</li>
+                {{end}}
+                {{if .Book.Publisher}}
+                <li><strong>Publisher</strong> {{publisherLink .Book.Publisher ""}}</li>
+                {{end}}
+                {{if .Book.ISBN}}
+                <li><strong>ISBN</strong> {{.Book.ISBN}}</li>
+                {{end}}
+                {{if .Book.Medium}}
+                <li><strong>Format</strong> {{if eq .Book.Medium "ebook"}}eBook{{else if eq .Book.Medium "audiobook"}}Audiobook{{else}}Physical{{end}}{{if .Book.EbookReader}} · {{.Book.EbookReader}}{{end}}</li>
+                {{end}}
+            </ul>
+
+            {{if .Book.Genres}}
+            <div class="book-genres">
+                {{range .Book.Genres}}
+                <span class="genre-pill">{{.Name}}</span>
+                {{end}}
+            </div>
+            {{end}}
+
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 1rem;">
+            {{if or .Book.LinkURL .Book.Title}}
+            <a href="/books/{{.Book.Slug}}/buy" target="_blank" rel="noopener sponsored noreferrer" class="book-link-btn" style="background: #f59e0b; color: #000; font-weight: 600;">
+                Buy on Amazon
+            </a>
+            {{end}}
+            {{if .Book.LinkURL}}
+            <a href="{{.Book.LinkURL}}" target="_blank" rel="noopener noreferrer" class="book-link-btn" style="background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-light);">
+                {{if contains .Book.LinkURL "goodreads.com"}}Goodreads{{else if contains .Book.LinkURL "amazon."}}Amazon{{else}}More Info{{end}} {{icon "external" "w-4 h-4"}}
+            </a>
+            {{end}}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary / Review -->
+    {{if .Book.ContentHTML}}
+    <div class="book-content-section">
+        <h2>Summary &amp; Review</h2>
+        <div class="book-prose">
+            {{.Book.ContentHTML}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- My Thoughts -->
+    {{if .Book.MyThoughtsHTML}}
+    <div class="my-thoughts-section">
+        <h2>My Thoughts</h2>
+        <div class="book-prose">
+            {{.Book.MyThoughtsHTML}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Back link -->
+    <a href="/books" class="book-back-link">&larr; All Books</a>
+</div>
+
+{{template "modern-footer" .}}

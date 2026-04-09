@@ -16,6 +16,11 @@ import (
 	"github.com/gorilla/csrf"
 )
 
+// SiteConfigFunc is a package-level hook that templates call via the
+// "siteConfig" FuncMap entry. Set it during init (main.go) to point at
+// SiteSettingsService.Get. When nil the function returns the fallback.
+var SiteConfigFunc func(key, fallback string) string
+
 type Template struct {
 	htmlTpl *template.Template
 }
@@ -41,6 +46,88 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 			"icon": func(name, class string) template.HTML {
 				return icons.Icon(name, class)
 			},
+			// amazonLink generates an Amazon affiliate URL for a book.
+			// Priority: (1) Amazon URL in linkURL → append tag
+			//           (2) Search Amazon by title + author
+			// ISBN-based /dp/ links are NOT used — ISBNs don't reliably
+			// match Amazon ASINs. Users should paste the actual Amazon
+			// product URL in linkURL for a direct link.
+			"amazonLink": func(isbn, title, bookAuthor, linkURL string) string {
+				tag := ""
+				if SiteConfigFunc != nil {
+					tag = SiteConfigFunc("amazon_affiliate_tag", "")
+				}
+				if tag == "" {
+					if linkURL != "" {
+						return linkURL
+					}
+					return ""
+				}
+				// If linkURL is an Amazon URL, append/replace the affiliate tag
+				if strings.Contains(linkURL, "amazon.") {
+					// Strip any existing tag= param
+					u := linkURL
+					if idx := strings.Index(u, "tag="); idx > 0 {
+						end := strings.IndexByte(u[idx:], '&')
+						if end < 0 {
+							u = u[:idx-1]
+						} else {
+							u = u[:idx-1] + u[idx+end:]
+						}
+					}
+					sep := "?"
+					if strings.Contains(u, "?") {
+						sep = "&"
+					}
+					return u + sep + "tag=" + tag
+				}
+				// No Amazon URL — generate a search link
+				base := "https://www.amazon.ca"
+				q := strings.TrimSpace(title)
+				if bookAuthor != "" {
+					q += " " + strings.TrimSpace(bookAuthor)
+				}
+				return base + "/s?k=" + strings.ReplaceAll(strings.ReplaceAll(q, " ", "+"), "&", "") + "&tag=" + tag
+			},
+			// splitAuthors splits "Author1, Author2" into linked HTML.
+			"authorLinks": func(authors, basePath string) template.HTML {
+				parts := strings.Split(authors, ",")
+				var links []string
+				for _, p := range parts {
+					p = strings.TrimSpace(p)
+					if p == "" {
+						continue
+					}
+					escaped := template.HTMLEscapeString(p)
+					href := basePath + "/books/author/" + template.URLQueryEscaper(p)
+					links = append(links, `<a href="`+href+`" style="color:var(--accent);text-decoration:none;">`+escaped+`</a>`)
+				}
+				return template.HTML(strings.Join(links, ", "))
+			},
+			// publisherLink makes a publisher name a clickable link.
+			"publisherLink": func(publisher, basePath string) template.HTML {
+				if publisher == "" {
+					return ""
+				}
+				escaped := template.HTMLEscapeString(publisher)
+				href := basePath + "/books/publisher/" + template.URLQueryEscaper(publisher)
+				return template.HTML(`<a href="` + href + `" style="color:var(--accent);text-decoration:none;">` + escaped + `</a>`)
+			},
+			"ratingStars": func(rating float64) template.HTML {
+				var b strings.Builder
+				for i := 1; i <= 5; i++ {
+					fi := float64(i)
+					if rating >= fi {
+						b.WriteString(`<span style="color:#f59e0b;">&#9733;</span>`)
+					} else if rating >= fi-0.5 {
+						// Half star: full star clipped to left half + empty star clipped to right half
+						b.WriteString(`<span style="position:relative;display:inline-block;color:#d1d5db;">&#9733;<span style="position:absolute;left:0;top:0;overflow:hidden;width:50%;color:#f59e0b;">&#9733;</span></span>`)
+					} else {
+						b.WriteString(`<span style="color:#d1d5db;">&#9733;</span>`)
+					}
+				}
+				return template.HTML(b.String())
+			},
 			"add": func(a, b int) int {
 				return a + b
 			},
@@ -57,6 +144,12 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 				}
 				r := []rune(s)
 				return strings.ToUpper(string(r[0]))
+			},
+			"siteConfig": func(key, fallback string) string {
+				if SiteConfigFunc != nil {
+					return SiteConfigFunc(key, fallback)
+				}
+				return fallback
 			},
 			"where": func(slice interface{}, field string, value interface{}) interface{} {
 				sliceValue := reflect.ValueOf(slice)

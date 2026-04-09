@@ -6,8 +6,15 @@
     <meta property="og:title" content="{{.Guide.Title}}" />
     <meta property="og:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
     {{if .FullURL}}<meta property="og:url" content="{{.FullURL}}" />{{end}}
-    {{if .Guide.FeaturedImageURL}}<meta property="og:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
+    {{if .Guide.FeaturedImageURL}}<meta property="og:image" content="{{.Guide.FeaturedImageURL}}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />{{end}}
+    <meta property="article:published_time" content="{{.Guide.CreatedAt}}" />
+    <meta property="article:modified_time" content="{{if .Guide.UpdatedAt}}{{.Guide.UpdatedAt}}{{else}}{{.Guide.CreatedAt}}{{end}}" />
+    <meta property="article:author" content="https://anshumanbiswas.com/users/{{.Guide.Username}}" />
     <meta name="twitter:card" content="{{if .Guide.FeaturedImageURL}}summary_large_image{{else}}summary{{end}}" />
+    <meta name="twitter:site" content="@AnshumanBiswas" />
+    <meta name="twitter:creator" content="@AnshumanBiswas" />
     <meta name="twitter:title" content="{{.Guide.Title}}" />
     <meta name="twitter:description" content="{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}" />
     {{if .Guide.FeaturedImageURL}}<meta name="twitter:image" content="{{.Guide.FeaturedImageURL}}" />{{end}}
@@ -17,14 +24,41 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Article",
+  "@type": "TechArticle",
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "https://anshumanbiswas.com/guides/{{.Guide.Slug}}"},
   "headline": "{{.Guide.Title}}",
-  "author": {"@type": "Person", "name": "{{.Guide.AuthorDisplayName}}"},
+  "author": {
+    "@type": "Person",
+    "name": "{{.Guide.AuthorDisplayName}}"{{if .Guide.Username}},
+    "url": "https://anshumanbiswas.com/users/{{.Guide.Username}}"{{end}}{{if .Guide.AuthorAvatarURL}},
+    "image": "https://anshumanbiswas.com{{.Guide.AuthorAvatarURL}}"{{end}}
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Anshuman Biswas",
+    "url": "https://anshumanbiswas.com"
+  },
   "datePublished": "{{.Guide.CreatedAt}}",
   "dateModified": "{{if .Guide.UpdatedAt}}{{.Guide.UpdatedAt}}{{else}}{{.Guide.CreatedAt}}{{end}}",
   "description": "{{if .Guide.Description}}{{.Guide.Description}}{{else}}{{.Guide.Title}}{{end}}",
-  "url": "{{.FullURL}}"{{if .Guide.FeaturedImageURL}},
-  "image": "{{.Guide.FeaturedImageURL}}"{{end}}
+  "url": "https://anshumanbiswas.com/guides/{{.Guide.Slug}}"{{if .Guide.FeaturedImageURL}},
+  "image": {
+    "@type": "ImageObject",
+    "url": "https://anshumanbiswas.com{{.Guide.FeaturedImageURL}}",
+    "width": 1200,
+    "height": 630
+  }{{end}}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://anshumanbiswas.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Guides", "item": "https://anshumanbiswas.com/guides"},
+    {"@type": "ListItem", "position": 3, "name": "{{.Guide.Title}}"}
+  ]
 }
 </script>
 {{end}}
@@ -270,6 +304,27 @@
                 </div>
             </div>
 
+            <!-- Annotations bar -->
+            <div id="annotation-bar" class="mt-8 flex items-center gap-3">
+                <button id="toggle-annotations" class="btn btn-secondary text-sm flex items-center gap-2" type="button">
+                    {{icon "chat" "w-4 h-4"}}
+                    <span id="toggle-annotations-label">Show Annotations</span>
+                </button>
+                <span id="annotation-count" class="text-xs text-gray-500"></span>
+                {{if .LoggedIn}}{{if .UserPermissions.CanComment}}<span class="text-xs text-gray-400">&middot; highlight any text to annotate</span>{{end}}{{end}}
+            </div>
+            <div id="annotation-panel" style="display:none;" class="mt-4 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <h3 class="font-semibold mb-4">Annotations</h3>
+                <div id="annotation-list" class="space-y-4">
+                    <p class="text-sm text-gray-500">No annotations yet.</p>
+                </div>
+                {{if not .LoggedIn}}
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-500">
+                    <a href="/auth/github?return_to=/guides/{{.Guide.Slug}}" class="hover:underline" style="color: var(--accent);">Sign in with GitHub</a> to annotate this guide.
+                </div>
+                {{end}}
+            </div>
+
             <!-- Comments Section -->
             <section class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700" id="comments-section">
                 <h2 class="text-2xl font-bold mb-6">Comments</h2>
@@ -366,13 +421,30 @@
         if (tocMobile) tocMobile.style.display = 'none';
     }
 
-    // Active section tracking via IntersectionObserver
+    // Active section tracking via IntersectionObserver. When the active TOC
+    // link would be clipped by the sticky sidebar's own scroll container,
+    // auto-scroll the sidebar so the active link stays visible.
+    var tocSidebar = document.getElementById('guide-toc');
+    function scrollActiveLinkIntoView(link) {
+        if (!tocSidebar || !link) return;
+        var sbRect = tocSidebar.getBoundingClientRect();
+        var lkRect = link.getBoundingClientRect();
+        var pad = 24;
+        if (lkRect.top < sbRect.top + pad) {
+            tocSidebar.scrollTop += lkRect.top - sbRect.top - pad;
+        } else if (lkRect.bottom > sbRect.bottom - pad) {
+            tocSidebar.scrollTop += lkRect.bottom - sbRect.bottom + pad;
+        }
+    }
     var observer = new IntersectionObserver(function(entries) {
         entries.forEach(function(entry) {
             if (entry.isIntersecting) {
                 document.querySelectorAll('.toc-link').forEach(function(l) { l.classList.remove('active'); });
                 var links = document.querySelectorAll('a[href="#' + entry.target.id + '"]');
                 links.forEach(function(link) { link.classList.add('active'); });
+                // Keep the active link visible inside the sticky sidebar.
+                var sidebarLink = tocList ? tocList.querySelector('a[href="#' + entry.target.id + '"]') : null;
+                if (sidebarLink) scrollActiveLinkIntoView(sidebarLink);
             }
         });
     }, { rootMargin: '-80px 0px -80% 0px' });
@@ -505,6 +577,207 @@
             }
         });
     });
+})();
+</script>
+
+<!-- Guide annotations (highlight-to-annotate, shared UX with blog posts) -->
+<script>
+(function() {
+    var guideSlug = '{{.Guide.Slug}}';
+    var canAnnotate = {{if .LoggedIn}}{{if .UserPermissions.CanComment}}true{{else}}false{{end}}{{else}}false{{end}};
+    var currentUserID = {{if .UserID}}{{.UserID}}{{else}}0{{end}};
+    var toggleBtn = document.getElementById('toggle-annotations');
+    var annotationPanel = document.getElementById('annotation-panel');
+    var annotationList = document.getElementById('annotation-list');
+    var annotationCount = document.getElementById('annotation-count');
+    var toggleLabel = document.getElementById('toggle-annotations-label');
+    var contentEl = document.getElementById('guide-content');
+    var annotationsVisible = false;
+
+    function escHTML(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function renderAnnotationPanel(annotations) {
+        if (!annotations || annotations.length === 0) {
+            annotationList.innerHTML = '<p class="text-sm text-gray-500">No annotations yet.</p>';
+            if (annotationCount) annotationCount.textContent = '';
+            return;
+        }
+        if (annotationCount) annotationCount.textContent = annotations.length + ' annotation' + (annotations.length !== 1 ? 's' : '');
+        annotationList.innerHTML = annotations.map(function(a) {
+            var date = new Date(a.created_at).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+            var colorDot = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + escHTML(a.color) + ';margin-right:4px;"></span>';
+            var commentsHTML = (a.comments || []).map(function(c) {
+                var cdate = new Date(c.created_at).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+                return '<div class="ann-comment-thread mt-2 pl-3 border-l border-gray-300 dark:border-gray-600">' +
+                    '<span class="text-xs font-medium text-gray-600 dark:text-gray-300">' + escHTML(c.author_name) + '</span> ' +
+                    '<span class="text-xs text-gray-400">' + cdate + '</span>' +
+                    '<p class="text-sm mt-0.5">' + escHTML(c.content) + '</p>' +
+                '</div>';
+            }).join('');
+            var deleteBtn = (currentUserID > 0 && currentUserID === a.author_id)
+                ? '<button class="text-xs text-red-500 hover:underline ml-2 delete-annotation" data-id="' + a.id + '">Delete</button>'
+                : '';
+            var addCommentForm = canAnnotate
+                ? '<div class="mt-2 flex gap-2">' +
+                    '<input type="text" class="form-input text-sm flex-1 annotation-comment-input" placeholder="Add a comment..." data-ann="' + a.id + '" />' +
+                    '<button class="btn btn-primary text-sm annotation-comment-submit" data-ann="' + a.id + '">Reply</button>' +
+                '</div>' : '';
+            return '<div class="annotation-entry rounded-lg p-3 bg-gray-50 dark:bg-gray-800" data-id="' + a.id + '">' +
+                '<div class="flex items-start gap-2 mb-1">' +
+                    colorDot +
+                    '<div class="flex-1">' +
+                        '<span class="text-xs font-medium text-gray-500">by ' + escHTML(a.author_name) + ' &middot; ' + date + '</span>' +
+                        deleteBtn +
+                        '<p class="mt-1 text-sm italic">"' + escHTML(a.selected_text) + '"</p>' +
+                    '</div>' +
+                '</div>' +
+                commentsHTML +
+                addCommentForm +
+            '</div>';
+        }).join('');
+
+        annotationList.querySelectorAll('.delete-annotation').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (!confirm('Delete this annotation?')) return;
+                fetch('/annotations/' + btn.dataset.id, {method: 'DELETE'}).then(function(r) { if (r.ok) loadAnnotations(); });
+            });
+        });
+        annotationList.querySelectorAll('.annotation-comment-submit').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var annID = btn.dataset.ann;
+                var input = annotationList.querySelector('.annotation-comment-input[data-ann="' + annID + '"]');
+                var content = input ? input.value.trim() : '';
+                if (!content) return;
+                btn.disabled = true;
+                fetch('/annotations/' + annID + '/comments', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({content: content})
+                }).then(function(res) {
+                    if (res.ok) { if (input) input.value = ''; loadAnnotations(); }
+                }).finally(function() { btn.disabled = false; });
+            });
+        });
+    }
+
+    function applyAnnotationHighlights(annotations) {
+        if (!contentEl || !annotations || annotations.length === 0) return;
+        // Strip any previous highlight marks first.
+        contentEl.querySelectorAll('mark[data-ann-id]').forEach(function(m) {
+            var parent = m.parentNode;
+            while (m.firstChild) parent.insertBefore(m.firstChild, m);
+            parent.removeChild(m);
+            parent.normalize();
+        });
+        var walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT, null);
+        var textNodes = [];
+        var offset = 0, node;
+        while ((node = walker.nextNode())) {
+            textNodes.push({node: node, start: offset, end: offset + node.textContent.length});
+            offset += node.textContent.length;
+        }
+        var sorted = annotations.slice().sort(function(a, b) { return b.start_offset - a.start_offset; });
+        sorted.forEach(function(ann) { highlightRange(textNodes, ann.start_offset, ann.end_offset, ann.color, ann.id); });
+    }
+
+    function highlightRange(textNodes, start, end, color, annID) {
+        for (var i = 0; i < textNodes.length; i++) {
+            var tn = textNodes[i];
+            if (tn.end <= start || tn.start >= end) continue;
+            var relStart = Math.max(0, start - tn.start);
+            var relEnd = Math.min(tn.node.textContent.length, end - tn.start);
+            if (relStart >= relEnd) continue;
+            var span = document.createElement('mark');
+            span.style.background = color || 'yellow';
+            span.style.opacity = '0.4';
+            span.style.cursor = 'pointer';
+            span.dataset.annId = annID;
+            span.addEventListener('click', function() {
+                annotationPanel.style.display = 'block';
+                annotationsVisible = true;
+                if (toggleLabel) toggleLabel.textContent = 'Hide Annotations';
+                var entry = annotationList.querySelector('.annotation-entry[data-id="' + annID + '"]');
+                if (entry) entry.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            });
+            var after = tn.node.splitText(relEnd);
+            var highlighted = tn.node.splitText(relStart);
+            highlighted.parentNode.insertBefore(span, after);
+            span.appendChild(highlighted);
+            break;
+        }
+    }
+
+    function loadAnnotations() {
+        fetch('/guides/' + guideSlug + '/annotations')
+            .then(function(r) { return r.json(); })
+            .then(function(annotations) {
+                renderAnnotationPanel(annotations || []);
+                applyAnnotationHighlights(annotations || []);
+            })
+            .catch(function(e) { console.warn('Failed to load annotations', e); });
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function() {
+            annotationsVisible = !annotationsVisible;
+            annotationPanel.style.display = annotationsVisible ? 'block' : 'none';
+            if (toggleLabel) toggleLabel.textContent = annotationsVisible ? 'Hide Annotations' : 'Show Annotations';
+        });
+    }
+
+    // Highlight-to-annotate: show a floating "Annotate" chip when the user
+    // selects text inside the guide content.
+    if (canAnnotate && contentEl) {
+        var selectionTooltip = null;
+        contentEl.addEventListener('mouseup', function() {
+            var sel = window.getSelection();
+            if (!sel || sel.isCollapsed) {
+                if (selectionTooltip) { selectionTooltip.remove(); selectionTooltip = null; }
+                return;
+            }
+            var selectedText = sel.toString().trim();
+            if (!selectedText) return;
+            var range = sel.getRangeAt(0);
+            var preRange = document.createRange();
+            preRange.setStart(contentEl, 0);
+            preRange.setEnd(range.startContainer, range.startOffset);
+            var startOffset = preRange.toString().length;
+            var endOffset = startOffset + selectedText.length;
+
+            if (selectionTooltip) selectionTooltip.remove();
+            selectionTooltip = document.createElement('div');
+            selectionTooltip.style.cssText = 'position:fixed;z-index:1000;background:#1f2937;color:#fff;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+            selectionTooltip.textContent = 'Annotate';
+            var rect = range.getBoundingClientRect();
+            selectionTooltip.style.left = (rect.left + rect.width / 2 - 36) + 'px';
+            selectionTooltip.style.top = (rect.top - 40) + 'px';
+            document.body.appendChild(selectionTooltip);
+
+            selectionTooltip.addEventListener('click', function() {
+                selectionTooltip.remove(); selectionTooltip = null;
+                sel.removeAllRanges();
+                fetch('/guides/' + guideSlug + '/annotations', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({start_offset: startOffset, end_offset: endOffset, selected_text: selectedText, color: 'yellow'})
+                }).then(function(res) {
+                    if (res.ok) {
+                        annotationPanel.style.display = 'block';
+                        annotationsVisible = true;
+                        if (toggleLabel) toggleLabel.textContent = 'Hide Annotations';
+                        loadAnnotations();
+                    }
+                });
+            });
+        });
+        document.addEventListener('mousedown', function(e) {
+            if (selectionTooltip && !selectionTooltip.contains(e.target)) {
+                selectionTooltip.remove(); selectionTooltip = null;
+            }
+        });
+    }
+
+    loadAnnotations();
 })();
 </script>
 

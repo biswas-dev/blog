@@ -243,6 +243,8 @@ jobs:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
           IMAGE_DIGEST: ${{ needs.build-arm64.outputs.digest }}
         run: |
           echo "$IMAGE_DIGEST" > .image-digest.txt
@@ -274,6 +276,8 @@ jobs:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
         run: |
           # UAT is ARM64 — use arm64-latest digest directly
           HARBOR_USER=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
@@ -310,6 +314,8 @@ jobs:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ${{ secrets.DD_SITE }}
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
         run: |
           # Production is x64 — use x64-latest digest directly
           HARBOR_USER=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
