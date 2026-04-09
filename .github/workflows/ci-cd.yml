@@ -179,11 +179,14 @@ jobs:
           echo "Built and pushed $IMAGE:$TAG (ARM64) digest=$DIGEST"
 
   # ── Build x64 Image (native on x64 runner) ───────────────────────────
+  # Runs on main AND production pushes so the production deploy job can
+  # depend on it and always deploys the exact image built for the current
+  # commit (no "x64-latest" race with a concurrent main build).
   build-x64:
     name: "Build x64 Image"
     runs-on: [self-hosted, Linux, X64, prod]
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production') && github.event_name == 'push'
     outputs:
       digest: ${{ steps.build.outputs.digest }}
 
@@ -289,9 +292,12 @@ jobs:
           bash deployment/scripts/travis-deploy.sh uat
 
   # ── Deploy Production (x64) ────────────────────────────────────────────
+  # needs: build-x64 so the production deploy is gated on the commit's own
+  # image being built and pushed to Harbor (no stale x64-latest race).
   deploy-production:
     name: "Deploy to Production"
     runs-on: [self-hosted, Linux, X64, prod]
+    needs: build-x64
     if: |
       (vars.CI_ENABLED || 'true') == 'true' &&
       github.ref == 'refs/heads/production' && github.event_name == 'push'
@@ -300,7 +306,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy using x64-latest image from Harbor
+      - name: Deploy using SHA-tagged x64 image from Harbor
         env:
           PRODUCTION_SSH_KEY_BASE64: ${{ secrets.SSH_PRIVATE_KEY }}
           HARBOR_AUTH: ${{ secrets.HARBOR_AUTH }}
@@ -316,12 +322,33 @@ jobs:
           VERSION_TOKEN: ${{ secrets.VERSION_TOKEN }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          IMAGE_DIGEST: ${{ needs.build-x64.outputs.digest }}
         run: |
-          # Production is x64 — use x64-latest digest directly
-          HARBOR_USER=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
-          HARBOR_PASS=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
-          DIGEST=$(curl -sf -u "$HARBOR_USER:$HARBOR_PASS" \
-            "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3Dx64-latest" \
-            | jq -r '.[0].digest')
+          # Prefer the digest produced by the build job we just depended on
+          # (Option 2: exact SHA-tagged image). Fall back to polling Harbor by
+          # tag in case the output is empty (Option 4: wait-for-image gate).
+          DIGEST="$IMAGE_DIGEST"
+          if [ -z "$DIGEST" ]; then
+            HARBOR_USER=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f1)
+            HARBOR_PASS=$(echo "$HARBOR_AUTH" | base64 -d | cut -d: -f2)
+            TAG="x64-${GITHUB_SHA::7}"
+            echo "Polling Harbor for tag $TAG..."
+            for i in $(seq 1 60); do
+              DIGEST=$(curl -sf -u "$HARBOR_USER:$HARBOR_PASS" \
+                "https://harbor.biswas.me/api/v2.0/projects/biswas/repositories/blog/artifacts?q=tags%3D$TAG" \
+                | jq -r '.[0].digest // empty')
+              if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
+                echo "Found digest $DIGEST for tag $TAG"
+                break
+              fi
+              echo "Image $TAG not yet available, retry $i/60 in 10s..."
+              sleep 10
+            done
+            if [ -z "$DIGEST" ] || [ "$DIGEST" = "null" ]; then
+              echo "ERROR: Timed out waiting for image $TAG in Harbor"
+              exit 1
+            fi
+          fi
+          echo "Deploying with digest: $DIGEST"
           echo "$DIGEST" > .image-digest.txt
           bash deployment/scripts/travis-deploy.sh production

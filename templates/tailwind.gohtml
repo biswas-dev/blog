@@ -641,13 +641,64 @@
            .godraw-embed .draw-hover-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
            .godraw-embed .draw-hover-ring circle { fill:none; stroke-width:2; stroke-linecap:round; }
            .godraw-embed .draw-hover-ring .draw-ring-bg { stroke:rgba(255,255,255,0.25); }
-           .godraw-embed .draw-hover-ring .draw-ring-fg { stroke:#fff; transition:stroke-dashoffset 0.1s linear; }</style>
+           .godraw-embed .draw-hover-ring .draw-ring-fg { stroke:#fff; transition:stroke-dashoffset 0.1s linear; }
+           /* Touch: tap-to-activate shield sits on top of the iframe. */
+           .godraw-embed .draw-tap-shield { position:absolute; inset:0; z-index:2; background:transparent;
+             display:flex; align-items:flex-start; justify-content:center; padding-top:12px;
+             cursor:pointer; -webkit-tap-highlight-color:transparent; }
+           .godraw-embed.draw-active .draw-tap-shield { display:none; }
+           .godraw-embed .draw-tap-shield .draw-tap-pill { padding:8px 16px; border-radius:999px; font-size:13px;
+             color:#fff; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); font-weight:500;
+             box-shadow:0 2px 8px rgba(0,0,0,0.3); pointer-events:none; white-space:nowrap; }
+           .godraw-embed .draw-tap-close { position:absolute; top:8px; right:8px; width:34px; height:34px; z-index:4;
+             border-radius:999px; background:rgba(0,0,0,0.7); color:#fff; border:none; cursor:pointer;
+             display:none; align-items:center; justify-content:center; font-size:20px; line-height:1; padding:0;
+             box-shadow:0 2px 8px rgba(0,0,0,0.3); -webkit-tap-highlight-color:transparent; }
+           .godraw-embed.draw-active .draw-tap-close { display:flex; }</style>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
       const drawHoverDelay = {{siteConfig "draw_hover_delay" "3"}} * 1000;
+      // Touch devices (no hover capability) get tap-to-activate instead of a
+      // hover countdown, since there's no mouse to dwell with.
+      const isTouch = window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches;
+
       document.querySelectorAll('.godraw-embed').forEach(el => {
         if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
-        // Hint pill with countdown ring + text.
+
+        if (isTouch) {
+          // Overlay shield blocks the iframe until the user deliberately taps
+          // to interact, so page-scroll isn't hijacked by a diagram the finger
+          // happens to land on.
+          const shield = document.createElement('div');
+          shield.className = 'draw-tap-shield';
+          shield.innerHTML = '<span class="draw-tap-pill">\u270B Tap to interact</span>';
+          el.appendChild(shield);
+
+          const closeBtn = document.createElement('button');
+          closeBtn.className = 'draw-tap-close';
+          closeBtn.type = 'button';
+          closeBtn.setAttribute('aria-label', 'Stop interacting with diagram');
+          closeBtn.innerHTML = '\u00D7';
+          el.appendChild(closeBtn);
+
+          shield.addEventListener('click', (e) => {
+            e.preventDefault();
+            el.classList.add('draw-active');
+          });
+          closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            el.classList.remove('draw-active');
+          });
+          // Tapping anywhere outside the embed drops interaction mode.
+          document.addEventListener('touchstart', (e) => {
+            if (!el.classList.contains('draw-active')) return;
+            if (!el.contains(e.target)) el.classList.remove('draw-active');
+          }, { passive: true });
+          return;
+        }
+
+        // Desktop: hover with countdown ring.
         const hint = document.createElement('div');
         hint.className = 'draw-hover-hint';
         hint.innerHTML =
