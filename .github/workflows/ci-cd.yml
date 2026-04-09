@@ -42,9 +42,13 @@ jobs:
   test:
     name: "Blog Tests (Go)"
     runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    # Runs on main, production, and PRs so the production deploy chain
+    # (test → build-x64 → deploy-production) has its gating job.
     if: |
       (vars.CI_ENABLED || 'true') == 'true' &&
-      (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+      (github.ref == 'refs/heads/main' ||
+       github.ref == 'refs/heads/production' ||
+       github.event_name == 'pull_request')
 
     services:
       postgres:
