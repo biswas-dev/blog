@@ -877,10 +877,12 @@ func main() {
 	// Annotations routes
 	annotationsC := controllers.AnnotationsController{DB: DB}
 	r.Get("/blog/{slug}/annotations", annotationsC.HandleListAnnotations)
+	r.Get("/guides/{slug}/annotations", annotationsC.HandleListGuideAnnotations)
 	r.Group(func(r chi.Router) {
 		r.Use(authmw.AuthenticatedUser(&sessionService, &apiTokenService))
 		r.Use(authmw.RequirePermission(func(p models.UserPermissions) bool { return p.CanComment }))
 		r.Post("/blog/{slug}/annotations", annotationsC.HandleCreateAnnotation)
+		r.Post("/guides/{slug}/annotations", annotationsC.HandleCreateGuideAnnotation)
 		r.Patch("/annotations/{annotationID}", annotationsC.HandleUpdateAnnotation)
 		r.Delete("/annotations/{annotationID}", annotationsC.HandleDeleteAnnotation)
 		r.Post("/annotations/{annotationID}/comments", annotationsC.HandleCreateAnnotationComment)

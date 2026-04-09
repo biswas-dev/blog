@@ -455,6 +455,168 @@ func (ac *AnnotationsController) HandleDeleteAnnotationComment(w http.ResponseWr
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ── Guide annotations ────────────────────────────────────────────────────
+// These reuse the post_annotations table (extended with a nullable guide_id
+// column via migration 0039) so the existing update/delete/comment routes
+// continue to work by annotationID regardless of the target type.
+
+// HandleListGuideAnnotations — GET /guides/{slug}/annotations
+func (ac *AnnotationsController) HandleListGuideAnnotations(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	guideID, err := ac.guideIDFromSlug(slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	rows, err := ac.DB.QueryContext(r.Context(), `
+		SELECT a.id, COALESCE(a.guide_id, 0), a.author_id, COALESCE(NULLIF(u.full_name, ''), u.username), a.start_offset, a.end_offset,
+		       a.selected_text, a.color, a.resolved, a.created_at
+		FROM post_annotations a
+		JOIN Users u ON u.user_id = a.author_id
+		WHERE a.guide_id = $1 AND a.resolved = false
+		ORDER BY a.start_offset ASC`, guideID)
+	if err != nil {
+		http.Error(w, "Failed to fetch annotations", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	annotations := []annotationResp{}
+	annotationIDs := []int{}
+	byID := map[int]*annotationResp{}
+
+	for rows.Next() {
+		var a annotationResp
+		var createdAt time.Time
+		if err := rows.Scan(&a.ID, &a.PostID, &a.AuthorID, &a.AuthorName,
+			&a.StartOffset, &a.EndOffset, &a.SelectedText, &a.Color, &a.Resolved, &createdAt); err != nil {
+			http.Error(w, "Failed to scan annotation", http.StatusInternalServerError)
+			return
+		}
+		a.CreatedAt = createdAt.Format(time.RFC3339)
+		a.Comments = []annotationCommentResp{}
+		annotations = append(annotations, a)
+		annotationIDs = append(annotationIDs, a.ID)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Failed to iterate annotations", http.StatusInternalServerError)
+		return
+	}
+
+	for i := range annotations {
+		byID[annotations[i].ID] = &annotations[i]
+	}
+
+	if len(annotationIDs) > 0 {
+		placeholders := make([]interface{}, len(annotationIDs))
+		ph := ""
+		for i, id := range annotationIDs {
+			if i > 0 {
+				ph += ","
+			}
+			ph += "$" + strconv.Itoa(i+1)
+			placeholders[i] = id
+		}
+		q := `
+			SELECT c.id, c.annotation_id, c.author_id, COALESCE(NULLIF(u.full_name, ''), u.username), c.parent_comment_id, c.content, c.created_at
+			FROM post_annotation_comments c
+			JOIN Users u ON u.user_id = c.author_id
+			WHERE c.annotation_id IN (` + ph + `)
+			ORDER BY c.created_at ASC`
+		crows, err := ac.DB.QueryContext(r.Context(), q, placeholders...)
+		if err != nil {
+			http.Error(w, "Failed to fetch annotation comments", http.StatusInternalServerError)
+			return
+		}
+		defer crows.Close()
+		for crows.Next() {
+			var c annotationCommentResp
+			var parentID sql.NullInt64
+			var createdAt time.Time
+			if err := crows.Scan(&c.ID, &c.AnnotationID, &c.AuthorID, &c.AuthorName,
+				&parentID, &c.Content, &createdAt); err != nil {
+				http.Error(w, "Failed to scan annotation comment", http.StatusInternalServerError)
+				return
+			}
+			if parentID.Valid {
+				pid := int(parentID.Int64)
+				c.ParentCommentID = &pid
+			}
+			c.CreatedAt = createdAt.Format(time.RFC3339)
+			if parent, ok := byID[c.AnnotationID]; ok {
+				parent.Comments = append(parent.Comments, c)
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(annotations)
+}
+
+// HandleCreateGuideAnnotation — POST /guides/{slug}/annotations
+func (ac *AnnotationsController) HandleCreateGuideAnnotation(w http.ResponseWriter, r *http.Request) {
+	user := authmw.GetUserFromContext(r.Context())
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	slug := chi.URLParam(r, "slug")
+	guideID, err := ac.guideIDFromSlug(slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	var body struct {
+		StartOffset  int    `json:"start_offset"`
+		EndOffset    int    `json:"end_offset"`
+		SelectedText string `json:"selected_text"`
+		Color        string `json:"color"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if body.SelectedText == "" {
+		http.Error(w, "selected_text is required", http.StatusBadRequest)
+		return
+	}
+	if body.Color == "" {
+		body.Color = "yellow"
+	}
+
+	var a annotationResp
+	var createdAt time.Time
+	var gid int
+	err = ac.DB.QueryRowContext(r.Context(), `
+		INSERT INTO post_annotations (guide_id, author_id, start_offset, end_offset, selected_text, color)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, COALESCE(guide_id, 0), author_id, start_offset, end_offset, selected_text, color, resolved, created_at`,
+		guideID, user.UserID, body.StartOffset, body.EndOffset, body.SelectedText, body.Color,
+	).Scan(&a.ID, &gid, &a.AuthorID, &a.StartOffset, &a.EndOffset,
+		&a.SelectedText, &a.Color, &a.Resolved, &createdAt)
+	if err != nil {
+		http.Error(w, "Failed to create annotation", http.StatusInternalServerError)
+		return
+	}
+	a.PostID = gid // reuse the PostID JSON field for the owning guide id
+	a.AuthorName = user.DisplayName()
+	a.CreatedAt = createdAt.Format(time.RFC3339)
+	a.Comments = []annotationCommentResp{}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(a)
+}
+
+func (ac *AnnotationsController) guideIDFromSlug(slug string) (int, error) {
+	var id int
+	err := ac.DB.QueryRow(`SELECT guide_id FROM Guides WHERE slug = $1`, slug).Scan(&id)
+	return id, err
+}
+
 func (ac *AnnotationsController) postIDFromSlug(slug string) (int, error) {
 	var id int
 	err := ac.DB.QueryRow(`SELECT post_id FROM Posts WHERE slug = $1`, slug).Scan(&id)
