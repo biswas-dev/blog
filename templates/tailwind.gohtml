@@ -631,26 +631,68 @@
          isn't hijacked when the cursor passes over an embedded drawing. -->
     <style>.godraw-embed iframe { pointer-events: none; transition: opacity 0.2s; }
            .godraw-embed.draw-active iframe { pointer-events: auto; }
-           .godraw-embed .draw-hover-hint { position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
-             padding:4px 12px; border-radius:6px; font-size:12px; color:#fff; background:rgba(0,0,0,0.55);
-             backdrop-filter:blur(4px); pointer-events:none; opacity:0; transition:opacity 0.3s; z-index:2; }
+           .godraw-embed .draw-hover-hint { position:absolute; top:8px; left:50%; transform:translateX(-50%);
+             padding:6px 14px; border-radius:999px; font-size:12px; color:#fff; background:rgba(0,0,0,0.6);
+             backdrop-filter:blur(4px); pointer-events:none; opacity:0; transition:opacity 0.15s; z-index:3;
+             display:flex; align-items:center; gap:8px; font-weight:500; white-space:nowrap; }
            .godraw-embed:hover .draw-hover-hint { opacity:1; }
-           .godraw-embed.draw-active .draw-hover-hint { opacity:0; }</style>
+           .godraw-embed.draw-active .draw-hover-hint { opacity:0; }
+           .godraw-embed .draw-hover-ring { width:14px; height:14px; position:relative; }
+           .godraw-embed .draw-hover-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+           .godraw-embed .draw-hover-ring circle { fill:none; stroke-width:2; stroke-linecap:round; }
+           .godraw-embed .draw-hover-ring .draw-ring-bg { stroke:rgba(255,255,255,0.25); }
+           .godraw-embed .draw-hover-ring .draw-ring-fg { stroke:#fff; transition:stroke-dashoffset 0.1s linear; }</style>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
       const drawHoverDelay = {{siteConfig "draw_hover_delay" "3"}} * 1000;
       document.querySelectorAll('.godraw-embed').forEach(el => {
         if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+        // Hint pill with countdown ring + text.
         const hint = document.createElement('div');
         hint.className = 'draw-hover-hint';
-        hint.textContent = 'Hover to interact with diagram';
+        hint.innerHTML =
+          '<span class="draw-hover-ring">' +
+            '<svg viewBox="0 0 20 20">' +
+              '<circle class="draw-ring-bg" cx="10" cy="10" r="8"></circle>' +
+              '<circle class="draw-ring-fg" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="50.27"></circle>' +
+            '</svg>' +
+          '</span>' +
+          '<span class="draw-hover-label">Hover for ' + (drawHoverDelay/1000).toFixed(1) + 's to interact</span>';
         el.appendChild(hint);
-        let timer = null;
+        const label = hint.querySelector('.draw-hover-label');
+        const ringFg = hint.querySelector('.draw-ring-fg');
+        const CIRC = 50.27; // 2 * PI * r (r=8)
+        let rafId = null;
+        let startTs = 0;
+
+        function reset() {
+          if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+          startTs = 0;
+          label.textContent = 'Hover for ' + (drawHoverDelay/1000).toFixed(1) + 's to interact';
+          ringFg.setAttribute('stroke-dashoffset', CIRC);
+        }
+
+        function tick(now) {
+          if (!startTs) startTs = now;
+          const elapsed = now - startTs;
+          const remaining = Math.max(0, drawHoverDelay - elapsed);
+          label.textContent = 'Hover for ' + (remaining/1000).toFixed(1) + 's to interact';
+          const pct = Math.min(1, elapsed / drawHoverDelay);
+          ringFg.setAttribute('stroke-dashoffset', CIRC * (1 - pct));
+          if (remaining <= 0) {
+            el.classList.add('draw-active');
+            return;
+          }
+          rafId = requestAnimationFrame(tick);
+        }
+
         el.addEventListener('mouseenter', () => {
-          timer = setTimeout(() => { el.classList.add('draw-active'); }, drawHoverDelay);
+          if (el.classList.contains('draw-active')) return;
+          reset();
+          rafId = requestAnimationFrame(tick);
         });
         el.addEventListener('mouseleave', () => {
-          clearTimeout(timer);
+          reset();
           el.classList.remove('draw-active');
         });
       });
