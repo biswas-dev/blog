@@ -333,6 +333,19 @@
     {{icon "arrow-up" "w-5 h-5"}}
 </button>
 
+<!-- KaTeX Math Rendering (async — does not block render) -->
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css"></noscript>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.querySelector('.prose'), {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false
+    });"></script>
+
 <!-- Syntax Highlighting (async — does not block render) -->
 <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
 <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
