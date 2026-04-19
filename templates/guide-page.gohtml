@@ -187,6 +187,11 @@
     .comment-body pre { background: var(--bg-tertiary, rgba(0,0,0,0.05)); border-radius: 0.5rem; padding: 1rem; overflow-x: auto; margin: 0.5em 0; }
     .comment-body pre code { background: none; padding: 0; font-size: 0.875em; }
     .comment-body a { color: var(--accent, #0d9488); text-decoration: underline; }
+    .comment-body blockquote { border-left: 3px solid var(--border, rgba(127,127,127,0.3)); padding-left: 0.75rem; margin: 0.5em 0; color: var(--text-secondary); font-style: italic; }
+    .comment-body strong { font-weight: 600; }
+    .comment-body ul, .comment-body ol { padding-left: 1.5rem; margin: 0.25em 0; }
+    .dark .comment-body pre { background: rgba(255,255,255,0.05); }
+    .comment-meta { flex: 1; min-width: 0; }
     .comment-compose-box { background: var(--bg-secondary); border: 1px solid var(--border-light, rgba(127,127,127,0.2)); border-radius: 0.875rem; overflow: hidden; }
     .reply-banner { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.875rem; background: rgba(13,148,136,0.08); font-size: 0.8125rem; color: var(--accent, #0d9488); font-weight: 500; }
     .cancel-reply-btn { font-size: 0.75rem; background: none; border: none; color: var(--text-tertiary); cursor: pointer; }
@@ -455,23 +460,73 @@
     var commentsList = document.getElementById('comments-list');
     var loadingEl = document.getElementById('comments-loading');
 
+    var mdReady = null;
+    function ensureMd() {
+        if (mdReady) return mdReady;
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') return (mdReady = Promise.resolve());
+        mdReady = new Promise(function(resolve) {
+            var dp = document.createElement('script');
+            dp.src = 'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js';
+            dp.onload = function() {
+                var m = document.createElement('script');
+                m.src = 'https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js';
+                m.onload = function() {
+                    marked.setOptions({ gfm: true, breaks: true });
+                    resolve();
+                };
+                document.head.appendChild(m);
+            };
+            document.head.appendChild(dp);
+        });
+        return mdReady;
+    }
+
+    function renderMarkdown(text) {
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            return DOMPurify.sanitize(marked.parse(text), {
+                ALLOWED_TAGS: ['p','strong','em','code','pre','a','ul','ol','li','blockquote','br','h3','h4','h5'],
+                ALLOWED_ATTR: ['href', 'target', 'rel'],
+                FORCE_BODY: false,
+            });
+        }
+        return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    function thumbURL(url) {
+        if (!url) return url;
+        var dot = url.lastIndexOf('.');
+        if (dot === -1) return url;
+        return url.slice(0, dot) + '_thumb' + url.slice(dot);
+    }
+
+    function avatarHTML(c) {
+        if (c.avatar_url) {
+            return '<div class="comment-avatar"><img src="' + escapeHtml(thumbURL(c.avatar_url)) + '" alt="' + escapeHtml(c.username) + '" width="32" height="32" loading="lazy"></div>';
+        }
+        var init = (c.username || '?').charAt(0).toUpperCase();
+        return '<div class="comment-avatar-init">' + init + '</div>';
+    }
+
     function renderComment(c, depth) {
         depth = depth || 0;
-        var ml = depth > 0 ? ' style="margin-left:' + Math.min(depth * 24, 96) + 'px"' : '';
+        var cls = depth > 0 ? 'comment-item reply' : 'comment-item';
         var dateStr = '';
         try { dateStr = new Date(c.comment_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}); } catch(e) { dateStr = c.comment_date; }
-        var html = '<div class="comment-item"' + ml + '>' +
+        var replyBtn = '<button class="comment-action-btn reply-btn" data-id="' + c.comment_id + '" data-name="' + escapeHtml(c.username) + '">Reply</button>';
+        var html = '<div class="' + cls + '">' +
             '<div class="comment-header">' +
-            (c.avatar_url ? '<img src="' + c.avatar_url + '" class="comment-avatar" width="28" height="28">' : '') +
-            '<strong class="comment-author">' + escapeHtml(c.username) + '</strong>' +
+            avatarHTML(c) +
+            '<div class="comment-meta">' +
+            '<span class="comment-author">' + escapeHtml(c.username) + '</span>' +
             '<span class="comment-date">' + dateStr + '</span>' +
             '</div>' +
-            '<div class="comment-body">' + escapeHtml(c.content) + '</div>' +
-            '<div class="comment-actions"><button class="reply-btn" data-id="' + c.comment_id + '" data-name="' + escapeHtml(c.username) + '">Reply</button></div>' +
-            '</div>';
+            '<div class="comment-actions">' + replyBtn + '</div>' +
+            '</div>' +
+            '<div class="comment-body">' + renderMarkdown(c.content) + '</div>';
         if (c.replies) {
             c.replies.forEach(function(r) { html += renderComment(r, depth + 1); });
         }
+        html += '</div>';
         return html;
     }
 
@@ -480,6 +535,7 @@
     }
 
     function loadComments() {
+        ensureMd().then(function() {
         fetch('/guides/' + slug + '/comments')
             .then(function(r) { return r.json(); })
             .then(function(comments) {
@@ -495,6 +551,7 @@
             .catch(function() {
                 commentsList.innerHTML = '<p class="text-gray-500 text-sm">Failed to load comments.</p>';
             });
+        });
     }
 
     var parentCommentId = null;
