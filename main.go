@@ -24,6 +24,8 @@ import (
 	"anshumanbiswas.com/blog/views"
 	godraw "github.com/anchoo2kewl/go-draw"
 	godrawstore "github.com/anchoo2kewl/go-draw/store"
+	goslide "github.com/anchoo2kewl/go-slide"
+	goslideThemes "github.com/anchoo2kewl/go-slide/theme"
 	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -312,6 +314,7 @@ func main() {
 		DB: DB,
 	}
 	slideService.MigrateFileContentToDB()
+	slideService.MigrateLegacyInlineStyles()
 
 	// Initialize GuideService (early, needed by Users controller)
 	guideService := models.GuideService{DB: DB}
@@ -433,12 +436,27 @@ func main() {
 		SessionService:  &sessionService,
 	}
 
+	// Initialize go-slide engine: theme registry + renderer.
+	// Built-in themes (Default, AAL) load synchronously. User-created
+	// themes can be loaded from the DB later (Engine.Themes() exposes
+	// the registry at runtime).
+	slideThemes := goslideThemes.NewRegistry()
+	goslideThemes.RegisterBuiltins(slideThemes)
+	slideEngine, err := goslide.New(
+		goslide.WithThemes(slideThemes),
+		goslide.WithBasePath("/slides"),
+	)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("init go-slide engine")
+	}
+
 	// Initialize Slides controller
 	slidesC := controllers.Slides{
 		SlideService:        &slideService,
 		SlideVersionService: slideVersionService,
 		SessionService:      &sessionService,
 		CategoryService:     &categoryService,
+		Engine:              slideEngine,
 	}
 
 	// Initialize Guides controller
@@ -737,6 +755,14 @@ func main() {
 	r.Post("/api/admin/slides/{slideID}/autosave", slidesC.AutoSave)
 	r.Post("/api/admin/slides/import-pptx", slidesC.ImportPPTX)
 	r.Post("/api/admin/slides/{slideID}/reimport-pptx", slidesC.ReimportPPTX)
+
+	// go-slide engine routes:
+	//   /slides/preview     — POST, live editor preview
+	//   /slides/assets/*    — static editor JS / CSS bundle
+	//   /api/admin/themes/* — theme registry CRUD (admin-only)
+	r.Method("POST", "/slides/preview", slideEngine.PreviewHandler())
+	r.Mount("/slides/assets/", http.StripPrefix("/slides/assets", slideEngine.AssetHandler()))
+	r.Mount("/api/admin/themes", slideEngine.ThemesHandler(nil))
 
 	// System Information Routes
 	r.Get("/admin/system", systemC.Dashboard)

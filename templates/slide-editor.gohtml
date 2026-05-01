@@ -78,6 +78,23 @@
   .mode-toggle button.active { background: #6366f1; color: #fff; }
 </style>
 
+{{if .UseV2}}
+<!-- go-slide editor — opt-in via ?editor=v2.
+     The fragment below is rendered server-side by goslide.Engine.RenderEditor;
+     it carries its own toolbar, sidebar, canvas, and assets. The host
+     <form id="slide-form"> still owns Save/Update logic. -->
+<form id="slide-form" method="POST" action="/admin/slides/{{.Slide.ID}}" style="height:calc(100vh - 64px);overflow:auto">
+  {{csrfField}}
+  <input type="hidden" name="title" value="{{.Slide.Title}}">
+  <input type="hidden" name="slug" value="{{.Slide.Slug}}">
+  <input type="hidden" name="is_published" value="{{if .Slide.IsPublished}}on{{else}}false{{end}}">
+  <input type="hidden" name="description" value="{{.Slide.Description}}">
+  <input type="hidden" name="featured_image_url" value="{{.Slide.FeaturedImageURL}}">
+  <input type="hidden" name="metadata" value="{{.Slide.SlideMetadata}}">
+  <input type="hidden" name="categories" value="{{range $i, $c := .Slide.Categories}}{{if $i}},{{end}}{{$c.ID}}{{end}}">
+  {{.GoSlideEditorHTML}}
+</form>
+{{else}}
 <div class="slide-editor-container" id="editor-root">
   <!-- Left Sidebar: Slide Thumbnails -->
   <div class="slide-sidebar" id="slide-sidebar">
@@ -1380,5 +1397,6 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
   });
 })();
 </script>
+{{end}}{{/* end of {{if .UseV2}} */}}
 
 {{template "modern-footer" .}}

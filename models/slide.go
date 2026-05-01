@@ -45,6 +45,42 @@ type SlideService struct {
 	DB *sql.DB
 }
 
+// MigrateLegacyInlineStyles removes leading inline <style>...</style> blocks
+// from slide content. Older AAL decks embedded the theme CSS inline (which
+// the WYSIWYG editor would strip on every save, breaking the slide). go-slide
+// now serves theme CSS centrally, so the inline block is redundant.
+//
+// Safe to call on every startup. Only rewrites slides whose content begins
+// with "<style>".
+func (ss *SlideService) MigrateLegacyInlineStyles() {
+	rows, err := ss.DB.Query(`SELECT slide_id, content FROM Slides WHERE content LIKE '<style>%'`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	type pair struct {
+		id      int
+		content string
+	}
+	var toUpdate []pair
+	for rows.Next() {
+		var p pair
+		if err := rows.Scan(&p.id, &p.content); err != nil {
+			continue
+		}
+		end := strings.Index(p.content, "</style>")
+		if end == -1 {
+			continue
+		}
+		// Strip the <style>...</style> block plus any whitespace after it.
+		stripped := strings.TrimLeft(p.content[end+len("</style>"):], " \r\n\t")
+		toUpdate = append(toUpdate, pair{id: p.id, content: stripped})
+	}
+	for _, p := range toUpdate {
+		ss.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, p.content, p.id)
+	}
+}
+
 // MigrateFileContentToDB migrates slide content from files into the DB column.
 // Safe to call on every startup — only updates slides with empty DB content.
 func (ss *SlideService) MigrateFileContentToDB() {
