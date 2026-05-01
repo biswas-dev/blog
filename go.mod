@@ -49,6 +49,7 @@ require (
 require (
 	github.com/XSAM/otelsql v0.41.0
 	github.com/anchoo2kewl/go-draw v0.9.22
+	github.com/anchoo2kewl/go-slide v0.2.0
 	github.com/gorilla/csrf v1.7.3
 	github.com/lib/pq v1.11.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0

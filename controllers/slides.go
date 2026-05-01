@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/utils"
 	"anshumanbiswas.com/blog/views"
+	goslide "github.com/anchoo2kewl/go-slide"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,6 +37,11 @@ type Slides struct {
 	SlideVersionService *models.SlideVersionService
 	SessionService      *models.SessionService
 	CategoryService     *models.CategoryService
+	// Engine is the go-slide engine. When set, ViewSlide renders the
+	// presentation through it (using the slide's theme); EditSlide
+	// embeds the go-slide editor in the admin page. When nil, the
+	// controller falls back to the legacy local templates.
+	Engine *goslide.Engine
 }
 
 // AdminSlides displays the admin slides management page
@@ -198,7 +205,12 @@ func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/admin/slides/%d/edit", slide.ID), http.StatusFound)
 }
 
-// EditSlide displays the slide editing page
+// EditSlide displays the slide editing page.
+//
+// When the engine is wired AND ?editor=v2 is in the URL, the go-slide
+// editor is embedded instead of the legacy TipTap bundle. This lets us
+// roll out the new editor incrementally — old links keep working with
+// the proven editor; new ones opt in.
 func (s Slides) EditSlide(w http.ResponseWriter, r *http.Request) {
 	user, err := s.isUserLoggedIn(r)
 	if err != nil {
@@ -232,28 +244,50 @@ func (s Slides) EditSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	useV2 := s.Engine != nil && r.URL.Query().Get("editor") == "v2"
+	var goslideEditorHTML template.HTML
+	if useV2 {
+		req := goslide.EditorRequest{
+			InitialContent:   string(slide.ContentHTML),
+			ThemeID:          themeIDFromMetadata(slide.SlideMetadata),
+			AutosaveEndpoint: fmt.Sprintf("/api/admin/slides/%d/autosave", slide.ID),
+			OutputFieldID:    "form-content",
+			OutputFieldName:  "content",
+			FormID:           "slide-form",
+		}
+		if h, err := s.Engine.RenderEditor(req); err == nil {
+			goslideEditorHTML = h
+		} else {
+			log.Printf("go-slide editor render: %v", err)
+		}
+	}
+
 	data := struct {
-		LoggedIn        bool
-		Username        string
-		IsAdmin         bool
-		SignupDisabled  bool
-		Description     string
-		CurrentPage     string
-		Categories      []models.Category
-		Slide           *models.Slide
-		IsEdit          bool
-		UserPermissions models.UserPermissions
+		LoggedIn          bool
+		Username          string
+		IsAdmin           bool
+		SignupDisabled    bool
+		Description       string
+		CurrentPage       string
+		Categories        []models.Category
+		Slide             *models.Slide
+		IsEdit            bool
+		UserPermissions   models.UserPermissions
+		UseV2             bool
+		GoSlideEditorHTML template.HTML
 	}{
-		LoggedIn:        true,
-		Username:        user.Username,
-		IsAdmin:         models.IsAdmin(user.Role),
-		SignupDisabled:  true,
-		Description:     "Edit Slide - Anshuman Biswas Blog",
-		CurrentPage:     "admin-slides",
-		Categories:      categories,
-		Slide:           slide,
-		IsEdit:          true,
-		UserPermissions: models.GetPermissions(user.Role),
+		LoggedIn:          true,
+		Username:          user.Username,
+		IsAdmin:           models.IsAdmin(user.Role),
+		SignupDisabled:    true,
+		Description:       "Edit Slide - Anshuman Biswas Blog",
+		CurrentPage:       "admin-slides",
+		Categories:        categories,
+		Slide:             slide,
+		IsEdit:            true,
+		UserPermissions:   models.GetPermissions(user.Role),
+		UseV2:             useV2,
+		GoSlideEditorHTML: goslideEditorHTML,
 	}
 
 	s.Templates.SlideEditor.Execute(w, r, data)
@@ -467,6 +501,42 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 		userPerms = models.GetPermissions(user.Role)
 	}
 
+	// Render via go-slide when wired in. The engine reads the slide's
+	// theme from the metadata JSON ("theme_id"), falls back to the
+	// registry default for older decks. Auth (password gate, edit
+	// permission) was already enforced above.
+	if s.Engine != nil {
+		gs := goslide.Slide{
+			Title:           slide.Title,
+			Slug:            slide.Slug,
+			Description:     slide.Description,
+			ContentHTML:     slide.ContentHTML,
+			ThemeID:         themeIDFromMetadata(slide.SlideMetadata),
+			AuthorName:      slide.AuthorDisplayName,
+			AuthorUsername:  slide.Username,
+			AuthorAvatarURL: slide.AuthorAvatarURL,
+			CanonicalURL:    "https://anshumanbiswas.com/slides/" + slide.Slug,
+		}
+		if user != nil && models.CanEditSlides(user.Role) {
+			gs.EditURL = fmt.Sprintf("/admin/slides/%d/edit", slide.ID)
+		}
+		for _, c := range slide.Contributors {
+			gs.Coauthors = append(gs.Coauthors, goslide.Coauthor{
+				Name: c.FullName, Username: c.Username, AvatarURL: c.AvatarURL,
+			})
+		}
+		html, err := s.Engine.RenderPresentation(gs)
+		if err != nil {
+			log.Printf("go-slide render error: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(html))
+		_ = userPerms // keep referenced for legacy fallback path
+		return
+	}
+
 	data := struct {
 		LoggedIn        bool
 		Username        string
@@ -488,6 +558,23 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.Templates.SlidePresentation.Execute(w, r, data)
+}
+
+// themeIDFromMetadata reads the "theme_id" key from a slide's metadata
+// JSON. Returns "" if absent so the renderer falls back to the registry
+// default.
+func themeIDFromMetadata(metadata string) string {
+	if metadata == "" || metadata == "{}" {
+		return ""
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(metadata), &m); err != nil {
+		return ""
+	}
+	if v, ok := m["theme_id"].(string); ok {
+		return v
+	}
+	return ""
 }
 
 // PreviewSlide handles slide preview (for admin)

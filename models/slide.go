@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"os"
@@ -43,6 +44,98 @@ type Slide struct {
 
 type SlideService struct {
 	DB *sql.DB
+}
+
+// MigrateThemeID backfills slide_metadata.theme_id for every slide that
+// doesn't already have one. Heuristic:
+//   * Decks whose content references the .aal-* design system (the AI
+//     Agent Lens pitch) get theme_id = "aal".
+//   * Everything else gets theme_id = "default".
+// Idempotent: rows already carrying theme_id are skipped.
+//
+// Done in Go (rather than the 0040 SQL migration) because legacy rows
+// can store empty strings or malformed JSON in slide_metadata, and
+// Postgres evaluates the ::jsonb cast eagerly in some plan shapes —
+// even inside a CASE branch that should be unreachable.
+func (ss *SlideService) MigrateThemeID() {
+	rows, err := ss.DB.Query(`SELECT slide_id, COALESCE(slide_metadata, ''), COALESCE(content, '') FROM Slides`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	type pair struct {
+		id       int
+		metadata string
+	}
+	var toUpdate []pair
+	for rows.Next() {
+		var id int
+		var metadata, content string
+		if err := rows.Scan(&id, &metadata, &content); err != nil {
+			continue
+		}
+		// Pick a theme based on content shape. If parsing fails on the
+		// metadata we still proceed with a fresh map.
+		m := map[string]interface{}{}
+		if metadata != "" && metadata != "{}" {
+			_ = json.Unmarshal([]byte(metadata), &m)
+		}
+		if _, ok := m["theme_id"].(string); ok {
+			continue // already set
+		}
+		theme := "default"
+		if strings.Contains(content, `class="aal `) ||
+			strings.Contains(content, `class="aal-light `) ||
+			strings.Contains(content, `class="aal pptx-slide`) ||
+			strings.Contains(content, `class="aal-light pptx-slide`) {
+			theme = "aal"
+		}
+		m["theme_id"] = theme
+		b, err := json.Marshal(m)
+		if err != nil {
+			continue
+		}
+		toUpdate = append(toUpdate, pair{id: id, metadata: string(b)})
+	}
+	for _, p := range toUpdate {
+		ss.DB.Exec(`UPDATE Slides SET slide_metadata = $1 WHERE slide_id = $2`, p.metadata, p.id)
+	}
+}
+
+// MigrateLegacyInlineStyles removes leading inline <style>...</style> blocks
+// from slide content. Older AAL decks embedded the theme CSS inline (which
+// the WYSIWYG editor would strip on every save, breaking the slide). go-slide
+// now serves theme CSS centrally, so the inline block is redundant.
+//
+// Safe to call on every startup. Only rewrites slides whose content begins
+// with "<style>".
+func (ss *SlideService) MigrateLegacyInlineStyles() {
+	rows, err := ss.DB.Query(`SELECT slide_id, content FROM Slides WHERE content LIKE '<style>%'`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	type pair struct {
+		id      int
+		content string
+	}
+	var toUpdate []pair
+	for rows.Next() {
+		var p pair
+		if err := rows.Scan(&p.id, &p.content); err != nil {
+			continue
+		}
+		end := strings.Index(p.content, "</style>")
+		if end == -1 {
+			continue
+		}
+		// Strip the <style>...</style> block plus any whitespace after it.
+		stripped := strings.TrimLeft(p.content[end+len("</style>"):], " \r\n\t")
+		toUpdate = append(toUpdate, pair{id: p.id, content: stripped})
+	}
+	for _, p := range toUpdate {
+		ss.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, p.content, p.id)
+	}
 }
 
 // MigrateFileContentToDB migrates slide content from files into the DB column.
