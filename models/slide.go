@@ -57,9 +57,17 @@ type SlideService struct {
 // can store empty strings or malformed JSON in slide_metadata, and
 // Postgres evaluates the ::jsonb cast eagerly in some plan shapes —
 // even inside a CASE branch that should be unreachable.
+//
+// Logs counts to stderr so a silent failure in production is impossible
+// to miss.
 func (ss *SlideService) MigrateThemeID() {
-	rows, err := ss.DB.Query(`SELECT slide_id, COALESCE(slide_metadata, ''), COALESCE(content, '') FROM Slides`)
+	// slide_metadata is JSONB — must cast to text BEFORE coalescing with
+	// '' or pq throws "invalid input syntax for type json" and the
+	// migration becomes a silent no-op (this exact bug shipped to
+	// production once; covered by TestMigrateThemeID_BackfillsEmptyMetadata).
+	rows, err := ss.DB.Query(`SELECT slide_id, COALESCE(slide_metadata::text, ''), COALESCE(content, '') FROM Slides`)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "MigrateThemeID: query failed: %v\n", err)
 		return
 	}
 	defer rows.Close()
@@ -67,21 +75,29 @@ func (ss *SlideService) MigrateThemeID() {
 		id       int
 		metadata string
 	}
-	var toUpdate []pair
+	var (
+		toUpdate []pair
+		scanned  int
+		skipped  int
+	)
 	for rows.Next() {
+		scanned++
 		var id int
 		var metadata, content string
 		if err := rows.Scan(&id, &metadata, &content); err != nil {
+			fmt.Fprintf(os.Stderr, "MigrateThemeID: scan slide_id=?: %v\n", err)
 			continue
 		}
-		// Pick a theme based on content shape. If parsing fails on the
-		// metadata we still proceed with a fresh map.
 		m := map[string]interface{}{}
 		if metadata != "" && metadata != "{}" {
-			_ = json.Unmarshal([]byte(metadata), &m)
+			if err := json.Unmarshal([]byte(metadata), &m); err != nil {
+				// Treat malformed JSON as empty so we don't lose the row.
+				m = map[string]interface{}{}
+			}
 		}
 		if _, ok := m["theme_id"].(string); ok {
-			continue // already set
+			skipped++
+			continue
 		}
 		theme := "default"
 		if strings.Contains(content, `class="aal `) ||
@@ -93,13 +109,25 @@ func (ss *SlideService) MigrateThemeID() {
 		m["theme_id"] = theme
 		b, err := json.Marshal(m)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "MigrateThemeID: marshal slide_id=%d: %v\n", id, err)
 			continue
 		}
 		toUpdate = append(toUpdate, pair{id: id, metadata: string(b)})
 	}
-	for _, p := range toUpdate {
-		ss.DB.Exec(`UPDATE Slides SET slide_metadata = $1 WHERE slide_id = $2`, p.metadata, p.id)
+	if err := rows.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "MigrateThemeID: rows iter: %v\n", err)
 	}
+
+	updated := 0
+	for _, p := range toUpdate {
+		if _, err := ss.DB.Exec(`UPDATE Slides SET slide_metadata = $1::jsonb WHERE slide_id = $2`, p.metadata, p.id); err != nil {
+			fmt.Fprintf(os.Stderr, "MigrateThemeID: update slide_id=%d: %v\n", p.id, err)
+			continue
+		}
+		updated++
+	}
+	fmt.Fprintf(os.Stderr, "MigrateThemeID: scanned=%d skipped=%d updated=%d\n",
+		scanned, skipped, updated)
 }
 
 // MigrateLegacyInlineStyles removes leading inline <style>...</style> blocks
