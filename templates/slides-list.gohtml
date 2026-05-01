@@ -64,11 +64,16 @@
                             <span class="text-sm" style="color: var(--text-secondary);">{{.AuthorDisplayName}}</span>
                             </a>
                             {{if .Contributors}}
-                            <div class="flex -space-x-1.5 ml-1">
-                                {{range .Contributors}}
-                                <span title="{{.FullName}}" class="inline-block w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 overflow-hidden bg-gray-200">
-                                    {{if .AvatarURL}}<img src="{{thumbURL .AvatarURL}}" alt="{{.Username}}" class="w-full h-full object-cover" width="20" height="20">{{end}}
-                                </span>
+                            <span class="text-sm" style="color: var(--text-tertiary);">·</span>
+                            <div class="flex items-center gap-1.5 ml-0.5">
+                                {{range $i, $c := .Contributors}}
+                                {{if $i}}<span class="text-sm" style="color: var(--text-tertiary);">,</span>{{end}}
+                                <a href="/users/{{$c.Username}}" class="flex items-center gap-1 hover:opacity-80 transition-opacity" title="{{$c.FullName}}">
+                                    <span class="inline-block w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 overflow-hidden bg-gray-200">
+                                        {{if $c.AvatarURL}}<img src="{{thumbURL $c.AvatarURL}}" alt="{{$c.Username}}" class="w-full h-full object-cover" width="20" height="20">{{end}}
+                                    </span>
+                                    <span class="text-sm" style="color: var(--text-secondary);">{{$c.FullName}}</span>
+                                </a>
                                 {{end}}
                             </div>
                             {{end}}

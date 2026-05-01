@@ -280,6 +280,39 @@
             width: 16px;
             height: 16px;
         }
+
+        /* Authorship row: author + co-author pills, name visible */
+        .nav-author { display: flex; align-items: center; gap: 6px; margin-right: 6px; }
+        .nav-author-pill {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            padding: 3px 10px 3px 3px;
+            font-size: 13px; font-weight: 500;
+            color: #374151;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .nav-author-pill:hover { background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.08); color: #2563eb; }
+        .nav-author-pill img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .nav-author-pill .nav-author-initial {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 700;
+        }
+        .nav-author-name { white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+        .nav-author-sep { color: #9ca3af; font-weight: 700; }
+        @media (prefers-color-scheme: dark) {
+            .nav-author-pill { background: rgba(30,41,59,0.9); border-color: #475569; color: #e2e8f0; }
+            .nav-author-pill:hover { background: rgba(30,41,59,1); color: #60a5fa; }
+            .nav-author-pill .nav-author-initial { background: #475569; color: #cbd5e1; }
+            .nav-author-sep { color: #64748b; }
+        }
+        @media (max-width: 700px) {
+            .nav-author-name { display: none; }
+            .nav-author-pill { padding: 3px; }
+        }
         
         /* Hide navigation on print */
         @media print {
@@ -340,15 +373,22 @@
 <body>
     <!-- Custom Navigation -->
     <div class="presentation-nav">
-        {{if .Slide.Contributors}}
-        <div style="display:flex;gap:-4px;align-items:center;margin-right:8px">
+        <!-- Authorship: primary author + any co-author/contributors -->
+        <div class="nav-author" title="By {{.Slide.AuthorDisplayName}}{{range .Slide.Contributors}} with {{.FullName}}{{end}}">
+            <a href="/users/{{.Slide.Username}}" class="nav-author-pill" title="{{.Slide.AuthorDisplayName}} (author)">
+                {{if .Slide.AuthorAvatarURL}}<img src="{{thumbURL .Slide.AuthorAvatarURL}}" alt="{{.Slide.AuthorDisplayName}}" width="28" height="28">{{else}}<span class="nav-author-initial">{{slice .Slide.Username 0 1}}</span>{{end}}
+                <span class="nav-author-name">{{.Slide.AuthorDisplayName}}</span>
+            </a>
+            {{if .Slide.Contributors}}
+            <span class="nav-author-sep">·</span>
             {{range .Slide.Contributors}}
-            <span title="{{.FullName}}" style="display:inline-block;width:28px;height:28px;border-radius:50%;overflow:hidden;border:2px solid #fff;margin-left:-4px;background:#e2e8f0">
-                {{if .AvatarURL}}<img src="{{thumbURL .AvatarURL}}" alt="{{.Username}}" width="28" height="28" style="width:100%;height:100%;object-fit:cover">{{else}}<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:12px;font-weight:600;color:#6b7280">{{slice .Username 0 1}}</span>{{end}}
-            </span>
+            <a href="/users/{{.Username}}" class="nav-author-pill" title="{{.FullName}} (co-author)">
+                {{if .AvatarURL}}<img src="{{thumbURL .AvatarURL}}" alt="{{.Username}}" width="28" height="28">{{else}}<span class="nav-author-initial">{{slice .Username 0 1}}</span>{{end}}
+                <span class="nav-author-name">{{.FullName}}</span>
+            </a>
+            {{end}}
             {{end}}
         </div>
-        {{end}}
         {{if .LoggedIn}}
             {{if .UserPermissions.CanEditSlides}}
                 <a href="/admin/slides/{{.Slide.ID}}/edit" class="nav-btn" title="Edit Slide">
