@@ -244,7 +244,9 @@ func (s Slides) EditSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	useV2 := s.Engine != nil && r.URL.Query().Get("editor") == "v2"
+	// v2 is now the default editor. Pass ?editor=v1 to opt back into the
+	// legacy TipTap-bundle editor (kept for safety while v2 stabilises).
+	useV2 := s.Engine != nil && r.URL.Query().Get("editor") != "v1"
 	var goslideEditorHTML template.HTML
 	if useV2 {
 		req := goslide.EditorRequest{
