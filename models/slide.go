@@ -130,6 +130,68 @@ func (ss *SlideService) MigrateThemeID() {
 		scanned, skipped, updated)
 }
 
+// MigrateSlideCount backfills Slides.slide_count for any row where it's 0
+// or NULL by counting <section ...> tags in the content. Idempotent — only
+// rewrites rows whose stored count differs from what the content implies,
+// so harmless to re-run.
+//
+// Why this exists: slide_count is updated on every Save (controllers/slides.go
+// :881, :984) but predates that wiring for older decks, so legacy rows have
+// slide_count = 0 and the listing template suppresses the "N slides" badge
+// (templates/slides-list.gohtml:45). This restores the badge for every deck.
+func (ss *SlideService) MigrateSlideCount() {
+	rows, err := ss.DB.Query(`SELECT slide_id, COALESCE(content, ''), COALESCE(slide_count, 0) FROM Slides`)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "MigrateSlideCount: query failed: %v\n", err)
+		return
+	}
+	defer rows.Close()
+	type pair struct {
+		id    int
+		count int
+	}
+	var (
+		toUpdate []pair
+		scanned  int
+		skipped  int
+	)
+	for rows.Next() {
+		scanned++
+		var id, stored int
+		var content string
+		if err := rows.Scan(&id, &content, &stored); err != nil {
+			fmt.Fprintf(os.Stderr, "MigrateSlideCount: scan: %v\n", err)
+			continue
+		}
+		// Count actual <section ...> openings. Use case-insensitive search on
+		// "<section" — handles "<section>", "<section class=...>", "<SECTION".
+		count := strings.Count(strings.ToLower(content), "<section")
+		if count == 0 && content != "" {
+			// Single-section deck stored as raw HTML (no <section> wrapper) —
+			// treat as 1 so the listing still shows a badge.
+			count = 1
+		}
+		if stored == count {
+			skipped++
+			continue
+		}
+		toUpdate = append(toUpdate, pair{id: id, count: count})
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "MigrateSlideCount: rows iter: %v\n", err)
+	}
+	updated := 0
+	for _, p := range toUpdate {
+		if _, err := ss.DB.Exec(`UPDATE Slides SET slide_count = $1 WHERE slide_id = $2`, p.count, p.id); err != nil {
+			fmt.Fprintf(os.Stderr, "MigrateSlideCount: update slide_id=%d: %v\n", p.id, err)
+			continue
+		}
+		updated++
+	}
+	fmt.Fprintf(os.Stderr, "MigrateSlideCount: scanned=%d skipped=%d updated=%d\n",
+		scanned, skipped, updated)
+}
+
 // MigrateLegacyInlineStyles removes leading inline <style>...</style> blocks
 // from slide content. Older AAL decks embedded the theme CSS inline (which
 // the WYSIWYG editor would strip on every save, breaking the slide). go-slide
@@ -721,14 +783,21 @@ func (ss *SlideService) loadContributorsForSlides(slides []Slide) error {
 		idIdx[s.ID] = append(idIdx[s.ID], i)
 	}
 
+	// Dedupe co-author pills: exclude the slide's primary author by user_id
+	// AND by username (covers the legacy case where the same person has
+	// two user rows — e.g. an old account and the current one — that would
+	// otherwise both render as "Anshuman Biswas · Anshuman Biswas").
 	rows, err := ss.DB.Query(`
 		SELECT sc.slide_id, u.user_id, u.username, COALESCE(NULLIF(u.full_name, ''), u.username),
 		       COALESCE(u.profile_picture_url, '')
 		FROM slide_contributors sc
 		JOIN Users u ON u.user_id = sc.user_id
 		JOIN Slides s ON s.slide_id = sc.slide_id
+		JOIN Users author ON author.user_id = s.user_id
 		WHERE sc.slide_id = ANY($1)
 		  AND sc.user_id != s.user_id
+		  AND lower(u.username) != lower(author.username)
+		  AND lower(COALESCE(NULLIF(u.full_name, ''), u.username)) != lower(COALESCE(NULLIF(author.full_name, ''), author.username))
 		ORDER BY sc.first_contributed_at ASC
 	`, pq.Array(ids))
 	if err != nil {
