@@ -55,8 +55,12 @@ func ensureTestUser(t *testing.T, db *sql.DB) int {
 	if err == nil {
 		return id
 	}
-	err = db.QueryRow(`INSERT INTO users (username, email, password, full_name, created_at)
-		VALUES ('goslide-test', 'goslide-test@example.com', '!', 'GoSlide Test', NOW())
+	// role_id=1 (Commenter) is the lowest-privilege built-in role and is
+	// safe to assign here. Setting it (rather than leaving NULL) keeps
+	// other tests that scan all users into non-nullable ints (e.g.
+	// TestUserService_GetAllUsers) from blowing up on our fixture row.
+	err = db.QueryRow(`INSERT INTO users (username, email, password, full_name, role_id, created_at)
+		VALUES ('goslide-test', 'goslide-test@example.com', '!', 'GoSlide Test', 1, NOW())
 		RETURNING user_id`).Scan(&id)
 	if err != nil {
 		t.Fatalf("ensure user: %v", err)
