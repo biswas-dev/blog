@@ -315,6 +315,7 @@ func main() {
 	}
 	slideService.MigrateFileContentToDB()
 	slideService.MigrateLegacyInlineStyles()
+	slideService.MigrateThemeID()
 
 	// Initialize GuideService (early, needed by Users controller)
 	guideService := models.GuideService{DB: DB}
