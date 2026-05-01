@@ -415,17 +415,21 @@
 
     if (sections.length === 0) {
       // No sections found, wrap everything in one slide
-      slides.push({ content: html, background: '#ffffff', backgroundImage: '', transition: 'slide', layout: '' });
+      slides.push({ content: html, background: '#ffffff', backgroundImage: '', transition: 'slide', layout: '', sectionClass: '' });
     } else {
       sections.forEach(section => {
+        const fullClass = (section.className || '').trim();
         const isPptx = section.classList.contains('pptx-slide');
         slides.push({
           content: section.innerHTML.trim(),
           background: section.getAttribute('data-background-color') || '#ffffff',
           backgroundImage: section.getAttribute('data-background-image') || '',
           transition: section.getAttribute('data-transition') || 'slide',
-          layout: (section.className || '').replace('layout-', '').replace('pptx-slide', '').trim() || '',
+          layout: fullClass.replace('layout-', '').replace('pptx-slide', '').trim() || '',
           pptxSlide: isPptx,
+          // Preserve the full original class string so custom theme classes
+          // (e.g. "aal pptx-slide") survive a save round-trip.
+          sectionClass: fullClass,
         });
       });
     }
@@ -457,8 +461,13 @@
     ],
     content: editorState.slides[0]?.content || '',
     onUpdate: () => {
+      // Skip pptx slides — TipTap re-serializes HTML lossily, dropping
+      // custom <div> wrappers, classes, and inline styles. For those,
+      // editing must go through Code mode.
+      const cur = editorState.slides[editorState.currentSlideIndex];
+      if (!cur || cur.pptxSlide) return;
       editorState.dirty = true;
-      editorState.slides[editorState.currentSlideIndex].content = editor.getHTML();
+      cur.content = editor.getHTML();
       updateThumbPreview(editorState.currentSlideIndex);
       scheduleAutosave();
     },
@@ -550,7 +559,14 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
     iframe.srcdoc = html;
   }
 
-  document.getElementById('mode-wysiwyg').addEventListener('click', () => setEditorMode('wysiwyg'));
+  document.getElementById('mode-wysiwyg').addEventListener('click', () => {
+    const cur = editorState.slides[editorState.currentSlideIndex];
+    if (cur && cur.pptxSlide) {
+      alert('This slide uses custom HTML and can only be edited in Code mode. WYSIWYG would strip its layout.');
+      return;
+    }
+    setEditorMode('wysiwyg');
+  });
   document.getElementById('mode-code').addEventListener('click', () => setEditorMode('code'));
   document.getElementById('mode-preview').addEventListener('click', () => setEditorMode('preview'));
 
@@ -615,6 +631,15 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
     editorState.currentSlideIndex = index;
     const slide = editorState.slides[index];
 
+    // pptx slides carry custom HTML (positioned divs, classes, inline styles)
+    // that TipTap can't represent. Force Code mode so edits don't flatten them.
+    if (slide.pptxSlide && editorState.mode === 'wysiwyg') {
+      setEditorMode('code');
+      renderThumbs();
+      updatePptxBanner();
+      return;
+    }
+
     // Load new slide content
     if (editorState.mode === 'wysiwyg') {
       editor.commands.setContent(slide.content);
@@ -630,6 +655,29 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
     document.getElementById('slide-transition').value = slide.transition || 'slide';
 
     renderThumbs();
+    updatePptxBanner();
+  }
+
+  // Show a non-blocking banner over the editor area when the current slide
+  // uses custom HTML (pptx-slide). Explains why WYSIWYG is locked.
+  function updatePptxBanner() {
+    let banner = document.getElementById('pptx-mode-banner');
+    const slide = editorState.slides[editorState.currentSlideIndex];
+    const editorArea = document.getElementById('editor-area');
+    if (!editorArea) return;
+    if (slide && slide.pptxSlide) {
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'pptx-mode-banner';
+        banner.style.cssText = 'background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:6px;padding:8px 12px;margin:0 auto 12px;max-width:960px;font-size:13px;display:flex;gap:8px;align-items:center';
+        banner.innerHTML = '<strong>Code mode active.</strong> This slide uses custom HTML (positioned layout, theme classes, inline styles). Edit the source directly — switching to WYSIWYG would flatten the structure.';
+        editorArea.insertBefore(banner, editorArea.firstChild);
+      } else {
+        banner.style.display = '';
+      }
+    } else if (banner) {
+      banner.style.display = 'none';
+    }
   }
 
   function addSlide(layout) {
@@ -892,8 +940,12 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
       if (slide.transition && slide.transition !== 'slide') {
         attrs += ` data-transition="${slide.transition}"`;
       }
+      // Prefer the full original class string when present so theme
+      // classes (e.g. "aal pptx-slide") round-trip through save/load.
       let cls = '';
-      if (slide.pptxSlide) {
+      if (slide.sectionClass) {
+        cls = ` class="${slide.sectionClass}"`;
+      } else if (slide.pptxSlide) {
         cls = ' class="pptx-slide"';
       } else if (slide.layout) {
         cls = ` class="layout-${slide.layout}"`;
@@ -1311,6 +1363,12 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
   if (editorState.slides[0]) {
     document.getElementById('slide-bg-color').value = editorState.slides[0].background || '#ffffff';
     document.getElementById('slide-transition').value = editorState.slides[0].transition || 'slide';
+    // If the deck opens on a pptx slide, force Code mode so the user
+    // doesn't unwittingly destroy structure by typing in WYSIWYG.
+    if (editorState.slides[0].pptxSlide) {
+      setEditorMode('code');
+    }
+    updatePptxBanner();
   }
 
   // Warn before leaving with unsaved changes
