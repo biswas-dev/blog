@@ -13,7 +13,19 @@
     <!-- Reveal.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/white.css" id="theme">
-    
+
+    <!-- Print stylesheet — only loaded when ?print-pdf is in the URL.
+         Reveal needs this to paginate slides into fixed-size pages. -->
+    <script>
+      (function(){
+        var pdf = /print-pdf/i.test(window.location.search);
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/css/print/' + (pdf ? 'pdf.css' : 'paper.css');
+        document.head.appendChild(link);
+      })();
+    </script>
+
     <!-- Code syntax highlighting -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/monokai.css">
     
@@ -349,6 +361,10 @@
             {{icon "chevron-left" "w-4 h-4"}}
             Back
         </a>
+        <a href="?print-pdf" target="_blank" rel="noopener" class="nav-btn" title="Download PDF" id="download-pdf-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            PDF
+        </a>
         <button id="fullscreen-btn" class="nav-btn" title="Toggle Fullscreen">
             {{icon "fullscreen" "w-4 h-4"}}
             Fullscreen
@@ -372,20 +388,29 @@
 
     <!-- Initialize Reveal.js -->
     <script>
+        var isPrintPdf = /print-pdf/i.test(window.location.search);
+        if (isPrintPdf) {
+            // Hide chrome the print stylesheet doesn't (our custom nav,
+            // fullscreen button, etc.) — reveal's pdf.css handles its own.
+            document.documentElement.classList.add('print-pdf-mode');
+        }
+
         Reveal.initialize({
             width: 1280,
             height: 800,
-            margin: 0.08,
-            minScale: 0.2,
-            maxScale: 1.5,
-            hash: true,
-            controls: true,
-            progress: true,
-            slideNumber: true,
+            margin: 0.04,
+            minScale: isPrintPdf ? 1 : 0.2,
+            maxScale: isPrintPdf ? 1 : 1.5,
+            hash: !isPrintPdf,
+            controls: !isPrintPdf,
+            progress: !isPrintPdf,
+            slideNumber: !isPrintPdf,
             center: false,
-            transition: 'fade',
+            transition: isPrintPdf ? 'none' : 'fade',
             transitionSpeed: 'default',
             autoAnimateEasing: 'ease-out',
+            pdfSeparateFragments: false,
+            pdfMaxPagesPerSlide: 1,
             plugins: [ RevealNotes, RevealHighlight ]
         });
 
@@ -394,7 +419,30 @@
             mermaid.initialize({ startOnLoad: false, theme: 'default' });
             mermaid.run({ querySelector: '.mermaid' });
         }
+
+        // Auto-trigger the browser print dialog when ?print-pdf is in the URL.
+        // The user picks "Save as PDF" and gets the deck. No server-side
+        // headless browser required.
+        if (isPrintPdf) {
+            Reveal.on('pdf-ready', function() {
+                setTimeout(function() { window.print(); }, 250);
+            });
+            // Fallback: some reveal builds don't emit pdf-ready
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    if (!window.__printed) { window.__printed = true; window.print(); }
+                }, 1500);
+            });
+        }
     </script>
+
+    <!-- Print mode chrome hide -->
+    <style>
+        html.print-pdf-mode .presentation-nav { display: none !important; }
+        @media print {
+            .presentation-nav { display: none !important; }
+        }
+    </style>
 
     <script>
         // Fullscreen functionality
