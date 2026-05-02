@@ -137,10 +137,17 @@
       <textarea id="meta-description" name="description" rows="3" placeholder="Brief description shown on /slides">{{.Slide.Description}}</textarea>
     </div>
     <div>
-      <label for="meta-cover-url">Cover Image URL</label>
+      <label for="meta-cover-url">Cover Image</label>
       <div class="meta-cover-row">
         <img class="meta-cover-preview" src="{{if .Slide.FeaturedImageURL}}{{.Slide.FeaturedImageURL}}{{else}}data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='38'/>{{end}}" id="meta-cover-preview" alt="cover">
         <input type="text" id="meta-cover-url" name="featured_image_url" value="{{.Slide.FeaturedImageURL}}" placeholder="/static/uploads/featured/...">
+      </div>
+      <div class="meta-cover-actions" style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="meta-cover-file" accept="image/*" style="display:none">
+        <button type="button" id="meta-cover-upload-btn" class="meta-toggle">Upload</button>
+        <span id="meta-cover-drop" style="flex:1;min-width:140px;border:1px dashed #cbd5e1;border-radius:4px;padding:6px 8px;font-size:11px;color:#64748b;text-align:center;cursor:pointer">drop image here</span>
+        {{if .Slide.FeaturedImageURL}}<button type="button" id="meta-cover-remove" class="meta-toggle" style="color:#ef4444">Remove</button>{{end}}
+        <span id="meta-cover-status" style="font-size:11px;color:#64748b"></span>
       </div>
     </div>
     <div>
@@ -204,6 +211,76 @@
         var ids = Array.from(document.querySelectorAll('.meta-cat:checked')).map(function(x) { return x.value; });
         catHidden.value = ids.join(',');
       });
+    });
+  }
+
+  // Cover image upload (file picker + drag-drop). POSTs to /admin/uploads
+  // with type=featured + slug so the asset lands in
+  // static/uploads/featured/<slug>/<hash>.ext, mirroring v1 behavior.
+  var coverFile = document.getElementById('meta-cover-file');
+  var coverUploadBtn = document.getElementById('meta-cover-upload-btn');
+  var coverDrop = document.getElementById('meta-cover-drop');
+  var coverRemove = document.getElementById('meta-cover-remove');
+  var coverStatus = document.getElementById('meta-cover-status');
+  var slugInput = document.querySelector('input[name="slug"]');
+
+  function applyCoverUrl(url) {
+    if (coverUrl) coverUrl.value = url;
+    if (coverPreview) coverPreview.src = url || coverPreview.src;
+    if (coverThumb) coverThumb.src = url;
+  }
+
+  function uploadCover(file) {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      if (coverStatus) coverStatus.textContent = 'not an image';
+      return;
+    }
+    if (coverStatus) coverStatus.textContent = 'uploading…';
+    var fd = new FormData();
+    fd.append('file', file);
+    var qs = 'type=featured';
+    if (slugInput && slugInput.value) qs += '&slug=' + encodeURIComponent(slugInput.value);
+    fetch('/admin/uploads?' + qs, { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(data) {
+        if (data && data.url) {
+          applyCoverUrl(data.url);
+          if (coverStatus) coverStatus.textContent = 'uploaded';
+        } else {
+          if (coverStatus) coverStatus.textContent = 'no url returned';
+        }
+      })
+      .catch(function(err) {
+        if (coverStatus) coverStatus.textContent = 'failed: ' + err.message;
+      });
+  }
+
+  if (coverUploadBtn && coverFile) {
+    coverUploadBtn.addEventListener('click', function() { coverFile.click(); });
+    coverFile.addEventListener('change', function() {
+      if (coverFile.files && coverFile.files[0]) uploadCover(coverFile.files[0]);
+    });
+  }
+  if (coverDrop) {
+    ['dragenter','dragover'].forEach(function(ev) {
+      coverDrop.addEventListener(ev, function(e) { e.preventDefault(); coverDrop.style.borderColor = '#6366f1'; coverDrop.style.color = '#6366f1'; });
+    });
+    ['dragleave','drop'].forEach(function(ev) {
+      coverDrop.addEventListener(ev, function() { coverDrop.style.borderColor = '#cbd5e1'; coverDrop.style.color = '#64748b'; });
+    });
+    coverDrop.addEventListener('drop', function(e) {
+      e.preventDefault();
+      var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) uploadCover(file);
+    });
+    coverDrop.addEventListener('click', function() { if (coverFile) coverFile.click(); });
+  }
+  if (coverRemove) {
+    coverRemove.addEventListener('click', function() {
+      applyCoverUrl('');
+      if (coverThumb && coverThumb.parentNode) coverThumb.parentNode.removeChild(coverThumb);
+      coverRemove.style.display = 'none';
+      if (coverStatus) coverStatus.textContent = 'cleared';
     });
   }
 })();

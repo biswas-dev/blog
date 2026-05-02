@@ -704,15 +704,59 @@ func (s Slides) VerifySlidePassword(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/slides/%s", slug), http.StatusFound)
 }
 
-// AutoSave handles POST /api/admin/slides/{slideID}/autosave
-func (s Slides) AutoSave(w http.ResponseWriter, r *http.Request) {
-	user, err := s.isUserLoggedIn(r)
-	if err != nil {
+// authSlideEditor returns a user with edit-slide permission, accepting
+// either a session cookie or a Bearer token matching API_TOKEN. The
+// Bearer path is for scripted content authoring (see GetContent /
+// AutoSave) and mirrors the same fallback in users.UploadImage.
+func (s Slides) authSlideEditor(r *http.Request) *models.User {
+	if user, err := s.isUserLoggedIn(r); err == nil && models.CanEditSlides(user.Role) {
+		return user
+	}
+	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
+		token := strings.TrimPrefix(h, "Bearer ")
+		if env := os.Getenv("API_TOKEN"); env != "" && token == env {
+			return &models.User{Role: models.RoleAdministrator}
+		}
+	}
+	return nil
+}
+
+// GetContent handles GET /api/admin/slides/{slideID}/content — returns
+// the slide's title + raw section HTML + metadata. Bearer-auth friendly
+// so it can be paired with AutoSave for scripted content rewrites.
+func (s Slides) GetContent(w http.ResponseWriter, r *http.Request) {
+	if s.authSlideEditor(r) == nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	if !models.CanEditSlides(user.Role) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	slideID, err := strconv.Atoi(chi.URLParam(r, "slideID"))
+	if err != nil {
+		http.Error(w, "Invalid slide ID", http.StatusBadRequest)
+		return
+	}
+	slide, err := s.SlideService.GetByID(slideID)
+	if err != nil {
+		http.Error(w, "Slide not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"slide_id":           slide.ID,
+		"title":              slide.Title,
+		"slug":               slide.Slug,
+		"content":            string(slide.ContentHTML),
+		"description":        slide.Description,
+		"featured_image_url": slide.FeaturedImageURL,
+		"slide_metadata":     slide.SlideMetadata,
+		"is_published":       slide.IsPublished,
+	})
+}
+
+// AutoSave handles POST /api/admin/slides/{slideID}/autosave
+func (s Slides) AutoSave(w http.ResponseWriter, r *http.Request) {
+	user := s.authSlideEditor(r)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -738,13 +782,27 @@ func (s Slides) AutoSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write content to file
+	// Persist content to BOTH the legacy file path AND the Slides.content
+	// column. loadSlideContent prefers the DB, so without the DB write
+	// autosave was a silent no-op for any deck that had already migrated.
 	if req.Content != "" {
-		if err := os.WriteFile(slide.ContentFilePath, []byte(req.Content), 0644); err != nil {
-			log.Printf("Autosave write error: %v", err)
+		if slide.ContentFilePath != "" {
+			_ = os.MkdirAll(filepath.Dir(slide.ContentFilePath), 0755)
+			if err := os.WriteFile(slide.ContentFilePath, []byte(req.Content), 0644); err != nil {
+				log.Printf("Autosave file write error: %v", err)
+			}
+		}
+		if _, err := s.SlideService.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, req.Content, slideID); err != nil {
+			log.Printf("Autosave DB write error: %v", err)
 			http.Error(w, "Failed to save", http.StatusInternalServerError)
 			return
 		}
+		// Refresh slide_count so the listing badge stays accurate.
+		sectionCount := strings.Count(strings.ToLower(req.Content), "<section")
+		if sectionCount == 0 {
+			sectionCount = 1
+		}
+		s.SlideService.UpdateSlideCount(slideID, sectionCount)
 	}
 
 	title := req.Title
@@ -756,10 +814,17 @@ func (s Slides) AutoSave(w http.ResponseWriter, r *http.Request) {
 		content = string(slide.ContentHTML)
 	}
 
-	// Create version snapshot
+	// Create version snapshot. Bearer-auth callers have user.UserID == 0
+	// and would FK-violate the slide_contributors insert; fall back to
+	// crediting the slide's primary author so version history stays
+	// consistent.
+	versionUserID := user.UserID
+	if versionUserID == 0 {
+		versionUserID = slide.UserID
+	}
 	var versionNum int
-	if s.SlideVersionService != nil {
-		_ = s.SlideVersionService.MaybeCreateVersion(slideID, user.UserID, title, content)
+	if s.SlideVersionService != nil && versionUserID != 0 {
+		_ = s.SlideVersionService.MaybeCreateVersion(slideID, versionUserID, title, content)
 		versions, err := s.SlideVersionService.GetVersions(slideID)
 		if err == nil && len(versions) > 0 {
 			versionNum = versions[0].VersionNumber
