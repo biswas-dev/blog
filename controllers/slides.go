@@ -705,6 +705,21 @@ func (s Slides) VerifySlidePassword(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/slides/%s", slug), http.StatusFound)
 }
 
+// detectThemeID picks a theme from raw slide HTML using the same
+// heuristic as models.SlideService.MigrateThemeID — content that
+// references the AAL design system gets "aal", everything else
+// "default". Used by AutoSave to keep slide_metadata.theme_id in
+// sync with the actual content on every save.
+func detectThemeID(content string) string {
+	if strings.Contains(content, `class="aal `) ||
+		strings.Contains(content, `class="aal-light `) ||
+		strings.Contains(content, `class="aal pptx-slide`) ||
+		strings.Contains(content, `class="aal-light pptx-slide`) {
+		return "aal"
+	}
+	return "default"
+}
+
 // authSlideEditor returns a user with edit-slide permission, accepting
 // either a session cookie or a Bearer token. Two Bearer paths, mirroring
 // the fallback in users.UploadImage:
@@ -814,6 +829,26 @@ func (s Slides) AutoSave(w http.ResponseWriter, r *http.Request) {
 			sectionCount = 1
 		}
 		s.SlideService.UpdateSlideCount(slideID, sectionCount)
+
+		// Re-detect theme_id from the saved content (mirrors MigrateThemeID's
+		// heuristic). Without this, decks rewritten via API stay tagged
+		// theme_id="default" even after their HTML moves to AAL classes,
+		// so the AAL theme CSS never loads and the rendered page falls
+		// back to bare reveal.js. Updates only when the detected theme
+		// actually changes, so we don't churn slide_metadata on every save.
+		detected := detectThemeID(req.Content)
+		var stored string
+		_ = s.SlideService.DB.QueryRow(`SELECT COALESCE(slide_metadata::text, '') FROM Slides WHERE slide_id = $1`, slideID).Scan(&stored)
+		m := map[string]interface{}{}
+		if stored != "" && stored != "{}" {
+			_ = json.Unmarshal([]byte(stored), &m)
+		}
+		if existing, _ := m["theme_id"].(string); existing != detected {
+			m["theme_id"] = detected
+			if b, err := json.Marshal(m); err == nil {
+				_, _ = s.SlideService.DB.Exec(`UPDATE Slides SET slide_metadata = $1::jsonb WHERE slide_id = $2`, string(b), slideID)
+			}
+		}
 	}
 
 	title := req.Title

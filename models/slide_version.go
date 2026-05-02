@@ -145,14 +145,21 @@ func (svs *SlideVersionService) DeleteVersion(slideID, versionNumber int) error 
 	return nil
 }
 
-// GetContributors returns all users recorded in slide_contributors for the given slide.
-// Callers are responsible for filtering out the original author if desired.
+// GetContributors returns co-author users recorded in slide_contributors,
+// excluding the slide's primary author by user_id AND by username/full_name
+// (covers the legacy case where the same person has two user rows that
+// would otherwise both render as "Anshuman Biswas · Anshuman Biswas").
 func (svs *SlideVersionService) GetContributors(slideID int) ([]User, error) {
 	rows, err := svs.DB.Query(`
 		SELECT u.user_id, u.username, COALESCE(u.full_name, ''), COALESCE(u.profile_picture_url, '')
 		FROM Users u
 		JOIN slide_contributors sc ON sc.user_id = u.user_id
+		JOIN Slides s ON s.slide_id = sc.slide_id
+		JOIN Users author ON author.user_id = s.user_id
 		WHERE sc.slide_id = $1
+		  AND sc.user_id != s.user_id
+		  AND lower(u.username) != lower(author.username)
+		  AND lower(COALESCE(NULLIF(u.full_name, ''), u.username)) != lower(COALESCE(NULLIF(author.full_name, ''), author.username))
 		ORDER BY sc.first_contributed_at ASC
 	`, slideID)
 	if err != nil {
