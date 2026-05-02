@@ -754,6 +754,7 @@ func main() {
 	r.Delete("/api/slides/{slideID}/versions/{versionNum}", slideVersionsC.HandleDeleteVersion)
 
 	// Slide Autosave & Import API
+	r.Get("/api/admin/slides/{slideID}/content", slidesC.GetContent)
 	r.Post("/api/admin/slides/{slideID}/autosave", slidesC.AutoSave)
 	r.Post("/api/admin/slides/import-pptx", slidesC.ImportPPTX)
 	r.Post("/api/admin/slides/{slideID}/reimport-pptx", slidesC.ReimportPPTX)
