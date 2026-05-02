@@ -458,6 +458,7 @@ func main() {
 		SlideVersionService: slideVersionService,
 		SessionService:      &sessionService,
 		CategoryService:     &categoryService,
+		APITokenService:     &apiTokenService,
 		Engine:              slideEngine,
 	}
 

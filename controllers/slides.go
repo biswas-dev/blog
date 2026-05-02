@@ -37,6 +37,7 @@ type Slides struct {
 	SlideVersionService *models.SlideVersionService
 	SessionService      *models.SessionService
 	CategoryService     *models.CategoryService
+	APITokenService     *models.APITokenService
 	// Engine is the go-slide engine. When set, ViewSlide renders the
 	// presentation through it (using the slide's theme); EditSlide
 	// embeds the go-slide editor in the admin page. When nil, the
@@ -705,17 +706,27 @@ func (s Slides) VerifySlidePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // authSlideEditor returns a user with edit-slide permission, accepting
-// either a session cookie or a Bearer token matching API_TOKEN. The
-// Bearer path is for scripted content authoring (see GetContent /
-// AutoSave) and mirrors the same fallback in users.UploadImage.
+// either a session cookie or a Bearer token. Two Bearer paths, mirroring
+// the fallback in users.UploadImage:
+//   1. API_TOKEN env var (legacy / deploy automation)
+//   2. A user-issued token in the api_tokens table, validated via
+//      APITokenService — returns the actual issuing user so version
+//      history credits the right person.
 func (s Slides) authSlideEditor(r *http.Request) *models.User {
 	if user, err := s.isUserLoggedIn(r); err == nil && models.CanEditSlides(user.Role) {
 		return user
 	}
-	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
-		token := strings.TrimPrefix(h, "Bearer ")
-		if env := os.Getenv("API_TOKEN"); env != "" && token == env {
-			return &models.User{Role: models.RoleAdministrator}
+	h := r.Header.Get("Authorization")
+	if !strings.HasPrefix(h, "Bearer ") {
+		return nil
+	}
+	token := strings.TrimPrefix(h, "Bearer ")
+	if env := os.Getenv("API_TOKEN"); env != "" && token == env {
+		return &models.User{Role: models.RoleAdministrator}
+	}
+	if s.APITokenService != nil {
+		if u, err := s.APITokenService.ValidateToken(token); err == nil && u != nil && models.CanEditSlides(u.Role) {
+			return u
 		}
 	}
 	return nil
