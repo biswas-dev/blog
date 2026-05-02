@@ -717,7 +717,11 @@ func TestSlide_Contributors(t *testing.T) {
 		slideService.Delete(slide.ID)
 	})
 
-	t.Run("first edit creates contributor record", func(t *testing.T) {
+	t.Run("primary author is not their own coauthor", func(t *testing.T) {
+		// Author editing their own slide shouldn't show up as a coauthor —
+		// the presentation view renders author + Contributors as
+		// "Author · coauthor1 · coauthor2", so including the author
+		// here produced "Anshuman · Anshuman" duplication.
 		err := versionService.MaybeCreateVersion(slide.ID, user1ID, "Contrib Test", "<h1>Original</h1>")
 		if err != nil {
 			t.Fatalf("MaybeCreateVersion() error = %v", err)
@@ -727,15 +731,12 @@ func TestSlide_Contributors(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetContributors() error = %v", err)
 		}
-		if len(contributors) != 1 {
-			t.Fatalf("Expected 1 contributor, got %d", len(contributors))
-		}
-		if contributors[0].UserID != user1ID {
-			t.Errorf("Expected contributor user ID %d, got %d", user1ID, contributors[0].UserID)
+		if len(contributors) != 0 {
+			t.Fatalf("Expected 0 contributors (author should be excluded), got %d", len(contributors))
 		}
 	})
 
-	t.Run("second user edit adds another contributor", func(t *testing.T) {
+	t.Run("second user edit adds exactly one coauthor", func(t *testing.T) {
 		bigContent := "<h1>User 2 edit</h1><p>" + strings.Repeat("New content by user 2. ", 50) + "</p>"
 		err := versionService.MaybeCreateVersion(slide.ID, user2ID, "Contrib Test", bigContent)
 		if err != nil {
@@ -746,8 +747,11 @@ func TestSlide_Contributors(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetContributors() error = %v", err)
 		}
-		if len(contributors) != 2 {
-			t.Fatalf("Expected 2 contributors, got %d", len(contributors))
+		if len(contributors) != 1 {
+			t.Fatalf("Expected 1 coauthor (user2; user1 is the author), got %d", len(contributors))
+		}
+		if contributors[0].UserID != user2ID {
+			t.Errorf("Expected coauthor user ID %d, got %d", user2ID, contributors[0].UserID)
 		}
 	})
 
