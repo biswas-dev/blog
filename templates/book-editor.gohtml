@@ -92,6 +92,16 @@
             </select>
             <p style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px;">Only for eBooks. Configure more in Admin > System > Site Settings.</p>
           </div>
+
+          <!-- Source (where the book came from) -->
+          <div style="flex: 1 1 220px; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
+            <input type="text" name="source_name" value="{{.Book.SourceName}}" class="form-input w-full" placeholder="e.g. Audible, Hoopla · Markham Public Library">
+          </div>
+          <div style="flex: 1 1 260px; min-width: 200px;">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source Link</label>
+            <input type="url" name="source_url" value="{{.Book.SourceURL}}" class="form-input w-full" placeholder="https://">
+          </div>
           <script>
           // Show/hide reader device based on medium
           (function(){

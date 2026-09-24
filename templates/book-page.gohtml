@@ -231,7 +231,10 @@
                 <li><strong>ISBN</strong> {{.Book.ISBN}}</li>
                 {{end}}
                 {{if .Book.Medium}}
-                <li><strong>Format</strong> {{if eq .Book.Medium "ebook"}}eBook{{else if eq .Book.Medium "audiobook"}}Audiobook{{else}}Physical{{end}}{{if .Book.EbookReader}} · {{.Book.EbookReader}}{{end}}</li>
+                <li><strong>Format</strong> {{if eq .Book.Medium "ebook"}}eBook{{else if eq .Book.Medium "audiobook"}}Audiobook{{else}}Physical{{end}}{{if and (eq .Book.Medium "ebook") .Book.EbookReader}} · {{.Book.EbookReader}}{{end}}</li>
+                {{end}}
+                {{if .Book.SourceName}}
+                <li><strong>Source</strong> {{if .Book.SourceURL}}<a href="{{.Book.SourceURL}}" target="_blank" rel="noopener">{{.Book.SourceName}}</a>{{else}}{{.Book.SourceName}}{{end}}</li>
                 {{end}}
             </ul>
 

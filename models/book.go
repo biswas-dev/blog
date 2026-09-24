@@ -38,6 +38,8 @@ type Book struct {
 	AmazonASIN        string  // 10-char Amazon ASIN for direct /dp/ links
 	Medium            string  // physical, ebook, audiobook, or empty
 	EbookReader       string  // device name (e.g. "Kindle Scribe Gen 1")
+	SourceName        string  // where it came from (e.g. "Audible", "Hoopla · Markham Public Library")
+	SourceURL         string  // link to the book at that source
 	DateStarted       string  // YYYY-MM-DD or empty
 	DateFinished      string  // YYYY-MM-DD or empty
 	IsPublished       bool
@@ -61,6 +63,7 @@ const bookBaseSelect = `
 	       b.content, COALESCE(b.description, ''), COALESCE(b.my_thoughts, ''),
 	       COALESCE(b.link_url, ''), b.reading_status, COALESCE(b.rating, 0),
 	       COALESCE(b.amazon_asin, ''), COALESCE(b.medium, ''), COALESCE(b.ebook_reader, ''),
+	       COALESCE(b.source_name, ''), COALESCE(b.source_url, ''),
 	       b.date_started, b.date_finished,
 	       b.is_published, b.publication_date, b.last_edit_date, b.created_at, b.updated_at
 	FROM Books b
@@ -78,6 +81,7 @@ func scanBook(scanner interface{ Scan(...interface{}) error }) (Book, error) {
 		&book.Content, &book.Description, &book.MyThoughts,
 		&book.LinkURL, &book.ReadingStatus, &book.Rating,
 		&book.AmazonASIN, &book.Medium, &book.EbookReader,
+		&book.SourceName, &book.SourceURL,
 		&dateStarted, &dateFinished,
 		&book.IsPublished, &book.PublicationDate, &book.LastEditDate, &book.CreatedAt, &book.UpdatedAt,
 	)
@@ -106,7 +110,7 @@ func parseDateToNullTime(s string) sql.NullTime {
 }
 
 // Create creates a new book and returns it.
-func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, amazonASIN, medium, ebookReader, dateStarted, dateFinished string, isPublished bool, genreIDs []int) (*Book, error) {
+func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, amazonASIN, medium, ebookReader, sourceName, sourceURL, dateStarted, dateFinished string, isPublished bool, genreIDs []int) (*Book, error) {
 	if slug == "" {
 		slug = generateSlug(title)
 	} else {
@@ -119,10 +123,10 @@ func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publish
 
 	var book Book
 	err := bs.DB.QueryRow(`
-		INSERT INTO Books (user_id, title, slug, book_author, isbn, publisher, page_count, cover_image_url, content, description, my_thoughts, link_url, reading_status, rating, amazon_asin, medium, ebook_reader, date_started, date_finished, is_published, publication_date, last_edit_date, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+		INSERT INTO Books (user_id, title, slug, book_author, isbn, publisher, page_count, cover_image_url, content, description, my_thoughts, link_url, reading_status, rating, amazon_asin, medium, ebook_reader, source_name, source_url, date_started, date_finished, is_published, publication_date, last_edit_date, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
 		RETURNING book_id, created_at, updated_at`,
-		userID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, dsNT, dfNT, isPublished, now, now, now, now,
+		userID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, sourceName, sourceURL, dsNT, dfNT, isPublished, now, now, now, now,
 	).Scan(&book.ID, &book.CreatedAt, &book.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create book: %w", err)
@@ -145,6 +149,8 @@ func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publish
 	book.AmazonASIN = amazonASIN
 	book.Medium = medium
 	book.EbookReader = ebookReader
+	book.SourceName = sourceName
+	book.SourceURL = sourceURL
 	book.DateStarted = dateStarted
 	book.DateFinished = dateFinished
 	book.IsPublished = isPublished
@@ -161,7 +167,7 @@ func (bs *BookService) Create(userID int, title, slug, bookAuthor, isbn, publish
 }
 
 // Update updates an existing book.
-func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, amazonASIN, medium, ebookReader, dateStarted, dateFinished string, isPublished bool, genreIDs []int) error {
+func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publisher string, pageCount int, coverImageURL, content, description, myThoughts, linkURL, readingStatus string, rating float64, amazonASIN, medium, ebookReader, sourceName, sourceURL, dateStarted, dateFinished string, isPublished bool, genreIDs []int) error {
 	if slug == "" {
 		slug = generateSlug(title)
 	} else {
@@ -172,9 +178,9 @@ func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publish
 	dfNT := parseDateToNullTime(dateFinished)
 
 	_, err := bs.DB.Exec(`
-		UPDATE Books SET title=$1, slug=$2, book_author=$3, isbn=$4, publisher=$5, page_count=$6, cover_image_url=$7, content=$8, description=$9, my_thoughts=$10, link_url=$11, reading_status=$12, rating=$13, amazon_asin=$14, medium=$15, ebook_reader=$16, date_started=$17, date_finished=$18, is_published=$19, last_edit_date=$20, updated_at=$21
-		WHERE book_id=$22`,
-		title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, dsNT, dfNT, isPublished, time.Now(), time.Now(), bookID)
+		UPDATE Books SET title=$1, slug=$2, book_author=$3, isbn=$4, publisher=$5, page_count=$6, cover_image_url=$7, content=$8, description=$9, my_thoughts=$10, link_url=$11, reading_status=$12, rating=$13, amazon_asin=$14, medium=$15, ebook_reader=$16, source_name=$17, source_url=$18, date_started=$19, date_finished=$20, is_published=$21, last_edit_date=$22, updated_at=$23
+		WHERE book_id=$24`,
+		title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, sourceName, sourceURL, dsNT, dfNT, isPublished, time.Now(), time.Now(), bookID)
 	if err != nil {
 		return fmt.Errorf("update book: %w", err)
 	}
