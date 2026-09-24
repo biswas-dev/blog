@@ -401,6 +401,8 @@ func (b Books) CreateBook(w http.ResponseWriter, r *http.Request) {
 	amazonASIN := r.FormValue("amazon_asin")
 	medium := r.FormValue("medium")
 	ebookReader := r.FormValue("ebook_reader")
+	sourceName := strings.TrimSpace(r.FormValue("source_name"))
+	sourceURL := strings.TrimSpace(r.FormValue("source_url"))
 	dateStarted := r.FormValue("date_started")
 	dateFinished := r.FormValue("date_finished")
 	isPublished := r.FormValue("is_published") == "on" || r.FormValue("is_published") == "true"
@@ -423,7 +425,7 @@ func (b Books) CreateBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	book, err := b.BookService.Create(user.UserID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, dateStarted, dateFinished, isPublished, genreIDs)
+	book, err := b.BookService.Create(user.UserID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, sourceName, sourceURL, dateStarted, dateFinished, isPublished, genreIDs)
 	if err != nil {
 		log.Printf("Error creating book: %v", err)
 		http.Error(w, "Failed to create book", http.StatusInternalServerError)
@@ -559,6 +561,8 @@ func (b Books) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	amazonASIN := r.FormValue("amazon_asin")
 	medium := r.FormValue("medium")
 	ebookReader := r.FormValue("ebook_reader")
+	sourceName := strings.TrimSpace(r.FormValue("source_name"))
+	sourceURL := strings.TrimSpace(r.FormValue("source_url"))
 	dateStarted := r.FormValue("date_started")
 	dateFinished := r.FormValue("date_finished")
 	isPublished := r.FormValue("is_published") == "on" || r.FormValue("is_published") == "true"
@@ -581,7 +585,7 @@ func (b Books) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = b.BookService.Update(bookID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, dateStarted, dateFinished, isPublished, genreIDs)
+	err = b.BookService.Update(bookID, title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, sourceName, sourceURL, dateStarted, dateFinished, isPublished, genreIDs)
 	if err != nil {
 		log.Printf("Error updating book: %v", err)
 		http.Error(w, "Failed to update book", http.StatusInternalServerError)
