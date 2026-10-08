@@ -177,12 +177,25 @@ func (bs *BookService) Update(bookID int, title, slug, bookAuthor, isbn, publish
 	dsNT := parseDateToNullTime(dateStarted)
 	dfNT := parseDateToNullTime(dateFinished)
 
-	_, err := bs.DB.Exec(`
+	tx, err := bs.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("update book: begin: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := snapshotReview(tx, bookID, rating, myThoughts, ReviewChangeEdit); err != nil {
+		return fmt.Errorf("update book: %w", err)
+	}
+
+	_, err = tx.Exec(`
 		UPDATE Books SET title=$1, slug=$2, book_author=$3, isbn=$4, publisher=$5, page_count=$6, cover_image_url=$7, content=$8, description=$9, my_thoughts=$10, link_url=$11, reading_status=$12, rating=$13, amazon_asin=$14, medium=$15, ebook_reader=$16, source_name=$17, source_url=$18, date_started=$19, date_finished=$20, is_published=$21, last_edit_date=$22, updated_at=$23
 		WHERE book_id=$24`,
 		title, slug, bookAuthor, isbn, publisher, pageCount, coverImageURL, content, description, myThoughts, linkURL, readingStatus, rating, amazonASIN, medium, ebookReader, sourceName, sourceURL, dsNT, dfNT, isPublished, time.Now(), time.Now(), bookID)
 	if err != nil {
 		return fmt.Errorf("update book: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("update book: commit: %w", err)
 	}
 	if len(genreIDs) > 0 {
 		_ = bs.UpdateGenres(bookID, genreIDs)
