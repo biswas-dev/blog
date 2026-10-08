@@ -76,6 +76,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Self-hosted runners keep every image, build layer and Go build cache;
+      # without pruning the disk fills up ("no space left on device").
+      # Volumes are never touched.
+      - name: Free disk space
+        run: |
+          df -h / | tail -1
+          docker image prune -af --filter "until=72h" || true
+          docker builder prune -af --filter "until=72h" || true
+          if [ "$(df --output=avail -k / | tail -1)" -lt 5242880 ]; then
+            echo "Under 5 GiB free, clearing all unused images, build cache and Go caches"
+            docker image prune -af || true
+            docker builder prune -af || true
+            chmod -R u+w "$HOME/go/pkg/mod" 2>/dev/null || true  # module cache is read-only
+            rm -rf "$HOME/.cache/go-build" "$HOME/go/pkg/mod" 2>/dev/null || true
+          fi
+          df -h / | tail -1
+
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
@@ -154,13 +171,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Self-hosted runners keep every image and build layer; without pruning
-      # the disk fills up and `go mod download` fails with "no space left".
+      # Self-hosted runners keep every image, build layer and Go build cache;
+      # without pruning the disk fills up ("no space left on device").
+      # Volumes are never touched.
       - name: Free disk space
         run: |
           df -h / | tail -1
           docker image prune -af --filter "until=72h" || true
           docker builder prune -af --filter "until=72h" || true
+          if [ "$(df --output=avail -k / | tail -1)" -lt 5242880 ]; then
+            echo "Under 5 GiB free, clearing all unused images, build cache and Go caches"
+            docker image prune -af || true
+            docker builder prune -af || true
+            chmod -R u+w "$HOME/go/pkg/mod" 2>/dev/null || true  # module cache is read-only
+            rm -rf "$HOME/.cache/go-build" "$HOME/go/pkg/mod" 2>/dev/null || true
+          fi
           df -h / | tail -1
 
       - name: Build and push to Harbor
@@ -206,13 +231,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Self-hosted runners keep every image and build layer; without pruning
-      # the disk fills up and `go mod download` fails with "no space left".
+      # Self-hosted runners keep every image, build layer and Go build cache;
+      # without pruning the disk fills up ("no space left on device").
+      # Volumes are never touched.
       - name: Free disk space
         run: |
           df -h / | tail -1
           docker image prune -af --filter "until=72h" || true
           docker builder prune -af --filter "until=72h" || true
+          if [ "$(df --output=avail -k / | tail -1)" -lt 5242880 ]; then
+            echo "Under 5 GiB free, clearing all unused images, build cache and Go caches"
+            docker image prune -af || true
+            docker builder prune -af || true
+            chmod -R u+w "$HOME/go/pkg/mod" 2>/dev/null || true  # module cache is read-only
+            rm -rf "$HOME/.cache/go-build" "$HOME/go/pkg/mod" 2>/dev/null || true
+          fi
           df -h / | tail -1
 
       - name: Build and push to Harbor
