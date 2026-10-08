@@ -346,6 +346,7 @@ func (b Books) NewBook(w http.ResponseWriter, r *http.Request) {
 		Book             *models.Book
 		Mode             string
 		EditorHTML       template.HTML
+		ReviewHistory    []models.BookReviewVersion
 		UserPermissions  models.UserPermissions
 	}{
 		LoggedIn:         true,
@@ -486,6 +487,11 @@ func (b Books) EditBook(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error generating editor HTML: %v", err)
 	}
 
+	reviewHistory, err := b.BookService.GetReviewHistory(book.ID)
+	if err != nil {
+		log.Printf("Error fetching review history: %v", err)
+	}
+
 	data := struct {
 		LoggedIn         bool
 		Username         string
@@ -499,6 +505,7 @@ func (b Books) EditBook(w http.ResponseWriter, r *http.Request) {
 		Book             *models.Book
 		Mode             string
 		EditorHTML       template.HTML
+		ReviewHistory    []models.BookReviewVersion
 		UserPermissions  models.UserPermissions
 	}{
 		LoggedIn:         true,
@@ -513,6 +520,7 @@ func (b Books) EditBook(w http.ResponseWriter, r *http.Request) {
 		Book:             book,
 		Mode:             "edit",
 		EditorHTML:       editorHTML,
+		ReviewHistory:    reviewHistory,
 		UserPermissions:  models.GetPermissions(user.Role),
 	}
 
@@ -594,6 +602,37 @@ func (b Books) UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	_ = b.BookVersionService.MaybeCreateVersion(bookID, user.UserID, title, content)
 
+	http.Redirect(w, r, fmt.Sprintf("/admin/books/%d/edit", bookID), http.StatusFound)
+}
+
+// RevertBookReview restores a previous rating + my thoughts.
+// POST /admin/books/{bookID}/review-history/{historyID}/revert
+func (b Books) RevertBookReview(w http.ResponseWriter, r *http.Request) {
+	user, err := utils.IsUserLoggedIn(r, b.SessionService)
+	if err != nil {
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	if !models.IsAdmin(user.Role) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	bookID, err := strconv.Atoi(chi.URLParam(r, "bookID"))
+	if err != nil {
+		http.Error(w, "Invalid book ID", http.StatusBadRequest)
+		return
+	}
+	historyID, err := strconv.Atoi(chi.URLParam(r, "historyID"))
+	if err != nil {
+		http.Error(w, "Invalid history ID", http.StatusBadRequest)
+		return
+	}
+	if err := b.BookService.RevertReview(bookID, historyID); err != nil {
+		log.Printf("Error reverting book review: %v", err)
+		http.Error(w, "Failed to revert review", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, fmt.Sprintf("/admin/books/%d/edit", bookID), http.StatusFound)
 }
 

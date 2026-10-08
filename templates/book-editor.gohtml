@@ -253,6 +253,30 @@
 
     </div>
   </form>
+
+  {{if eq .Mode "edit"}}{{if .ReviewHistory}}
+  <div style="margin-top: 2rem;">
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-50 mb-1">Rating &amp; thoughts history</h2>
+    <p class="text-sm mb-3" style="color: var(--text-tertiary);">Earlier versions, saved whenever the rating or My Thoughts changed. Reverting saves the current version here too.</p>
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      {{range .ReviewHistory}}
+      <div style="border: 1px solid var(--border-color, #e5e7eb); border-radius: 0.5rem; padding: 0.75rem 1rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+          <div class="text-sm" style="color: var(--text-secondary);">
+            <span style="letter-spacing: 0.05em;">{{if .Rating}}{{ratingStars .Rating}}{{else}}No rating{{end}}</span>
+            · replaced by {{if eq .ReplacedBy "goodreads"}}Goodreads sync{{else if eq .ReplacedBy "revert"}}a revert{{else}}an edit{{end}}
+            on {{.CreatedAt.Format "Jan 2, 2006 3:04 PM"}}
+          </div>
+          <form method="POST" action="/admin/books/{{.BookID}}/review-history/{{.ID}}/revert">
+            <button type="submit" class="nav-link text-sm">Revert to this</button>
+          </form>
+        </div>
+        {{if .MyThoughts}}<div class="text-sm mt-2" style="white-space: pre-wrap; color: var(--text-primary);">{{.MyThoughts}}</div>{{else}}<div class="text-sm mt-2" style="color: var(--text-tertiary);">(no thoughts)</div>{{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+  {{end}}{{end}}
 </section>
 
 {{if eq .Mode "edit"}}

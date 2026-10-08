@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata" // America/Toronto for the nightly Goodreads sync, even without OS tzdata
 
 	"anshumanbiswas.com/blog/apm"
 	"anshumanbiswas.com/blog/controllers"
@@ -532,6 +533,10 @@ func main() {
 	// Wire site settings into templates so {{siteConfig "key" "fallback"}} works.
 	views.SiteConfigFunc = siteSettingsService.Get
 
+	// Pull star ratings and reviews from Goodreads into matching books.
+	goodreadsSyncService := &models.GoodreadsSyncService{DB: DB, BookService: &bookService}
+	go runGoodreadsSync(goodreadsSyncService, siteSettingsService)
+
 	systemC := controllers.System{
 		SystemService:         systemService,
 		DatabaseBackupService: databaseBackupService,
@@ -740,6 +745,7 @@ func main() {
 	r.Get("/admin/books/{bookID}/edit", booksC.EditBook)
 	r.Post("/admin/books/{bookID}", booksC.UpdateBook)
 	r.Post("/admin/books/{bookID}/delete", booksC.DeleteBook)
+	r.Post("/admin/books/{bookID}/review-history/{historyID}/revert", booksC.RevertBookReview)
 	r.Post("/admin/books/preview", booksC.PreviewBook)
 
 	// Public Paper Routes (literal paths before {slug})
@@ -1005,7 +1011,10 @@ func main() {
 	r.Route("/api/books", func(r chi.Router) {
 		r.Use(authmw.APIAuthMiddleware(apiToken, &apiTokenService))
 		r.Get("/", listBooksAPI(&bookService))
+		r.Post("/goodreads-sync", goodreadsSyncAPI(goodreadsSyncService, siteSettingsService))
 		r.Get("/{bookID}", getBookAPI(&bookService))
+		r.Get("/{bookID}/review-history", bookReviewHistoryAPI(&bookService))
+		r.Post("/{bookID}/review-history/{historyID}/revert", revertBookReviewAPI(&bookService))
 		r.Post("/", createBookAPI(&bookService))
 		r.Put("/{bookID}", updateBookAPI(&bookService))
 		r.Delete("/{bookID}", deleteBookAPI(&bookService))
@@ -1958,6 +1967,93 @@ func getBookAPI(bs *models.BookService) http.HandlerFunc {
 			return
 		}
 		jsonResponse(w, book, http.StatusOK)
+	}
+}
+
+// Goodreads ratings/reviews are pulled nightly at this local time.
+const goodreadsSyncHour = 3
+
+// nextGoodreadsSync returns the next goodreadsSyncHour:00 in loc after now.
+func nextGoodreadsSync(now time.Time, loc *time.Location) time.Time {
+	local := now.In(loc)
+	next := time.Date(local.Year(), local.Month(), local.Day(), goodreadsSyncHour, 0, 0, 0, loc)
+	if !next.After(local) {
+		next = time.Date(local.Year(), local.Month(), local.Day()+1, goodreadsSyncHour, 0, 0, 0, loc)
+	}
+	return next
+}
+
+// runGoodreadsSync syncs Goodreads ratings/reviews every night at 3 AM
+// Toronto time, when the goodreads_user_id setting is set.
+func runGoodreadsSync(gs *models.GoodreadsSyncService, settings *models.SiteSettingsService) {
+	loc, err := time.LoadLocation("America/Toronto")
+	if err != nil {
+		loc = time.UTC
+	}
+	for {
+		time.Sleep(time.Until(nextGoodreadsSync(time.Now(), loc)))
+		userID := settings.Get("goodreads_user_id", "")
+		if userID == "" {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		res, err := gs.Sync(ctx, userID)
+		cancel()
+		if err != nil {
+			logger.Warn().Err(err).Msg("goodreads sync failed")
+		} else {
+			logger.Info().Int("matched", res.Matched).Strs("updated", res.Updated).Msg("goodreads sync done")
+		}
+	}
+}
+
+func goodreadsSyncAPI(gs *models.GoodreadsSyncService, settings *models.SiteSettingsService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		res, err := gs.Sync(r.Context(), settings.Get("goodreads_user_id", ""))
+		if err != nil {
+			http.Error(w, "Goodreads sync failed: "+err.Error(), http.StatusBadGateway)
+			return
+		}
+		jsonResponse(w, res, http.StatusOK)
+	}
+}
+
+func bookReviewHistoryAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "bookID"))
+		if err != nil {
+			http.Error(w, "Invalid book ID", http.StatusBadRequest)
+			return
+		}
+		history, err := bs.GetReviewHistory(id)
+		if err != nil {
+			http.Error(w, "Failed to load review history", http.StatusInternalServerError)
+			return
+		}
+		if history == nil {
+			history = []models.BookReviewVersion{}
+		}
+		jsonResponse(w, history, http.StatusOK)
+	}
+}
+
+func revertBookReviewAPI(bs *models.BookService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "bookID"))
+		if err != nil {
+			http.Error(w, "Invalid book ID", http.StatusBadRequest)
+			return
+		}
+		historyID, err := strconv.Atoi(chi.URLParam(r, "historyID"))
+		if err != nil {
+			http.Error(w, "Invalid history ID", http.StatusBadRequest)
+			return
+		}
+		if err := bs.RevertReview(id, historyID); err != nil {
+			http.Error(w, "Failed to revert review: "+err.Error(), http.StatusNotFound)
+			return
+		}
+		jsonResponse(w, map[string]string{"status": "reverted"}, http.StatusOK)
 	}
 }
 
