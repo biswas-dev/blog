@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata" // America/Toronto for the nightly Goodreads sync, even without OS tzdata
 
 	"anshumanbiswas.com/blog/apm"
 	"anshumanbiswas.com/blog/controllers"
@@ -1969,24 +1970,40 @@ func getBookAPI(bs *models.BookService) http.HandlerFunc {
 	}
 }
 
-const goodreadsSyncInterval = 6 * time.Hour
+// Goodreads ratings/reviews are pulled nightly at this local time.
+const goodreadsSyncHour = 3
 
-// runGoodreadsSync syncs Goodreads ratings/reviews shortly after startup and
-// then every goodreadsSyncInterval, when the goodreads_user_id setting is set.
+// nextGoodreadsSync returns the next goodreadsSyncHour:00 in loc after now.
+func nextGoodreadsSync(now time.Time, loc *time.Location) time.Time {
+	local := now.In(loc)
+	next := time.Date(local.Year(), local.Month(), local.Day(), goodreadsSyncHour, 0, 0, 0, loc)
+	if !next.After(local) {
+		next = time.Date(local.Year(), local.Month(), local.Day()+1, goodreadsSyncHour, 0, 0, 0, loc)
+	}
+	return next
+}
+
+// runGoodreadsSync syncs Goodreads ratings/reviews every night at 3 AM
+// Toronto time, when the goodreads_user_id setting is set.
 func runGoodreadsSync(gs *models.GoodreadsSyncService, settings *models.SiteSettingsService) {
-	time.Sleep(2 * time.Minute)
+	loc, err := time.LoadLocation("America/Toronto")
+	if err != nil {
+		loc = time.UTC
+	}
 	for {
-		if userID := settings.Get("goodreads_user_id", ""); userID != "" {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-			res, err := gs.Sync(ctx, userID)
-			cancel()
-			if err != nil {
-				logger.Warn().Err(err).Msg("goodreads sync failed")
-			} else if len(res.Updated) > 0 {
-				logger.Info().Strs("books", res.Updated).Msg("goodreads sync updated books")
-			}
+		time.Sleep(time.Until(nextGoodreadsSync(time.Now(), loc)))
+		userID := settings.Get("goodreads_user_id", "")
+		if userID == "" {
+			continue
 		}
-		time.Sleep(goodreadsSyncInterval)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		res, err := gs.Sync(ctx, userID)
+		cancel()
+		if err != nil {
+			logger.Warn().Err(err).Msg("goodreads sync failed")
+		} else {
+			logger.Info().Int("matched", res.Matched).Strs("updated", res.Updated).Msg("goodreads sync done")
+		}
 	}
 }
 
