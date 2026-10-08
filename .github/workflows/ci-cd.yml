@@ -154,6 +154,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Self-hosted runners keep every image and build layer; without pruning
+      # the disk fills up and `go mod download` fails with "no space left".
+      - name: Free disk space
+        run: |
+          df -h / | tail -1
+          docker image prune -af --filter "until=72h" || true
+          docker builder prune -af --filter "until=72h" || true
+          df -h / | tail -1
+
       - name: Build and push to Harbor
         id: build
         env:
@@ -196,6 +205,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Self-hosted runners keep every image and build layer; without pruning
+      # the disk fills up and `go mod download` fails with "no space left".
+      - name: Free disk space
+        run: |
+          df -h / | tail -1
+          docker image prune -af --filter "until=72h" || true
+          docker builder prune -af --filter "until=72h" || true
+          df -h / | tail -1
 
       - name: Build and push to Harbor
         id: build
