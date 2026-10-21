@@ -2578,17 +2578,19 @@ func sitemapHandler(
 		w.Header().Set(headerCacheCtrl, "public, max-age=3600")
 
 		fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 `)
 		// Home page
 		fmt.Fprintf(w, "  <url><loc>%s/</loc><lastmod>%s</lastmod><priority>1.0</priority></url>\n", baseURL, now)
+
+		// Anshuman's current and archived portraits appear on the About page.
+		fmt.Fprintf(w, "  <url><loc>%s/about</loc><lastmod>%s</lastmod><priority>0.6</priority><image:image><image:loc>%s/static/images/anshuman-biswas-autumn-portrait.jpg</image:loc></image:image><image:image><image:loc>%s/static/uploads/avatars/c25316b4c6d7b680eb5b0c0e83f0647d.jpg</image:loc></image:image></url>\n", baseURL, now, baseURL, baseURL)
 
 		// Static pages
 		for _, page := range []struct {
 			path     string
 			priority string
 		}{
-			{"/about", "0.6"},
 			{"/guides", "0.7"},
 			{"/slides", "0.7"},
 			{"/books", "0.7"},

@@ -1,4 +1,13 @@
 {{define "canonical"}}<link rel="canonical" href="https://anshumanbiswas.com/about" />{{end}}
+{{define "head-extra"}}
+<meta property="og:image" content="https://anshumanbiswas.com/static/images/anshuman-biswas-autumn-portrait.jpg">
+<meta property="og:image:alt" content="Anshuman Biswas on an autumn woodland path">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://anshumanbiswas.com/static/images/anshuman-biswas-autumn-portrait.jpg">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"ProfilePage","mainEntity":{"@type":"Person","@id":"https://biswas.me/#person","name":"Anshuman Biswas","url":"https://biswas.me","sameAs":["https://anshumanbiswas.com/users/anchoo2kewl","https://github.com/anchoo2kewl"],"image":["https://anshumanbiswas.com/static/images/anshuman-biswas-autumn-portrait.jpg","https://anshumanbiswas.com/static/uploads/avatars/c25316b4c6d7b680eb5b0c0e83f0647d.jpg"]}}
+</script>
+{{end}}
 {{template "modern-header" .}}
 
 <div class="max-w-3xl mx-auto px-6 py-16">
@@ -6,7 +15,7 @@
   <!-- Hero — text-first, small avatar -->
   <div class="mb-14">
     <div class="flex items-center gap-4 mb-6">
-      <img src="/static/uploads/avatars/c25316b4c6d7b680eb5b0c0e83f0647d_thumb.jpg"
+      <img src="/static/images/anshuman-biswas-portrait.jpg"
            alt="Anshuman Biswas" width="56" height="56"
            class="rounded-full object-cover flex-shrink-0" style="width:56px;height:56px"
            onerror="this.style.display='none'">
@@ -20,6 +29,21 @@
       from each other. Articles are versioned, commentable, and open to collaborative editing.
     </p>
   </div>
+
+  <section class="mb-12" aria-labelledby="anshuman-photos">
+    <h2 id="anshuman-photos" class="text-xl font-bold mb-5">Photos of Anshuman Biswas</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:1.5rem">
+      <figure style="max-width:320px">
+        <a href="/static/images/anshuman-biswas-autumn-portrait.jpg"><img src="/static/images/anshuman-biswas-autumn-portrait.jpg" alt="Anshuman Biswas on an autumn woodland path" width="1536" height="1024" style="width:100%;height:auto;border-radius:12px" loading="lazy"></a>
+        <figcaption>My current portrait — Anshuman Biswas.</figcaption>
+      </figure>
+      <figure style="max-width:200px">
+        <a href="/static/uploads/avatars/c25316b4c6d7b680eb5b0c0e83f0647d.jpg"><img src="/static/uploads/avatars/c25316b4c6d7b680eb5b0c0e83f0647d.jpg" alt="Anshuman Biswas — earlier blog profile portrait" width="123" height="123" loading="lazy"></a>
+        <figcaption>My earlier blog profile portrait.</figcaption>
+      </figure>
+    </div>
+    <p class="mt-4"><a href="https://biswas.me/photos">More photos of Anshuman Biswas</a></p>
+  </section>
 
   <!-- Why this exists -->
   <div class="mb-12">
