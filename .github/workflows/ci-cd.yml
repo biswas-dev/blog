@@ -127,7 +127,7 @@ jobs:
     name: "SonarQube Analysis"
     runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     continue-on-error: true
 
     steps:
@@ -165,7 +165,7 @@ jobs:
     name: "Build ARM64 Image"
     runs-on: [self-hosted, Linux, ARM64]
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     outputs:
       digest: ${{ steps.build.outputs.digest }}
 
@@ -225,7 +225,7 @@ jobs:
     name: "Build x64 Image"
     runs-on: [self-hosted, Linux, X64, prod]
     needs: test
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production') && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     outputs:
       digest: ${{ steps.build.outputs.digest }}
 
@@ -282,7 +282,7 @@ jobs:
     name: "Deploy to Staging"
     runs-on: [self-hosted, Linux, ARM64]
     needs: build-arm64
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment: staging
 
     steps:
@@ -315,7 +315,7 @@ jobs:
     runs-on: [self-hosted, Linux, ARM64]
     if: |
       (vars.CI_ENABLED || 'true') == 'true' &&
-      github.ref == 'refs/heads/uat' && github.event_name == 'push'
+      github.ref == 'refs/heads/uat' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment: uat
 
     steps:
@@ -356,7 +356,7 @@ jobs:
     needs: build-x64
     if: |
       (vars.CI_ENABLED || 'true') == 'true' &&
-      github.ref == 'refs/heads/production' && github.event_name == 'push'
+      github.ref == 'refs/heads/production' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment: production
 
     steps:
