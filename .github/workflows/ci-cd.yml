@@ -37,7 +37,6 @@ on:
   push:
     branches: [main, uat, production]
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
