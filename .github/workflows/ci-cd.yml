@@ -29,6 +29,11 @@ name: CI/CD Pipeline
 
 on:
   workflow_dispatch:
+    inputs:
+      quality_only:
+        description: Run tests and publish reports without deploying applications
+        type: boolean
+        default: false
   push:
     branches: [main, uat, production]
   pull_request:
@@ -122,12 +127,33 @@ jobs:
           path: coverage.out
           retention-days: 30
 
+      - name: Fetch verified report client
+        if: github.ref == 'refs/heads/main'
+        run: |
+          curl -fsS https://coverage.biswas.me/ci/report-v1.py -o /tmp/project-quality-report.py
+          echo '620701586b18553b55b6eb0bc964a7a0dcef82f04f989b9f010b18947ebc746a  /tmp/project-quality-report.py' | sha256sum --check --status
+      - name: Publish application coverage
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          COVERAGE_TOKEN: ${{ secrets.COVERAGE_TOKEN }}
+          COVERAGE_REPO: blog
+          COVERAGE_GROUP: blog
+          COVERAGE_LANGUAGE: go
+          COVERAGE_SOURCE_ROOT: ''
+        run: |
+          export COVERAGE_GO_MODULE=$(sed -n "s/^module //p" go.mod)
+          python3 /tmp/project-quality-report.py coverage coverage.out
+
+
+
   # ── SonarQube (allowed to fail) ────────────────────────────────────────
   sonarqube:
     name: "SonarQube Analysis"
     runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
     needs: test
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: >-
+      (github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) && inputs.quality_only != true
     continue-on-error: true
 
     steps:
@@ -160,12 +186,14 @@ jobs:
             -Dsonar.token="$SONAR_TOKEN" \
             -Dsonar.projectVersion="$(git describe --tags --always 2>/dev/null || echo dev)"
 
+
   # ── Build ARM64 Image (native on ARM64 runner) ─────────────────────────
   build-arm64:
     name: "Build ARM64 Image"
     runs-on: [self-hosted, Linux, ARM64]
     needs: test
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: >-
+      (github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) && inputs.quality_only != true
     outputs:
       digest: ${{ steps.build.outputs.digest }}
 
@@ -217,6 +245,7 @@ jobs:
 
           echo "Built and pushed $IMAGE:$TAG (ARM64) digest=$DIGEST"
 
+
   # ── Build x64 Image (native on x64 runner) ───────────────────────────
   # Runs on main AND production pushes so the production deploy job can
   # depend on it and always deploys the exact image built for the current
@@ -225,7 +254,8 @@ jobs:
     name: "Build x64 Image"
     runs-on: [self-hosted, Linux, X64, prod]
     needs: test
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: >-
+      ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) && inputs.quality_only != true
     outputs:
       digest: ${{ steps.build.outputs.digest }}
 
@@ -277,12 +307,14 @@ jobs:
 
           echo "Built and pushed $IMAGE:$TAG (x64) digest=$DIGEST"
 
+
   # ── Deploy Staging (ARM64) ─────────────────────────────────────────────
   deploy-staging:
     name: "Deploy to Staging"
     runs-on: [self-hosted, Linux, ARM64]
     needs: build-arm64
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: >-
+      (github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) && inputs.quality_only != true
     environment: staging
 
     steps:
@@ -309,13 +341,13 @@ jobs:
           echo "$IMAGE_DIGEST" > .image-digest.txt
           bash deployment/scripts/travis-deploy.sh staging
 
+
   # ── Deploy UAT (ARM64, optional) ───────────────────────────────────────
   deploy-uat:
     name: "Deploy to UAT"
     runs-on: [self-hosted, Linux, ARM64]
-    if: |
-      (vars.CI_ENABLED || 'true') == 'true' &&
-      github.ref == 'refs/heads/uat' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: >-
+      ((vars.CI_ENABLED || 'true') == 'true' && github.ref == 'refs/heads/uat' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) && inputs.quality_only != true
     environment: uat
 
     steps:
@@ -347,6 +379,7 @@ jobs:
           echo "$DIGEST" > .image-digest.txt
           bash deployment/scripts/travis-deploy.sh uat
 
+
   # ── Deploy Production (x64) ────────────────────────────────────────────
   # needs: build-x64 so the production deploy is gated on the commit's own
   # image being built and pushed to Harbor (no stale x64-latest race).
@@ -354,9 +387,8 @@ jobs:
     name: "Deploy to Production"
     runs-on: [self-hosted, Linux, X64, prod]
     needs: build-x64
-    if: |
-      (vars.CI_ENABLED || 'true') == 'true' &&
-      github.ref == 'refs/heads/production' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: >-
+      ((vars.CI_ENABLED || 'true') == 'true' && github.ref == 'refs/heads/production' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) && inputs.quality_only != true
     environment: production
 
     steps:
