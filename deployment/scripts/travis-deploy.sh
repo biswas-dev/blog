@@ -175,7 +175,7 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
   export IMAGE_DIGEST='$IMAGE_DIGEST'
 
   # Stop existing containers
-  docker compose down --remove-orphans || true
+  docker compose down --remove-orphans < /dev/null || true
   docker rm -f blog-postgres blog-app blog-dd-agent blog-otel-collector 2>/dev/null || true
 
   # Disk space management
@@ -186,7 +186,7 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
   fi
 
   # Pull pre-built image from Harbor by digest
-  docker compose -f docker-compose.yml -f docker-compose.hub.yml pull app
+  docker compose -f docker-compose.yml -f docker-compose.hub.yml pull app < /dev/null
 
   # Final cleanup before start
   for c in blog-postgres blog-app blog-dd-agent blog-otel-collector; do
@@ -196,7 +196,9 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
   docker network rm ${ENV//-/_}_blog-network 2>/dev/null || true
   sleep 2
 
-  docker compose -f docker-compose.yml -f docker-compose.hub.yml up -d --no-build
+  # This script reaches the server on bash's stdin, so every docker compose call gets </dev/null: compose
+  # prompts (e.g. a volume that differs from the compose file) otherwise read, and eat, the lines below.
+  docker compose -f docker-compose.yml -f docker-compose.hub.yml up -d --no-build < /dev/null
   # Reload whichever nginx owns /run/nginx.pid too: on production a systemd-only reload left the old
   # config (1 MB body limit) running. Print what is running so a mismatch shows in the deploy log.
   sudo systemctl reload nginx 2>&1 || true
@@ -248,7 +250,7 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
     touch static/uploads/.cloudinary_cleanup_done
   fi
 
-  docker compose ps
+  docker compose ps < /dev/null
 REMOTE_EOF
 
 # Verify deployment
