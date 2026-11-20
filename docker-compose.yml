@@ -143,11 +143,6 @@ services:
       # Continuous profiling — CPU, heap, goroutine and mutex profiles → DD agent
       - DD_PROFILING_ENABLED=${DD_PROFILING_ENABLED:-false}
       - DD_AGENT_HOST=dd-agent
-      # Browser-exact slide PDF export. The app speaks DevTools Protocol (pure
-      # Go, no Chrome in this image) to the pdfsvc sidecar; EXPORT_BASE_URL is
-      # how that Chrome reaches this app back over the internal network.
-      - PDF_CHROME_URL=${PDF_CHROME_URL:-http://pdfsvc:9222}
-      - EXPORT_BASE_URL=${EXPORT_BASE_URL:-http://app:22222}
     depends_on:
       postgres:
         condition: service_healthy
@@ -161,34 +156,6 @@ services:
       com.datadoghq.tags.version: "${VERSION:-dev}"
       # Ship Go app logs to Datadog Logs (structured JSON from zerolog)
       com.datadoghq.ad.logs: '[{"source":"go","service":"blog"}]'
-
-  # Headless-Chrome sidecar for browser-exact slide PDF export.
-  #
-  # Stock, purpose-built chromedp image — no custom build, no Chrome in the blog
-  # image. The blog app drives it over the DevTools Protocol on the internal
-  # network only; port 9222 is deliberately NOT published to the host. `init:
-  # true` reaps zombie Chrome renderer processes. Memory is capped so a runaway
-  # render can't starve the app; --disable-dev-shm-usage avoids the tiny default
-  # /dev/shm that crashes Chrome on large pages.
-  pdfsvc:
-    image: chromedp/headless-shell:131.0.6778.86
-    container_name: blog-pdfsvc
-    init: true
-    command:
-      - --no-sandbox
-      - --disable-gpu
-      - --disable-dev-shm-usage
-      - --remote-debugging-address=0.0.0.0
-      - --remote-debugging-port=9222
-    networks:
-      - blog-network
-    restart: unless-stopped
-    mem_limit: 1g
-    healthcheck:
-      test: ["CMD", "/headless-shell/headless-shell", "--version"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
 volumes:
   blog-postgres-data:

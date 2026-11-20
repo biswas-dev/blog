@@ -27,8 +27,6 @@ import (
 	"anshumanbiswas.com/blog/views"
 	godraw "github.com/anchoo2kewl/go-draw"
 	godrawstore "github.com/anchoo2kewl/go-draw/store"
-	goslide "github.com/anchoo2kewl/go-slide"
-	goslideThemes "github.com/anchoo2kewl/go-slide/theme"
 	gowiki "github.com/anchoo2kewl/go-wiki"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -325,10 +323,6 @@ func main() {
 	slideService := models.SlideService{
 		DB: DB,
 	}
-	slideService.MigrateFileContentToDB()
-	slideService.MigrateLegacyInlineStyles()
-	slideService.MigrateThemeID()
-	slideService.MigrateSlideCount()
 
 	// Initialize GuideService (early, needed by Users controller)
 	guideService := models.GuideService{DB: DB}
@@ -450,20 +444,6 @@ func main() {
 		SessionService:  &sessionService,
 	}
 
-	// Initialize go-slide engine: theme registry + renderer.
-	// Built-in themes (Default, AAL) load synchronously. User-created
-	// themes can be loaded from the DB later (Engine.Themes() exposes
-	// the registry at runtime).
-	slideThemes := goslideThemes.NewRegistry()
-	goslideThemes.RegisterBuiltins(slideThemes)
-	slideEngine, err := goslide.New(
-		goslide.WithThemes(slideThemes),
-		goslide.WithBasePath("/slides"),
-	)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("init go-slide engine")
-	}
-
 	// Initialize Slides controller
 	slidesC := controllers.Slides{
 		SlideService:        &slideService,
@@ -471,14 +451,6 @@ func main() {
 		SessionService:      &sessionService,
 		CategoryService:     &categoryService,
 		APITokenService:     &apiTokenService,
-		Engine:              slideEngine,
-		// Browser-exact PDF export via the headless-Chrome sidecar (see
-		// controllers/slide_pdf.go). PDF_CHROME_URL points at the sidecar's
-		// DevTools endpoint; EXPORT_BASE_URL is how that Chrome reaches this app
-		// over the internal network; export tokens are signed with SESSION_SECRET.
-		PDFRemoteURL:  getenvDefault("PDF_CHROME_URL", "http://pdfsvc:9222"),
-		ExportBaseURL: getenvDefault("EXPORT_BASE_URL", "http://app:22222"),
-		ExportSecret:  os.Getenv("SESSION_SECRET"),
 	}
 
 	// Initialize Guides controller
@@ -610,9 +582,6 @@ func main() {
 	slidesC.Templates.SlidesList = views.Must(views.ParseFS(
 		templates.FS, "slides-list.gohtml", "tailwind.gohtml"))
 
-	slidesC.Templates.SlidePresentation = views.Must(views.ParseFS(
-		templates.FS, "slide-presentation.gohtml", "tailwind.gohtml"))
-
 	slidesC.Templates.SlidePassword = views.Must(views.ParseFS(
 		templates.FS, "slide-password.gohtml", "tailwind.gohtml"))
 
@@ -710,19 +679,15 @@ func main() {
 	r.Get("/tags/{name}", categoriesC.TagPage)
 	r.Get("/slides", slidesC.PublicSlidesList)
 	r.Get("/slides/{slug}", slidesC.ViewSlide)
-	r.Get("/slides/{slug}/pdf", slidesC.ExportSlidePDF)
 	r.Get("/slides/{slug}/deck", slidesC.ServeDeck)
 	r.Post("/slides/{slug}/verify", slidesC.VerifySlidePassword)
 
 	// Admin Slides Routes
 	r.Get("/admin/slides", slidesC.AdminSlides)
-	r.Get("/admin/slides/new", slidesC.NewSlide)
 	r.Post("/admin/slides", slidesC.CreateSlide)
 	r.Get("/admin/slides/{slideID}/edit", slidesC.EditSlide)
 	r.Post("/admin/slides/{slideID}", slidesC.UpdateSlide)
 	r.Post("/admin/slides/{slideID}/delete", slidesC.DeleteSlide)
-	r.Post("/admin/slides/preview", slidesC.PreviewSlide)
-	r.Post("/admin/slides/upload-image", slidesC.UploadSlideImage)
 	r.Post("/admin/slides/{slideID}/deck", slidesC.SaveDeckFile)
 
 	// Public Guide Routes
@@ -786,18 +751,6 @@ func main() {
 	r.Delete("/api/slides/{slideID}/versions/{versionNum}", slideVersionsC.HandleDeleteVersion)
 
 	// Slide Autosave & Import API
-	r.Get("/api/admin/slides/{slideID}/content", slidesC.GetContent)
-	r.Post("/api/admin/slides/{slideID}/autosave", slidesC.AutoSave)
-	r.Post("/api/admin/slides/import-pptx", slidesC.ImportPPTX)
-	r.Post("/api/admin/slides/{slideID}/reimport-pptx", slidesC.ReimportPPTX)
-
-	// go-slide engine routes:
-	//   /slides/preview     — POST, live editor preview
-	//   /slides/assets/*    — static editor JS / CSS bundle
-	//   /api/admin/themes/* — theme registry CRUD (admin-only)
-	r.Method("POST", "/slides/preview", slideEngine.PreviewHandler())
-	r.Mount("/slides/assets/", http.StripPrefix("/slides/assets", slideEngine.AssetHandler()))
-	r.Mount("/api/admin/themes", slideEngine.ThemesHandler(nil))
 
 	// System Information Routes
 	r.Get("/admin/system", systemC.Dashboard)
@@ -1000,10 +953,6 @@ func main() {
 		r.Post("/", createSlide(&slideService))
 		r.Put("/{slideID}", updateSlide(&slideService))
 		r.Delete("/{slideID}", deleteSlide(&slideService))
-		// Browser-exact PDF export (Bearer-authed by the group middleware).
-		// Password-protected decks require the deck password (query/form).
-		r.Get("/{slideID}/pdf", slidesC.APIExportSlidePDF)
-		r.Post("/{slideID}/pdf", slidesC.APIExportSlidePDF)
 	})
 
 	// Guides API
@@ -1142,12 +1091,6 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	// Legacy go-slide decks become DeckCraft decks. The sidecar Chrome loads each deck from this
-	// server, so it starts once the listener (and, on a deploy, the sidecar) has had time to come up.
-	go func() {
-		time.Sleep(30 * time.Second)
-		slidesC.ConvertLegacyDecks(context.Background())
-	}()
 	server.ListenAndServe()
 }
 

@@ -129,7 +129,7 @@
                                             <span>Slides</span>
                                         </span>
                                     </a>
-                                    <a href="/admin/slides/new" class="dropdown-item">
+                                    <a href="/admin/slides#new-deck-title" class="dropdown-item">
                                         <span class="flex items-center gap-2">
                                             {{icon "plus" "w-4 h-4"}}
                                             <span>New Slide</span>
@@ -325,7 +325,7 @@
                             <li><a href="/admin/posts" class="nav-link {{if eq .CurrentPage "admin"}}active{{end}}">Posts</a></li>
                             <li><a href="/admin/posts/new" class="nav-link">New Post</a></li>
                             <li><a href="/admin/slides" class="nav-link">Slides</a></li>
-                            <li><a href="/admin/slides/new" class="nav-link">New Slide</a></li>
+                            <li><a href="/admin/slides#new-deck-title" class="nav-link">New Slide</a></li>
                             <li><a href="/admin/guides" class="nav-link">Guides</a></li>
                             <li><a href="/admin/guides/new" class="nav-link">New Guide</a></li>
                             {{if .IsAdmin}}
