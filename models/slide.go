@@ -40,6 +40,8 @@ type Slide struct {
 	RelativeTime      string              // For displaying "10 months ago"
 	Categories        []Category `json:"categories,omitempty"`
 	Contributors      []User     `json:"-"`
+	IsDeck            bool       // a DeckCraft deck (deck_name non-NULL), not go-slide HTML
+	DeckName          string     // file name of the stored deck; "" until its first save
 }
 
 type SlideService struct {
@@ -669,9 +671,15 @@ func (ss *SlideService) UpdateCategories(slideID int, categoryIDs []int) error {
 
 // loadSlideContent loads HTML content from DB. Falls back to file for migration.
 func (ss *SlideService) loadSlideContent(slide *Slide) error {
+	// Its own query, errors ignored: deploys start the app before migrating (0044 adds deck_name),
+	// and a legacy deck must still load its content then.
+	var deckName sql.NullString
+	if ss.DB.QueryRow(`SELECT deck_name FROM Slides WHERE slide_id = $1`, slide.ID).Scan(&deckName) == nil {
+		slide.IsDeck, slide.DeckName = deckName.Valid, deckName.String
+	}
 	var dbContent string
 	err := ss.DB.QueryRow(`SELECT COALESCE(content, '') FROM Slides WHERE slide_id = $1`, slide.ID).Scan(&dbContent)
-	if err == nil && dbContent != "" {
+	if err == nil && (dbContent != "" || slide.IsDeck) {
 		slide.ContentHTML = template.HTML(dbContent)
 		return nil
 	}
@@ -819,6 +827,20 @@ func (ss *SlideService) loadContributorsForSlides(slides []Slide) error {
 }
 
 // UpdateSlideCount updates the slide_count column for a slide.
+// GetDeck returns a DeckCraft deck's file name and bytes (both empty before its first save).
+func (ss *SlideService) GetDeck(slideID int) (string, []byte, error) {
+	var name sql.NullString
+	var data []byte
+	err := ss.DB.QueryRow(`SELECT deck_name, deck_file FROM Slides WHERE slide_id = $1`, slideID).Scan(&name, &data)
+	return name.String, data, err
+}
+
+// SaveDeck makes the slide a DeckCraft deck and stores its file (nil data marks a new, empty deck).
+func (ss *SlideService) SaveDeck(slideID int, name string, data []byte) error {
+	_, err := ss.DB.Exec(`UPDATE Slides SET deck_name = $1, deck_file = $2, updated_at = CURRENT_TIMESTAMP WHERE slide_id = $3`, name, data, slideID)
+	return err
+}
+
 func (ss *SlideService) UpdateSlideCount(slideID, count int) error {
 	_, err := ss.DB.Exec(`UPDATE Slides SET slide_count = $1 WHERE slide_id = $2`, count, slideID)
 	return err

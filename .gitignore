@@ -4,3 +4,6 @@ tmp/**
 __debug_**
 pids/**
 .image-digest.txt
+
+# Upstream craft web builds (scripts/crafts.sh fetch)
+static/vendor/
