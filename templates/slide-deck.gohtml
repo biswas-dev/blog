@@ -19,7 +19,9 @@
       <p id="deck-msg">Loading presentation…</p>
       <button type="button" id="deck-play" hidden style="padding:10px 22px;border-radius:999px;border:0;background:#f26b1d;color:#fff;font-weight:600;cursor:pointer">▶ Play presentation</button>
     </div>
+    <button type="button" id="deck-exit-fs" hidden aria-label="Exit full screen" style="position:absolute;top:12px;right:12px;z-index:2;padding:6px 12px;border-radius:999px;border:0;background:rgba(0,0,0,.6);color:#fff;font:13px system-ui,sans-serif;cursor:pointer">✕ Exit full screen</button>
   </div>
+  <style>#deck-stage.deck-fill{position:fixed!important;inset:0;z-index:9999;margin:0!important;border-radius:0!important;aspect-ratio:auto!important;width:100vw;height:100vh;height:100dvh}</style>
 </section>
 
 <script src="/static/js/deckcraft-fonts.js?v=1"></script>
@@ -55,8 +57,20 @@
   }
 
   play.addEventListener('click', start);
+  // iPhone Safari has no element full screen and others can refuse it: fill the window instead.
+  var exitFs = document.getElementById('deck-exit-fs');
+  function fillWindow(on) {
+    stage.classList.toggle('deck-fill', on);
+    exitFs.hidden = !on;
+    document.documentElement.style.overflow = on ? 'hidden' : '';
+    frame.focus();
+  }
+  exitFs.addEventListener('click', function() { fillWindow(false); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && stage.classList.contains('deck-fill')) fillWindow(false); });
   document.getElementById('deck-fullscreen').addEventListener('click', function() {
-    if (stage.requestFullscreen) stage.requestFullscreen();
+    var req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+    if (!req) { fillWindow(true); return; }
+    Promise.resolve(req.call(stage)).then(function() { frame.focus(); }, function() { fillWindow(true); });
   });
 
   window.addEventListener('message', async function(e) {
