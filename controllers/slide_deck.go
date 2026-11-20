@@ -78,8 +78,8 @@ func (s Slides) SaveDeckFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid slide ID", http.StatusBadRequest)
 		return
 	}
-	slide, err := s.SlideService.GetByID(slideID)
-	if err != nil || !slide.IsDeck {
+	// Any slide can take a deck file: one created through the API starts without one.
+	if _, err := s.SlideService.GetByID(slideID); err != nil {
 		http.Error(w, "Deck not found", http.StatusNotFound)
 		return
 	}
