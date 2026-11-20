@@ -22,6 +22,7 @@
   </div>
 </section>
 
+<script src="/static/js/deckcraft-fonts.js?v=1"></script>
 <script>
 (function() {
   var frame = document.getElementById('deckcraft-frame');
@@ -39,7 +40,10 @@
   async function start() {
     var d = api();
     if (!d) return;
-    try { await d.execute('show.start', { from: 0 }); } catch (err) { showCover('Could not start the slide show.', true); return; }
+    // Old reveal links (#/6) open at that slide; Reveal counted from 0, as show.start does.
+    var m = location.hash.match(/^#\/(\d+)/), from = m ? +m[1] : 0;
+    try { await d.execute('show.start', { from: from }).catch(function() { return d.execute('show.start', { from: 0 }); }); }
+    catch (err) { showCover('Could not start the slide show.', true); return; }
     cover.style.display = 'none';
     frame.focus();
     clearInterval(watch);
@@ -63,6 +67,7 @@
     } else if (m.type === 'deckcraft:ready') {
       if (!deckName) { showCover('This deck has no slides yet.', false); return; }
       try {
+        await window.deckcraftFonts(api());
         var res = await fetch('/slides/' + encodeURIComponent(slug) + '/deck', { credentials: 'same-origin' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var bytes = await res.arrayBuffer();
@@ -72,6 +77,11 @@
           var ui = await api().uiInspect().catch(function() { return null; });
           if (ui && ui.documents && ui.documents.some(function(doc) { return doc.path && doc.path.indexOf(deckName) !== -1; })) break;
           await sleep(100);
+        }
+        // Size the stage to the deck's own slides (16:10, 4:3…), so the show has no bars.
+        var info = await api().docInspect().catch(function() { return null; });
+        if (info && info.slideSize && info.slideSize[1] > 0) {
+          document.getElementById('deck-stage').style.aspectRatio = info.slideSize[0] + ' / ' + info.slideSize[1];
         }
         showCover('', true);
         start();

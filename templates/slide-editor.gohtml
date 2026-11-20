@@ -179,6 +179,7 @@
             src="/static/vendor/deckcraft/index.html?host=parent&author={{.Username}}"
             allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen
             style="flex:1;min-height:0;width:100%;border:0"></iframe>
+    <script src="/static/js/deckcraft-fonts.js?v=1"></script>
     <script>
     (function() {
       var frame = document.getElementById('deckcraft-frame');
@@ -200,8 +201,9 @@
         var m = e.data;
         if (e.source !== frame.contentWindow || e.origin !== location.origin || !m || typeof m.type !== 'string') return;
         if (m.type === 'deckcraft:ready') {
+          var fonts = window.deckcraftFonts(frame.contentWindow.deckcraft);
           if (!deckName) return; // new deck: DeckCraft starts empty and its first Save names the file
-          fetch('/slides/' + encodeURIComponent(slug) + '/deck', { credentials: 'same-origin' })
+          fonts.then(function() { return fetch('/slides/' + encodeURIComponent(slug) + '/deck', { credentials: 'same-origin' }); })
             .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
             .then(function(bytes) { frame.contentWindow.postMessage({ type: 'deckcraft:open', name: deckName, bytes: bytes }, location.origin, [bytes]); })
             .catch(function(err) { status.textContent = 'Could not load the deck: ' + err.message; });

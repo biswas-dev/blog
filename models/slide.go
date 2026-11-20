@@ -30,7 +30,7 @@ type Slide struct {
 	ContentFilePath   string
 	ContentHTML       template.HTML
 	IsPublished       bool
-	PasswordHash      string
+	PasswordHash      string `json:"-"` // never sent by the API (it listed bcrypt hashes)
 	SlideMetadata     string // JSONB stored as string
 	Description       string
 	FeaturedImageURL  string
@@ -839,6 +839,43 @@ func (ss *SlideService) GetDeck(slideID int) (string, []byte, error) {
 func (ss *SlideService) SaveDeck(slideID int, name string, data []byte) error {
 	_, err := ss.DB.Exec(`UPDATE Slides SET deck_name = $1, deck_file = $2, updated_at = CURRENT_TIMESTAMP WHERE slide_id = $3`, name, data, slideID)
 	return err
+}
+
+// LegacyDeck is a slide still rendered from its HTML (not a DeckCraft deck yet).
+type LegacyDeck struct {
+	ID          int
+	Slug, Title string
+}
+
+// ListLegacyDecks lists the slides with HTML content and no DeckCraft file.
+func (ss *SlideService) ListLegacyDecks() ([]LegacyDeck, error) {
+	rows, err := ss.DB.Query(`SELECT slide_id, slug, title FROM Slides WHERE deck_name IS NULL AND COALESCE(content, '') <> '' ORDER BY slide_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []LegacyDeck
+	for rows.Next() {
+		var d LegacyDeck
+		if err := rows.Scan(&d.ID, &d.Slug, &d.Title); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// SaveConvertedDeck stores the DeckCraft file made from a legacy deck. It leaves updated_at alone
+// (a conversion is not an edit) and the HTML content in place, and only fills a row not converted yet.
+func (ss *SlideService) SaveConvertedDeck(slideID int, name string, data []byte, count int) error {
+	res, err := ss.DB.Exec(`UPDATE Slides SET deck_name = $1, deck_file = $2, slide_count = $3 WHERE slide_id = $4 AND deck_name IS NULL`, name, data, count, slideID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return fmt.Errorf("slide %d is already a DeckCraft deck", slideID)
+	}
+	return nil
 }
 
 func (ss *SlideService) UpdateSlideCount(slideID, count int) error {
