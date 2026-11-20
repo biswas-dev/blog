@@ -23,10 +23,13 @@ addEventListener('message', (e) => {
 f.src = '/static/vendor/' + app + '/index.html?host=parent' + (app === 'pdfcraft' ? '&control' : '');
 </script>`;
 
-// A one-page PDF with a correct xref table.
+// A one-page PDF with a correct xref table, carrying a highlight with a note and a reply: the
+// standard annotations PdfCraft writes for paper markup (/Contents, /T, /IRT).
 function tinyPDF() {
   const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >>'];
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Annots [4 0 R 5 0 R] >>',
+    '<< /Type /Annot /Subtype /Highlight /Rect [20 150 120 170] /QuadPoints [20 170 120 170 20 150 120 150] /C [1 0.94 0] /T (Smoke) /NM (smoke-hl) /Contents (Smoke note) /P 3 0 R >>',
+    '<< /Type /Annot /Subtype /Text /Rect [20 150 120 170] /IRT 4 0 R /T (Smoke) /NM (smoke-reply) /Contents (Smoke reply) /P 3 0 R >>'];
   let out = '%PDF-1.4\n';
   const offsets = objs.map((o, i) => { const at = out.length; out += `${i + 1} 0 obj\n${o}\nendobj\n`; return at; });
   const xref = out.length;
@@ -85,10 +88,15 @@ const assert = (ok, msg) => { if (!ok) throw new Error(msg); console.log('  ok -
     await page.goto(base + '?app=pdfcraft'); await ready('pdfcraft');
     await page.evaluate((b) => window.openFile('paper.pdf', new Uint8Array(b).buffer), tinyPDF());
     await page.waitForTimeout(2000);
+    await api('pdfcraft', 'execute', 'comment.list', {});
+    await page.waitForTimeout(1000);
+    const texts = (await api('pdfcraft', 'uiInspect')).widgets.map((w) => w.value || w.label || '');
+    assert(['Smoke note', 'Smoke reply'].every((t) => texts.some((x) => x.includes(t))), 'comment list shows the note and its reply from the PDF');
     await api('pdfcraft', 'execute', 'file.save', {});
     const pdf = await lastSave(1);
     assert(pdf.name === 'paper.pdf', 'save keeps the name the host sent');
     assert(Buffer.from(pdf.bytes.slice(0, 5)).toString('latin1') === '%PDF-', 'saved bytes are a PDF');
+    assert(Buffer.from(pdf.bytes).toString('latin1').includes('/IRT'), 'saved PDF keeps the reply');
   } catch (err) {
     failed = true;
     console.error('FAIL:', err.message);
