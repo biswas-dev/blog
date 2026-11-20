@@ -18,6 +18,11 @@
       document.querySelector('.reveal .slides section.present');
   }
 
+  // The slide frame the audience sees (fixed size, centred); a section may be narrower or overflow it.
+  function frame() {
+    return document.querySelector('.reveal .slides');
+  }
+
   function prepare() {
     const R = window.Reveal;
     const cfg = R.getConfig();
@@ -33,6 +38,8 @@
       '.dc-hide-text{color:transparent!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important;text-decoration-color:transparent!important}';
     document.head.appendChild(st);
     R.layout();
+    const r = frame().getBoundingClientRect();
+    if (r.width && r.height) size = { w: Math.round(r.width), h: Math.round(r.height) };
     return { count: R.getTotalSlides(), width: size.w, height: size.h };
   }
 
@@ -42,7 +49,7 @@
     const idx = R.getIndices(slides[i]);
     R.slide(idx.h, idx.v || 0);
     R.layout();
-    const r = section().getBoundingClientRect();
+    const r = frame().getBoundingClientRect();
     return { x: r.left, y: r.top, width: r.width, height: r.height };
   }
 
@@ -74,15 +81,13 @@
   // and Inter bold is Inter Bold), JetBrains Mono for any monospace stack.
   const MONO = /mono|courier|consolas|menlo|sfmono|ui-monospace/i;
   function face(family, weight) {
-    const first = family.split(',')[0].replace(/["']/g, '').trim();
     if (MONO.test(family)) return { fontFace: 'JetBrains Mono', bold: weight >= 600 };
-    if (/^(Inter|system-ui|-apple-system|BlinkMacSystemFont|sans-serif|ui-sans-serif|Segoe UI)$/i.test(first)) {
-      if (weight >= 700) return { fontFace: 'Inter', bold: true };
-      if (weight >= 600) return { fontFace: 'Inter SemiBold', bold: false };
-      if (weight >= 500) return { fontFace: 'Inter Medium', bold: false };
-      return { fontFace: 'Inter', bold: false };
-    }
-    return { fontFace: first, bold: weight >= 600 };
+    // Every other family becomes Inter too: DeckCraft draws only the faces the page loads into it,
+    // and an unknown name would fall back to its own face instead.
+    if (weight >= 700) return { fontFace: 'Inter', bold: true };
+    if (weight >= 600) return { fontFace: 'Inter SemiBold', bold: false };
+    if (weight >= 500) return { fontFace: 'Inter Medium', bold: false };
+    return { fontFace: 'Inter', bold: false };
   }
 
   function runOptions(el) {
@@ -115,8 +120,10 @@
     const range = document.createRange();
     const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
     for (let t = walker.nextNode(); t; t = walker.nextNode()) {
-      const p = t.parentElement;
-      if (!p || p.closest('aside.notes')) continue;
+      let p = t.parentElement;
+      // While hidden for the picture, the text sits in a transparent wrapper: style comes from its parent.
+      if (p && p.classList.contains('dc-hide-text')) p = p.parentElement;
+      if (!p || p.closest('aside.notes') || p.closest('svg')) continue;
       const cs = getComputedStyle(p);
       if (cs.display === 'none' || cs.visibility === 'hidden') continue;
       const opts = runOptions(p);
@@ -143,6 +150,11 @@
   function runs(block) {
     const ws = words(block);
     const out = [];
+    // Preformatted text (code) keeps its indentation and blank lines, measured from where lines start.
+    const bcs = getComputedStyle(block);
+    const pre = /^pre/.test(bcs.whiteSpace);
+    const contentLeft = block.getBoundingClientRect().left + parseFloat(bcs.paddingLeft) + parseFloat(bcs.borderLeftWidth);
+    const lineHeight = bcs.lineHeight === 'normal' ? parseFloat(bcs.fontSize) * 1.2 : parseFloat(bcs.lineHeight);
     for (let i = 0; i < ws.length; i++) {
       const w = ws[i], prev = ws[i - 1];
       // Same line when the two words overlap vertically (a small run beside a large one shares the line).
@@ -151,11 +163,19 @@
       if (prev && !newLine) {
         const gap = w.left - prev.right;
         sep = gap > w.space * 0.3 ? ' '.repeat(Math.max(1, Math.min(12, Math.round(gap / w.space)))) : '';
+      } else if (pre) {
+        sep = ' '.repeat(Math.max(0, Math.min(40, Math.round((w.left - contentLeft) / w.space))));
       }
-      if (newLine && out.length) out[out.length - 1].options.breakLine = true;
+      if (newLine && out.length) {
+        out[out.length - 1].options.breakLine = true;
+        if (pre) {
+          const skipped = Math.round((w.top - prev.top) / lineHeight) - 1;
+          for (let k = 0; k < Math.min(skipped, 20); k++) out.push({ text: ' ', key: 'blank', options: { ...prev.opts, breakLine: true } });
+        }
+      }
       const last = out[out.length - 1];
       if (last && !newLine && last.key === w.key && !last.options.breakLine) last.text += sep + w.text;
-      else out.push({ text: (newLine ? '' : sep) + w.text, key: w.key, options: { ...w.opts } });
+      else out.push({ text: sep + w.text, key: w.key, options: { ...w.opts } });
     }
     const res = out.map(r => ({ text: r.text, options: r.options }));
     res.extent = ws.length ? { left: Math.min(...ws.map(w => w.left)), right: Math.max(...ws.map(w => w.right)) } : null;
@@ -164,12 +184,13 @@
 
   function collect() {
     const sec = section();
-    const base = sec.getBoundingClientRect();
+    const base = frame().getBoundingClientRect();
     const boxes = [];
     const seen = new Set();
     const all = [sec, ...sec.querySelectorAll('*')];
     for (const el of all) {
-      if (el.closest('aside.notes') || seen.has(el) || !el.textContent.trim() || !isTextBlock(el)) continue;
+      // Text inside an SVG diagram stays in the picture, where the diagram drew it.
+      if (el.closest('aside.notes') || el.closest('svg') || seen.has(el) || !el.textContent.trim() || !isTextBlock(el)) continue;
       if ([...seen].some(s => s.contains(el))) continue;
       seen.add(el);
       const cs = getComputedStyle(el);
@@ -213,7 +234,9 @@
     }
     const walker = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT);
     const nodes = [];
-    for (let t = walker.nextNode(); t; t = walker.nextNode()) if (t.textContent.trim()) nodes.push(t);
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      if (t.textContent.trim() && !(t.parentElement && t.parentElement.closest('svg'))) nodes.push(t);
+    }
     for (const t of nodes) {
       const s = document.createElement('span');
       s.className = 'dc-hide-text';

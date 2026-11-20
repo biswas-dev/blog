@@ -26,7 +26,7 @@ import (
 
 // deckConvertVersion goes on the converter's URL: .js is cached for a year, so a change to
 // static/js/deck-convert.js must bump it or the sidecar Chrome keeps running the old one.
-const deckConvertVersion = "2"
+const deckConvertVersion = "6"
 
 // convertTimeout bounds one deck: page load, every slide's capture and building the file.
 const convertTimeout = 5 * time.Minute
@@ -100,6 +100,9 @@ func (s Slides) convertDeck(parent context.Context, slug, title string) ([]byte,
 			load('/static/js/pptxgen-bundle.js').then(() => load('/static/js/deck-convert.js?v=`+deckConvertVersion+`')).then(() => document.fonts.ready).then(() => ok(true), fail);
 		})`, nil, func(p *runtime.EvaluateParams) *runtime.EvaluateParams { return p.WithAwaitPromise(true) }),
 		chromedp.Evaluate(`deckConvert.prepare()`, &info),
+		// Web fonts that finish loading after this would move text away from where it was measured.
+		chromedp.Evaluate(`document.fonts.ready.then(() => new Promise((ok) => setTimeout(() => ok(true), 1000)))`, nil,
+			func(p *runtime.EvaluateParams) *runtime.EvaluateParams { return p.WithAwaitPromise(true) }),
 	)
 	if err != nil {
 		return nil, 0, err
@@ -118,7 +121,7 @@ func (s Slides) convertDeck(parent context.Context, slug, title string) ([]byte,
 		err := chromedp.Run(tab,
 			chromedp.Evaluate(fmt.Sprintf(`deckConvert.show(%d)`, i), &rect),
 			chromedp.Sleep(150*time.Millisecond),
-			chromedp.Evaluate(`deckConvert.collect()`, &c),
+			// Picture and text positions come from the same layout: hidden text keeps its place.
 			chromedp.Evaluate(`deckConvert.hideText(true)`, nil),
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				var err error
@@ -126,6 +129,7 @@ func (s Slides) convertDeck(parent context.Context, slug, title string) ([]byte,
 					WithClip(&page.Viewport{X: rect.X, Y: rect.Y, Width: rect.Width, Height: rect.Height, Scale: 1}).Do(ctx)
 				return err
 			}),
+			chromedp.Evaluate(`deckConvert.collect()`, &c),
 			chromedp.Evaluate(`deckConvert.hideText(false)`, nil),
 		)
 		if err != nil {
