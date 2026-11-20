@@ -26,12 +26,11 @@ const maxDeckBytes = 100 << 20
 var zipMagic = []byte("PK\x03\x04")
 
 // slideGate reports whether the request may see the slide at all (published, or an editor)
-// and whether it is past the password gate. The export renderer's token unlocks both.
+// and whether it is past the password gate.
 func (s Slides) slideGate(r *http.Request, slide *models.Slide, user *models.User) (visible, unlocked bool) {
-	exportOK := s.hasValidExportToken(r, slide.Slug)
 	isEditor := user != nil && models.CanEditSlides(user.Role)
-	visible = slide.IsPublished || exportOK || isEditor
-	unlocked = slide.PasswordHash == "" || exportOK || isEditor
+	visible = slide.IsPublished || isEditor
+	unlocked = slide.PasswordHash == "" || isEditor
 	if !unlocked {
 		cookie, err := r.Cookie(fmt.Sprintf("slide_access_%s", slide.Slug))
 		unlocked = err == nil && cookie.Value == "granted"
@@ -79,8 +78,8 @@ func (s Slides) SaveDeckFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid slide ID", http.StatusBadRequest)
 		return
 	}
-	slide, err := s.SlideService.GetByID(slideID)
-	if err != nil || !slide.IsDeck {
+	// Any slide can take a deck file: one created through the API starts without one.
+	if _, err := s.SlideService.GetByID(slideID); err != nil {
 		http.Error(w, "Deck not found", http.StatusNotFound)
 		return
 	}

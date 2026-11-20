@@ -18,20 +18,14 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/gobwas/httphead v0.1.0 // indirect
-	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/google/pprof v0.0.0-20250403155104-27863c87afa6 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
-	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
@@ -55,9 +49,6 @@ require (
 require (
 	github.com/XSAM/otelsql v0.41.0
 	github.com/anchoo2kewl/go-draw v0.9.22
-	github.com/anchoo2kewl/go-slide v0.3.3
-	github.com/chromedp/cdproto v0.0.0-20241022234722-4d5d5faf59fb
-	github.com/chromedp/chromedp v0.11.2
 	github.com/gorilla/csrf v1.7.3
 	github.com/lib/pq v1.11.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0
