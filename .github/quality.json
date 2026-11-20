@@ -1,0 +1,18 @@
+{
+  "repo": "blog",
+  "components": {
+    "application": {
+      "repo": "blog",
+      "file": "coverage.out",
+      "language": "go",
+      "root": "",
+      "token": "COVERAGE_TOKEN",
+      "label": "Application",
+      "module": "anshumanbiswas.com/blog"
+    }
+  },
+  "workflows": [
+    ".github/workflows/security.yml",
+    ".github/workflows/ci-cd.yml"
+  ]
+}

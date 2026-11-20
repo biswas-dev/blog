@@ -14,15 +14,24 @@
                     <a href="/slides" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700">
                         View Public Slides
                     </a>
-                    <label class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer">
-                        {{icon "upload" "w-4 h-4 mr-2"}}
-                        Import PPTX
-                        <input type="file" id="admin-import-pptx" accept=".pptx" style="display:none">
-                    </label>
-                    <a href="/admin/slides/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                        {{icon "plus" "w-4 h-4 mr-2"}}
-                        New Slide
-                    </a>
+                    <!-- New decks are DeckCraft decks (static/vendor/deckcraft), optionally starting from a
+                         .pptx. The legacy go-slide editor is still at /admin/slides/new. -->
+                    <form method="POST" action="/admin/slides" enctype="multipart/form-data" class="inline-flex items-center space-x-2">
+                        {{csrfField}}
+                        <input type="hidden" name="engine" value="deckcraft">
+                        <label for="new-deck-title" class="sr-only">Deck title</label>
+                        <input type="text" id="new-deck-title" name="title" required placeholder="Deck title" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100">
+                        <label class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer">
+                            {{icon "upload" "w-4 h-4 mr-2"}}
+                            <span id="new-deck-file-label">From PPTX (optional)</span>
+                            <input type="file" id="new-deck-file" name="deck" accept=".pptx,.deckcraft" class="sr-only"
+                                   onchange="document.getElementById('new-deck-file-label').textContent = this.files[0] ? this.files[0].name : 'From PPTX (optional)'">
+                        </label>
+                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                            {{icon "plus" "w-4 h-4 mr-2"}}
+                            New Slide
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -219,7 +228,7 @@
                         <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No slides</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating a new slide presentation.</p>
                         <div class="mt-6">
-                            <a href="/admin/slides/new" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <a href="#new-deck-title" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                                 {{icon "plus" "w-4 h-4 mr-2"}}
                                 New Slide
                             </a>
@@ -352,23 +361,6 @@ document.getElementById('deleteModal').addEventListener('click', function(e) {
 document.addEventListener('DOMContentLoaded', function() {
     updateBulkDeleteButton();
 
-    // Import PPTX handler
-    const importInput = document.getElementById('admin-import-pptx');
-    if (importInput) {
-        importInput.addEventListener('change', function() {
-            if (!this.files[0]) return;
-            const formData = new FormData();
-            formData.append('pptx', this.files[0]);
-            const csrfToken = document.querySelector('input[name="gorilla.csrf.Token"]')?.value || '';
-            fetch('/api/admin/slides/import-pptx?gorilla.csrf.Token=' + encodeURIComponent(csrfToken), {
-                method: 'POST', body: formData, headers: { 'X-CSRF-Token': csrfToken },
-            })
-            .then(r => r.json())
-            .then(data => { window.location.href = '/admin/slides/' + data.slideID + '/edit'; })
-            .catch(err => alert('Import failed: ' + err.message));
-            this.value = '';
-        });
-    }
 });
 </script>
 

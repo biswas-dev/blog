@@ -31,6 +31,9 @@ server {
     ssl_prefer_server_ciphers on;
 
     # Proxy to blog application
+    # Deck and paper PDF saves from DeckCraft/PdfCraft (controllers/slide_deck.go, papers.go)
+    client_max_body_size 100m;
+
     location / {
         proxy_pass http://127.0.0.1:22222;
         proxy_set_header Host $host;

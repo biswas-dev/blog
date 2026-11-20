@@ -27,6 +27,14 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
               -X 'anshumanbiswas.com/blog/version.GoVersion=${GO_VERSION}'" \
     -o /main .
 
+# Craft app web builds (DeckCraft, PdfCraft) pinned in crafts.lock; rebuilt only when the lock changes
+FROM --platform=$BUILDPLATFORM alpine:latest as crafts
+RUN apk add --no-cache curl unzip
+WORKDIR /src
+COPY crafts.lock ./
+COPY scripts/crafts.sh ./scripts/
+RUN scripts/crafts.sh fetch /vendor
+
 FROM alpine:latest as production
 
 # Install PostgreSQL client for database backup/restore functionality
@@ -34,6 +42,7 @@ RUN apk add --no-cache postgresql-client ca-certificates
 
 COPY --from=base /main .
 COPY --from=base /go/src/blog/static ./static
+COPY --from=crafts /vendor ./static/vendor
 COPY --from=base /go/src/blog/templates ./templates
 COPY --from=base /go/src/blog/themes ./themes
 COPY --from=base /go/src/blog/css ./css

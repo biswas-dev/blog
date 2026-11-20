@@ -10,39 +10,61 @@
   {{if eq .Mode "edit"}}
   <!-- PDF Viewer + Annotations (top section) -->
   <div class="mb-6">
-    {{if .Paper.PdfFileURL}}
-    <!-- PDF Viewer Container -->
-    <div id="pdf-viewer-container"
-         data-paper-id="{{.Paper.ID}}"
-         data-pdf-url="/admin/papers/{{.Paper.ID}}/pdf"
-         style="min-height: 500px; background: #525659; border-radius: 0.75rem; overflow: hidden; position: relative;">
-
-      <!-- PDF Toolbar -->
-      <div id="pdf-toolbar" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #3b3b3b; color: #fff; font-size: 13px; flex-wrap: wrap;">
-        <button type="button" id="pdf-prev-page" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;" title="Previous page">&laquo; Prev</button>
-        <span id="pdf-page-indicator" style="min-width: 80px; text-align: center;">Page 1 / 1</span>
-        <button type="button" id="pdf-next-page" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;" title="Next page">Next &raquo;</button>
-        <span style="border-left: 1px solid #666; height: 20px; margin: 0 4px;"></span>
-        <button type="button" id="pdf-zoom-out" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;" title="Zoom out">&minus;</button>
-        <span id="pdf-zoom-level" style="min-width: 40px; text-align: center;">150%</span>
-        <button type="button" id="pdf-zoom-in" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;" title="Zoom in">&plus;</button>
-        <span style="border-left: 1px solid #666; height: 20px; margin: 0 4px;"></span>
-        <!-- Highlight colors -->
-        <span style="font-size: 12px; opacity: 0.7;">Highlight:</span>
-        <button type="button" class="pdf-color-btn" data-color="yellow" style="width: 20px; height: 20px; border-radius: 50%; background: #fef08a; border: 2px solid #ca8a04; cursor: pointer;" title="Yellow"></button>
-        <button type="button" class="pdf-color-btn" data-color="green" style="width: 20px; height: 20px; border-radius: 50%; background: #bbf7d0; border: 2px solid #16a34a; cursor: pointer;" title="Green"></button>
-        <button type="button" class="pdf-color-btn" data-color="blue" style="width: 20px; height: 20px; border-radius: 50%; background: #bfdbfe; border: 2px solid #2563eb; cursor: pointer;" title="Blue"></button>
-        <button type="button" class="pdf-color-btn" data-color="pink" style="width: 20px; height: 20px; border-radius: 50%; background: #fbcfe8; border: 2px solid #db2777; cursor: pointer;" title="Pink"></button>
-        <button type="button" class="pdf-color-btn" data-color="orange" style="width: 20px; height: 20px; border-radius: 50%; background: #fed7aa; border: 2px solid #ea580c; cursor: pointer;" title="Orange"></button>
-        <span style="border-left: 1px solid #666; height: 20px; margin: 0 4px;"></span>
-        <button type="button" id="pdf-add-note" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Add Note</button>
-        <button type="button" id="pdf-toggle-annotations" class="btn btn-sm" style="padding: 4px 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Toggle Annotations</button>
-      </div>
-
-      <!-- PDF pages render here -->
-      <div id="pdf-pages-container" style="overflow: auto; max-height: 700px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
-      </div>
+    {{if .Paper.PDFFileURL}}
+    <!-- PdfCraft (static/vendor/pdfcraft) over its ?host=parent bridge: highlights, notes and
+         other markup are saved into the paper's PDF. -->
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;font-size:12px">
+      <span class="text-gray-500 dark:text-gray-400">Mark up the PDF here, then Save in PdfCraft (Ctrl+S) to store it.</span>
+      <span id="pdf-save-status" class="text-gray-500 dark:text-gray-400"></span>
     </div>
+    <iframe id="pdfcraft-frame" title="PdfCraft PDF editor"
+            src="/static/vendor/pdfcraft/index.html?host=parent&author={{.Username}}"
+            allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen
+            style="width:100%;height:80vh;min-height:500px;border:0;border-radius:0.75rem;background:#525659"></iframe>
+    <script>
+    (function() {
+      var frame = document.getElementById('pdfcraft-frame');
+      var status = document.getElementById('pdf-save-status');
+      var paperID = {{.Paper.ID}};
+      var csrf = (document.querySelector('input[name="gorilla.csrf.Token"]') || {}).value || '';
+      var dirty = false;
+      window.addEventListener('beforeunload', function(e) { if (dirty) e.preventDefault(); });
+      window.addEventListener('message', function(e) {
+        var m = e.data;
+        if (e.source !== frame.contentWindow || e.origin !== location.origin || !m || typeof m.type !== 'string') return;
+        if (m.type === 'pdfcraft:ready') {
+          fetch('/admin/papers/' + paperID + '/pdf', { credentials: 'same-origin' })
+            .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+            .then(function(bytes) { frame.contentWindow.postMessage({ type: 'pdfcraft:open', name: 'paper.pdf', bytes: bytes }, location.origin, [bytes]); })
+            .catch(function(err) { status.textContent = 'Could not load the PDF: ' + err.message; });
+        } else if (m.type === 'pdfcraft:dirty') {
+          dirty = !!m.dirty;
+        } else if (m.type === 'pdfcraft:failed') {
+          status.textContent = 'PdfCraft could not start: ' + m.error;
+        } else if (m.type === 'pdfcraft:save') {
+          // Only Save of the paper itself replaces it; Save As and copies are downloads.
+          if (m.saveAs || m.name !== 'paper.pdf') {
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([m.bytes], { type: 'application/pdf' }));
+            a.download = m.name; document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function() { URL.revokeObjectURL(a.href); }, 10000);
+            return;
+          }
+          status.textContent = 'Saving…';
+          fetch('/admin/papers/' + paperID + '/pdf', {
+            method: 'POST', body: m.bytes, credentials: 'same-origin', headers: { 'X-CSRF-Token': csrf }
+          }).then(function(r) {
+            if (!r.ok) return r.text().then(function(t) { throw new Error(t || ('HTTP ' + r.status)); });
+            return r.json();
+          }).then(function(data) {
+            var size = document.getElementById('pdf-file-size');
+            if (size && data && data.size) size.value = data.size; // keep the form from writing back the old size
+            status.textContent = 'Saved at ' + new Date().toLocaleTimeString();
+          }).catch(function(err) { dirty = true; status.textContent = 'Save failed: ' + err.message; });
+        }
+      });
+    })();
+    </script>
     {{else}}
     <!-- No PDF yet: upload zone -->
     <div id="pdf-upload-zone" style="border: 2px dashed #d1d5db; border-radius: 0.75rem; padding: 3rem; text-align: center; cursor: pointer; background: #f9fafb;" class="dark:border-gray-600 dark:bg-slate-800">
@@ -57,8 +79,8 @@
 
   <form method="POST" action="{{if eq .Mode "edit"}}/admin/papers/{{.Paper.ID}}{{else}}/admin/papers{{end}}">
     {{csrfField}}
-    <input type="hidden" name="pdf_file_url" id="pdf-file-url" value="{{.Paper.PdfFileURL}}" />
-    <input type="hidden" name="pdf_file_size" id="pdf-file-size" value="{{.Paper.PdfFileSize}}" />
+    <input type="hidden" name="pdf_file_url" id="pdf-file-url" value="{{.Paper.PDFFileURL}}" />
+    <input type="hidden" name="pdf_file_size" id="pdf-file-size" value="{{.Paper.PDFFileSize}}" />
 
     <div class="editor-layout" style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 1.5rem !important; width: 100% !important; flex-wrap: nowrap !important;">
 
@@ -93,7 +115,7 @@
           <!-- Year -->
           <div style="flex: 0 0 auto; min-width: 200px;">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Year</label>
-            <input type="number" name="year" placeholder="2024" class="form-input w-full" value="{{.Paper.Year}}" min="1900" max="2100" />
+            <input type="number" name="paper_year" placeholder="2024" class="form-input w-full" value="{{if .Paper.PaperYear}}{{.Paper.PaperYear}}{{end}}" min="1900" max="2100" />
           </div>
 
           <!-- Conference -->
@@ -454,20 +476,10 @@ if (window.__goWikiConfig) {
       });
     });
 
-    // Initialize PDF annotator if viewer container exists
-    var pdfContainer = document.getElementById('pdf-viewer-container');
-    if (pdfContainer && window.PdfAnnotator) {
-      var pdfUrl = pdfContainer.getAttribute('data-pdf-url');
-      var paperId = pdfContainer.getAttribute('data-paper-id');
-      var annotator = new PdfAnnotator(pdfContainer, pdfUrl, paperId);
-      annotator.loadPdf();
-    }
   });
 })();
 </script>
 
-<!-- Load PDF annotator script -->
-<script src="/static/js/pdf-annotator.js"></script>
 
 <style>
 /* Blog-specific sidebar styles */

@@ -1,13 +1,16 @@
 package controllers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -436,6 +439,12 @@ func (p Papers) EditPaper(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error generating editor HTML: %v", err)
 	}
 
+	// Existing highlights (pre-PdfCraft) still feed the public Key Passages; list them for managing.
+	annotations, err := p.PaperAnnotationService.GetByPaper(paper.ID)
+	if err != nil {
+		log.Printf("Error fetching annotations for paper %d: %v", paper.ID, err)
+	}
+
 	data := struct {
 		LoggedIn        bool
 		Username        string
@@ -448,12 +457,14 @@ func (p Papers) EditPaper(w http.ResponseWriter, r *http.Request) {
 		Paper           *models.Paper
 		Mode            string
 		EditorHTML      template.HTML
+		Annotations     []models.PaperAnnotation
 		UserPermissions models.UserPermissions
 	}{
 		LoggedIn:        true,
 		Username:        user.Username,
 		IsAdmin:         models.IsAdmin(user.Role),
 		SignupDisabled:  true,
+		Annotations:     annotations,
 		Description:     "Edit Paper - Anshuman Biswas Blog",
 		CurrentPage:     "admin-papers",
 		ResearchAreas:   areas,
@@ -636,7 +647,8 @@ func (p Papers) ServePDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify file exists
-	if _, err := os.Stat(paper.PDFFileURL); os.IsNotExist(err) {
+	pdfPath, ok := paperPDFPath(paper.PDFFileURL)
+	if _, err := os.Stat(pdfPath); !ok || err != nil {
 		log.Printf("PDF file not found on disk: %s", paper.PDFFileURL)
 		http.Error(w, "PDF file not found", http.StatusNotFound)
 		return
@@ -644,7 +656,93 @@ func (p Papers) ServePDF(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", "inline")
-	http.ServeFile(w, r, paper.PDFFileURL)
+	w.Header().Set("Cache-Control", "private, no-cache")
+	http.ServeFile(w, r, pdfPath)
+}
+
+// maxPaperPDFBytes caps a PDF saved back from PdfCraft.
+const maxPaperPDFBytes = 100 << 20
+
+// SavePDF replaces a paper's PDF with what PdfCraft saved (the paper's markup lives in the
+// file). The first save keeps the original upload next to it as <name>.orig.pdf.
+// POST /admin/papers/{paperID}/pdf, body = the PDF.
+func (p Papers) SavePDF(w http.ResponseWriter, r *http.Request) {
+	user, err := utils.IsUserLoggedIn(r, p.SessionService)
+	if err != nil || !models.GetPermissions(user.Role).CanEditPosts {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	paperID, err := strconv.Atoi(chi.URLParam(r, "paperID"))
+	if err != nil {
+		http.Error(w, "Invalid paper ID", http.StatusBadRequest)
+		return
+	}
+	paper, err := p.PaperService.GetByID(paperID)
+	if err != nil {
+		http.Error(w, "Paper not found", http.StatusNotFound)
+		return
+	}
+	pdfPath, ok := paperPDFPath(paper.PDFFileURL)
+	if !ok {
+		http.Error(w, "Paper has no PDF", http.StatusNotFound)
+		return
+	}
+	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxPaperPDFBytes))
+	if err != nil {
+		http.Error(w, "PDF is too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+	if !bytes.HasPrefix(data, []byte("%PDF-")) {
+		http.Error(w, "Not a PDF", http.StatusBadRequest)
+		return
+	}
+	if err := replacePaperPDF(pdfPath, data); err != nil {
+		log.Printf("SavePDF %d: %v", paperID, err)
+		http.Error(w, "Failed to save PDF", http.StatusInternalServerError)
+		return
+	}
+	if err := p.PaperService.SetPDFSize(paperID, int64(len(data))); err != nil {
+		log.Printf("SavePDF %d: size: %v", paperID, err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "size": len(data)})
+}
+
+// paperPDFPath maps a stored /static/uploads/papers/... URL to its file, relative to the
+// working directory (the image runs from /, so this is /static/... there too).
+func paperPDFPath(url string) (string, bool) {
+	rel := filepath.Clean(strings.TrimPrefix(url, "/"))
+	return rel, strings.HasPrefix(rel, filepath.Join("static", "uploads", "papers")+string(filepath.Separator)) && strings.EqualFold(filepath.Ext(rel), ".pdf")
+}
+
+// replacePaperPDF writes data over pdfPath atomically, keeping the first original as .orig.pdf.
+func replacePaperPDF(pdfPath string, data []byte) error {
+	orig := strings.TrimSuffix(pdfPath, filepath.Ext(pdfPath)) + ".orig.pdf"
+	if _, err := os.Stat(orig); os.IsNotExist(err) {
+		if err := os.Link(pdfPath, orig); err != nil {
+			return fmt.Errorf("keep original: %w", err)
+		}
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(pdfPath), ".save-*.pdf")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // no-op once renamed
+	if fi, err := os.Stat(pdfPath); err == nil {
+		_ = tmp.Chmod(fi.Mode().Perm()) // CreateTemp makes 0600; keep the upload's mode
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), pdfPath)
 }
 
 // ListAnnotations returns all annotations for a paper as JSON.

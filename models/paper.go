@@ -448,3 +448,9 @@ func formatPaperDates(paper *Paper) {
 		}
 	}
 }
+
+// SetPDFSize records the size of a paper's PDF after it is replaced in place.
+func (ps *PaperService) SetPDFSize(paperID int, size int64) error {
+	_, err := ps.DB.Exec(`UPDATE papers SET pdf_file_size = $1 WHERE paper_id = $2`, size, paperID)
+	return err
+}
