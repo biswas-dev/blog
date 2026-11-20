@@ -76,6 +76,10 @@ func (s Slides) hasValidExportToken(r *http.Request, slug string) bool {
 	return validExportToken(s.ExportSecret, slug, q.Get("export_token"), exp)
 }
 
+// deckNoPDF answers PDF requests for DeckCraft decks: the reveal.js print path can't render
+// them, and DeckCraft exports PDF itself (File › Export).
+const deckNoPDF = "PDF export of DeckCraft decks is in the deck itself: File › Export"
+
 // ExportSlidePDF handles GET /slides/{slug}/pdf — streams a browser-exact PDF.
 func (s Slides) ExportSlidePDF(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
@@ -88,6 +92,10 @@ func (s Slides) ExportSlidePDF(w http.ResponseWriter, r *http.Request) {
 	slide, err := s.SlideService.GetBySlug(slug)
 	if err != nil {
 		http.Error(w, "Slide not found", http.StatusNotFound)
+		return
+	}
+	if slide.IsDeck {
+		http.Error(w, deckNoPDF, http.StatusNotFound)
 		return
 	}
 
@@ -138,6 +146,10 @@ func (s Slides) APIExportSlidePDF(w http.ResponseWriter, r *http.Request) {
 	slide, err := s.SlideService.GetByID(slideID)
 	if err != nil {
 		http.Error(w, "Slide not found", http.StatusNotFound)
+		return
+	}
+	if slide.IsDeck {
+		http.Error(w, deckNoPDF, http.StatusNotFound)
 		return
 	}
 

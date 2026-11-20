@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"encoding/xml"
 	"fmt"
 	"html/template"
@@ -32,6 +33,7 @@ type Slides struct {
 		SlidesList        views.Template
 		SlidePresentation views.Template
 		SlidePassword     views.Template
+		SlideDeck         views.Template
 	}
 	SlideService        *models.SlideService
 	SlideVersionService *models.SlideVersionService
@@ -167,7 +169,8 @@ func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
+	// Multipart when the new-deck form carries a .pptx; ParseMultipartForm also parses plain forms.
+	if err := r.ParseMultipartForm(32 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
@@ -178,9 +181,19 @@ func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 	isPublishedStr := r.FormValue("is_published")
 	categoriesStr := r.FormValue("categories")
 
-	if title == "" || content == "" {
+	// A DeckCraft deck keeps its slides in its file, not in content.
+	isDeck := r.FormValue("engine") == "deckcraft"
+	if title == "" || (content == "" && !isDeck) {
 		http.Error(w, "Title and content are required", http.StatusBadRequest)
 		return
+	}
+	var deckName string
+	var deckData []byte
+	if isDeck {
+		if deckName, deckData, err = uploadedDeck(r); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	isPublished := isPublishedStr == "on" || isPublishedStr == "true"
@@ -208,8 +221,14 @@ func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create initial version
-	if s.SlideVersionService != nil {
+	if isDeck {
+		if err := s.SlideService.SaveDeck(slide.ID, deckName, deckData); err != nil {
+			log.Printf("Error marking slide %d as a deck: %v", slide.ID, err)
+			http.Error(w, "Failed to create deck", http.StatusInternalServerError)
+			return
+		}
+	} else if s.SlideVersionService != nil {
+		// Create initial version
 		_ = s.SlideVersionService.MaybeCreateVersion(slide.ID, user.UserID, title, content)
 	}
 
@@ -257,9 +276,10 @@ func (s Slides) EditSlide(w http.ResponseWriter, r *http.Request) {
 
 	// v2 is now the default editor. Pass ?editor=v1 to opt back into the
 	// legacy TipTap-bundle editor (kept for safety while v2 stabilises).
-	useV2 := s.Engine != nil && r.URL.Query().Get("editor") != "v1"
+	// DeckCraft decks always use the v2 layout: its settings strip hosts the DeckCraft frame.
+	useV2 := slide.IsDeck || (s.Engine != nil && r.URL.Query().Get("editor") != "v1")
 	var goslideEditorHTML template.HTML
-	if useV2 {
+	if useV2 && !slide.IsDeck {
 		req := goslide.EditorRequest{
 			InitialContent:   string(slide.ContentHTML),
 			ThemeID:          themeIDFromMetadata(slide.SlideMetadata),
@@ -337,7 +357,12 @@ func (s Slides) UpdateSlide(w http.ResponseWriter, r *http.Request) {
 	isPublishedStr := r.FormValue("is_published")
 	categoriesStr := r.FormValue("categories")
 
-	if title == "" || content == "" {
+	existing, err := s.SlideService.GetByID(slideID)
+	if err != nil {
+		http.Error(w, "Slide not found", http.StatusNotFound)
+		return
+	}
+	if title == "" || (content == "" && !existing.IsDeck) {
 		http.Error(w, "Title and content are required", http.StatusBadRequest)
 		return
 	}
@@ -360,8 +385,8 @@ func (s Slides) UpdateSlide(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	featuredImageURL := r.FormValue("featured_image_url")
 
-	// Create version snapshot before updating
-	if s.SlideVersionService != nil {
+	// Create version snapshot before updating (decks are versioned in their file only)
+	if s.SlideVersionService != nil && !existing.IsDeck {
 		_ = s.SlideVersionService.MaybeCreateVersion(slideID, user.UserID, title, content)
 	}
 
@@ -467,51 +492,41 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 		slide.Contributors = contributors
 	}
 
-	// A valid, unexpired export token (carried by the headless-Chrome sidecar
-	// during PDF rendering) authorizes exactly this slug: it bypasses both the
-	// published check and the password gate so the renderer can reach the deck.
-	exportOK := s.hasValidExportToken(r, slug)
-
-	// Check if slide is published (unless user can edit slides)
-	if !slide.IsPublished && !exportOK && (user == nil || !models.CanEditSlides(user.Role)) {
+	// Published/editor and password checks; a valid export token (carried by the
+	// headless-Chrome sidecar during PDF rendering) unlocks exactly this slug.
+	visible, unlocked := s.slideGate(r, slide, user)
+	if !visible {
 		http.Error(w, "Slide not found", http.StatusNotFound)
 		return
 	}
-
-	// Password protection check: editors/admins and the export renderer bypass
-	isEditor := user != nil && models.CanEditSlides(user.Role)
-	if slide.PasswordHash != "" && !isEditor && !exportOK {
-		cookieName := fmt.Sprintf("slide_access_%s", slug)
-		cookie, err := r.Cookie(cookieName)
-		if err != nil || cookie.Value != "granted" {
-			// Render password prompt
-			userPerms := models.GetPermissions(models.RoleCommenter)
-			if user != nil {
-				userPerms = models.GetPermissions(user.Role)
-			}
-			data := struct {
-				LoggedIn        bool
-				Username        string
-				IsAdmin         bool
-				SignupDisabled  bool
-				Description     string
-				CurrentPage     string
-				Slide           *models.Slide
-				Error           string
-				UserPermissions models.UserPermissions
-			}{
-				LoggedIn:        user != nil,
-				Username:        getUsername(user),
-				IsAdmin:         user != nil && models.IsAdmin(user.Role),
-				SignupDisabled:  true,
-				Description:     slide.Title + " - Password Required",
-				CurrentPage:     "slides",
-				Slide:           slide,
-				UserPermissions: userPerms,
-			}
-			s.Templates.SlidePassword.Execute(w, r, data)
-			return
+	if !unlocked {
+		// Render password prompt
+		userPerms := models.GetPermissions(models.RoleCommenter)
+		if user != nil {
+			userPerms = models.GetPermissions(user.Role)
 		}
+		data := struct {
+			LoggedIn        bool
+			Username        string
+			IsAdmin         bool
+			SignupDisabled  bool
+			Description     string
+			CurrentPage     string
+			Slide           *models.Slide
+			Error           string
+			UserPermissions models.UserPermissions
+		}{
+			LoggedIn:        user != nil,
+			Username:        getUsername(user),
+			IsAdmin:         user != nil && models.IsAdmin(user.Role),
+			SignupDisabled:  true,
+			Description:     slide.Title + " - Password Required",
+			CurrentPage:     "slides",
+			Slide:           slide,
+			UserPermissions: userPerms,
+		}
+		s.Templates.SlidePassword.Execute(w, r, data)
+		return
 	}
 
 	userPerms := models.GetPermissions(models.RoleCommenter)
@@ -522,8 +537,8 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 	// Render via go-slide when wired in. The engine reads the slide's
 	// theme from the metadata JSON ("theme_id"), falls back to the
 	// registry default for older decks. Auth (password gate, edit
-	// permission) was already enforced above.
-	if s.Engine != nil {
+	// permission) was already enforced above. DeckCraft decks skip it.
+	if s.Engine != nil && !slide.IsDeck {
 		gs := goslide.Slide{
 			Title:           slide.Title,
 			Slug:            slide.Slug,
@@ -584,6 +599,10 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 		UserPermissions: userPerms,
 	}
 
+	if slide.IsDeck {
+		s.Templates.SlideDeck.Execute(w, r, data)
+		return
+	}
 	s.Templates.SlidePresentation.Execute(w, r, data)
 }
 
