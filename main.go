@@ -114,7 +114,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	// The vendored craft apps' .wasm/.js are precompressed at build (staticCacheMiddleware serves the .gz).
-	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "text/javascript", "application/json", mimeSVG))
+	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "text/javascript", "application/json", "font/ttf", mimeSVG))
 	r.Use(authmw.TracingMiddleware())
 	// Performance headers: tell clients/CDNs that encoding varies and opt-in to DNS prefetch
 	r.Use(func(next http.Handler) http.Handler {
@@ -1142,6 +1142,12 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+	// Legacy go-slide decks become DeckCraft decks. The sidecar Chrome loads each deck from this
+	// server, so it starts once the listener (and, on a deploy, the sidecar) has had time to come up.
+	go func() {
+		time.Sleep(30 * time.Second)
+		slidesC.ConvertLegacyDecks(context.Background())
+	}()
 	server.ListenAndServe()
 }
 
@@ -1154,7 +1160,7 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 			// Craft app entry pages name content-hashed assets: revalidate so a bump takes effect.
 			w.Header().Set(headerCacheCtrl, "no-cache")
 		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"), strings.HasSuffix(path, ".wasm"),
-			strings.HasSuffix(path, ".woff2"), strings.HasSuffix(path, ".woff"):
+			strings.HasSuffix(path, ".woff2"), strings.HasSuffix(path, ".woff"), strings.HasSuffix(path, ".ttf"):
 			// Versioned assets: 1-year immutable cache — URL contains version query param
 			w.Header().Set(headerCacheCtrl, "public, max-age=31536000, immutable")
 		case strings.HasSuffix(path, ".svg"):
