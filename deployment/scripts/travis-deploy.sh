@@ -197,7 +197,11 @@ $SSH_CMD "bash -s" <<REMOTE_EOF
   sleep 2
 
   docker compose -f docker-compose.yml -f docker-compose.hub.yml up -d --no-build
-  sudo systemctl reload nginx || true
+  # Reload whichever nginx owns /run/nginx.pid too: on production a systemd-only reload left the old
+  # config (1 MB body limit) running. Print what is running so a mismatch shows in the deploy log.
+  sudo systemctl reload nginx 2>&1 || true
+  sudo nginx -s reload 2>&1 || true
+  echo "nginx: systemd \$(systemctl is-active nginx 2>&1), pid file \$(cat /run/nginx.pid 2>&1), masters: \$(pgrep -f 'nginx: master' | tr '\n' ' ')"
 
   # Wait for postgres
   sleep 10
@@ -259,6 +263,15 @@ if curl -f -H "Host: $DOMAIN" "http://$SERVER_IP" 2>/dev/null; then
 else
   echo "WARNING: Health check failed (server may still be starting)"
 fi
+
+# Deck and paper PDF saves need nginx's 100 MB body limit; nginx's own 1 MB default answers 413.
+UPLOAD_CODE=$(head -c 2000000 /dev/zero | curl -sk -o /dev/null -w '%{http_code}' --resolve "$DOMAIN:443:$SERVER_IP" \
+  -X POST --data-binary @- "https://$DOMAIN/admin/slides/0/deck?name=check.pptx" || true)
+if [ "$UPLOAD_CODE" = "413" ]; then
+  echo "ERROR: nginx on $SERVER_IP still rejects a 2 MB upload (413); client_max_body_size is not in effect"
+  exit 1
+fi
+echo "Upload limit check: 2 MB POST answered $UPLOAD_CODE (not 413)"
 
 echo ""
 echo "=== Deploy to $ENV complete ==="
