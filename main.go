@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -111,7 +113,8 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "application/json", mimeSVG))
+	// The vendored craft apps' .wasm/.js are precompressed at build (staticCacheMiddleware serves the .gz).
+	r.Use(middleware.Compress(5, "text/html", "text/css", "application/javascript", "text/javascript", "application/json", "font/ttf", mimeSVG))
 	r.Use(authmw.TracingMiddleware())
 	// Performance headers: tell clients/CDNs that encoding varies and opt-in to DNS prefetch
 	r.Use(func(next http.Handler) http.Handler {
@@ -613,6 +616,9 @@ func main() {
 	slidesC.Templates.SlidePassword = views.Must(views.ParseFS(
 		templates.FS, "slide-password.gohtml", "tailwind.gohtml"))
 
+	slidesC.Templates.SlideDeck = views.Must(views.ParseFS(
+		templates.FS, "slide-deck.gohtml", "tailwind.gohtml"))
+
 	// Initialize Guides templates
 	guidesC.Templates.GuidesList = views.Must(views.ParseFS(
 		templates.FS, "guides-list.gohtml", "tailwind.gohtml"))
@@ -705,6 +711,7 @@ func main() {
 	r.Get("/slides", slidesC.PublicSlidesList)
 	r.Get("/slides/{slug}", slidesC.ViewSlide)
 	r.Get("/slides/{slug}/pdf", slidesC.ExportSlidePDF)
+	r.Get("/slides/{slug}/deck", slidesC.ServeDeck)
 	r.Post("/slides/{slug}/verify", slidesC.VerifySlidePassword)
 
 	// Admin Slides Routes
@@ -716,6 +723,7 @@ func main() {
 	r.Post("/admin/slides/{slideID}/delete", slidesC.DeleteSlide)
 	r.Post("/admin/slides/preview", slidesC.PreviewSlide)
 	r.Post("/admin/slides/upload-image", slidesC.UploadSlideImage)
+	r.Post("/admin/slides/{slideID}/deck", slidesC.SaveDeckFile)
 
 	// Public Guide Routes
 	r.Get("/guides", guidesC.PublicGuidesList)
@@ -762,6 +770,7 @@ func main() {
 	r.Post("/admin/papers/{paperID}/delete", papersC.DeletePaper)
 	r.Post("/admin/papers/preview", papersC.PreviewPaper)
 	r.Get("/admin/papers/{paperID}/pdf", papersC.ServePDF)
+	r.Post("/admin/papers/{paperID}/pdf", papersC.SavePDF)
 
 	// Paper Annotation API (admin/editor only via session auth)
 	r.Get("/api/papers/{paperID}/annotations", papersC.ListAnnotations)
@@ -1133,6 +1142,12 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+	// Legacy go-slide decks become DeckCraft decks. The sidecar Chrome loads each deck from this
+	// server, so it starts once the listener (and, on a deploy, the sidecar) has had time to come up.
+	go func() {
+		time.Sleep(30 * time.Second)
+		slidesC.ConvertLegacyDecks(context.Background())
+	}()
 	server.ListenAndServe()
 }
 
@@ -1141,8 +1156,11 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch {
-		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"),
-			strings.HasSuffix(path, ".woff2"), strings.HasSuffix(path, ".woff"):
+		case strings.HasPrefix(path, "vendor/") && strings.HasSuffix(path, ".html"):
+			// Craft app entry pages name content-hashed assets: revalidate so a bump takes effect.
+			w.Header().Set(headerCacheCtrl, "no-cache")
+		case strings.HasSuffix(path, ".css"), strings.HasSuffix(path, ".js"), strings.HasSuffix(path, ".wasm"),
+			strings.HasSuffix(path, ".woff2"), strings.HasSuffix(path, ".woff"), strings.HasSuffix(path, ".ttf"):
 			// Versioned assets: 1-year immutable cache — URL contains version query param
 			w.Header().Set(headerCacheCtrl, "public, max-age=31536000, immutable")
 		case strings.HasSuffix(path, ".svg"):
@@ -1155,8 +1173,37 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 			// Images: 7-day cache with 30-day background revalidation
 			w.Header().Set(headerCacheCtrl, "public, max-age=604800, stale-while-revalidate=2592000")
 		}
+		if strings.HasPrefix(path, "vendor/") && servePrecompressed(w, r, "./static/"+path) {
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// servePrecompressed sends name+".gz" (written by scripts/crafts.sh) to a client that accepts gzip.
+// It reports false when there is no .gz or the client cannot take it, so the caller serves the file itself.
+func servePrecompressed(w http.ResponseWriter, r *http.Request, name string) bool {
+	if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") || strings.Contains(name, "..") {
+		return false
+	}
+	f, err := os.Open(name + ".gz")
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil || st.IsDir() {
+		return false
+	}
+	ctype := mime.TypeByExtension(filepath.Ext(name))
+	if ctype == "" {
+		ctype = "application/octet-stream"
+	}
+	w.Header().Set(headerContentType, ctype)
+	w.Header().Set("Content-Encoding", "gzip")
+	w.Header().Add("Vary", "Accept-Encoding")
+	http.ServeContent(w, r, name, st.ModTime(), f)
+	return true
 }
 
 // drawAuthMiddleware wraps the go-draw handler to enforce role-based access.

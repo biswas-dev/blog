@@ -1,0 +1,97 @@
+{{template "modern-header" .}}
+
+<!-- A DeckCraft deck, played by the vendored web build (static/vendor/deckcraft) over its
+     ?host=parent bridge. Visitors only see the slide show: when it ends, a cover hides the editor. -->
+<section style="max-width:1280px;margin:24px auto;padding:0 16px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{.Slide.Title}}</h1>
+    <div style="display:flex;gap:12px;align-items:center">
+      <button type="button" id="deck-fullscreen" class="nav-link">Full screen</button>
+      {{if .UserPermissions.CanEditSlides}}<a class="nav-link" href="/admin/slides/{{.Slide.ID}}/edit">Edit deck</a>{{end}}
+    </div>
+  </div>
+  {{if .Slide.Description}}<p class="text-gray-600 dark:text-gray-400" style="margin-top:6px">{{.Slide.Description}}</p>{{end}}
+
+  <div id="deck-stage" style="position:relative;aspect-ratio:16/9;margin-top:16px;background:#111;border-radius:12px;overflow:hidden">
+    <iframe id="deckcraft-frame" title="{{.Slide.Title}}" src="/static/vendor/deckcraft/index.html?host=parent"
+            allow="fullscreen" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>
+    <div id="deck-cover" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#111;color:#e5e7eb;font:15px system-ui,sans-serif">
+      <p id="deck-msg">Loading presentation…</p>
+      <button type="button" id="deck-play" hidden style="padding:10px 22px;border-radius:999px;border:0;background:#f26b1d;color:#fff;font-weight:600;cursor:pointer">▶ Play presentation</button>
+    </div>
+  </div>
+</section>
+
+<script src="/static/js/deckcraft-fonts.js?v=1"></script>
+<script>
+(function() {
+  var frame = document.getElementById('deckcraft-frame');
+  var stage = document.getElementById('deck-stage');
+  var cover = document.getElementById('deck-cover');
+  var msg = document.getElementById('deck-msg');
+  var play = document.getElementById('deck-play');
+  var slug = {{.Slide.Slug}}, deckName = {{.Slide.DeckName}};
+  var watch = null;
+
+  function api() { return frame.contentWindow && frame.contentWindow.deckcraft; }
+  function showCover(text, canPlay) { msg.textContent = text; play.hidden = !canPlay; cover.style.display = 'flex'; }
+  function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+  async function start() {
+    var d = api();
+    if (!d) return;
+    // Old reveal links (#/6) open at that slide; Reveal counted from 0, as show.start does.
+    var m = location.hash.match(/^#\/(\d+)/), from = m ? +m[1] : 0;
+    try { await d.execute('show.start', { from: from }).catch(function() { return d.execute('show.start', { from: 0 }); }); }
+    catch (err) { showCover('Could not start the slide show.', true); return; }
+    cover.style.display = 'none';
+    frame.focus();
+    clearInterval(watch);
+    // Ending the show (Esc, or past the last slide) returns DeckCraft to its editor: cover it.
+    watch = setInterval(async function() {
+      var ui = await d.uiInspect().catch(function() { return null; });
+      if (ui && !ui.showing) { clearInterval(watch); showCover('', true); }
+    }, 1000);
+  }
+
+  play.addEventListener('click', start);
+  document.getElementById('deck-fullscreen').addEventListener('click', function() {
+    if (stage.requestFullscreen) stage.requestFullscreen();
+  });
+
+  window.addEventListener('message', async function(e) {
+    var m = e.data;
+    if (e.source !== frame.contentWindow || e.origin !== location.origin || !m || typeof m.type !== 'string') return;
+    if (m.type === 'deckcraft:failed') {
+      showCover('This presentation needs a browser with WebGPU or WebGL2.', false);
+    } else if (m.type === 'deckcraft:ready') {
+      if (!deckName) { showCover('This deck has no slides yet.', false); return; }
+      try {
+        await window.deckcraftFonts(api());
+        var res = await fetch('/slides/' + encodeURIComponent(slug) + '/deck', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var bytes = await res.arrayBuffer();
+        frame.contentWindow.postMessage({ type: 'deckcraft:open', name: deckName, bytes: bytes }, location.origin, [bytes]);
+        // The file opens on DeckCraft's next frame; wait for it before starting the show.
+        for (var i = 0; i < 50; i++) {
+          var ui = await api().uiInspect().catch(function() { return null; });
+          if (ui && ui.documents && ui.documents.some(function(doc) { return doc.path && doc.path.indexOf(deckName) !== -1; })) break;
+          await sleep(100);
+        }
+        // Size the stage to the deck's own slides (16:10, 4:3…), so the show has no bars.
+        var info = await api().docInspect().catch(function() { return null; });
+        if (info && info.slideSize && info.slideSize[1] > 0) {
+          document.getElementById('deck-stage').style.aspectRatio = info.slideSize[0] + ' / ' + info.slideSize[1];
+        }
+        showCover('', true);
+        start();
+      } catch (err) {
+        showCover('Could not load the presentation: ' + err.message, false);
+      }
+    }
+    // deckcraft:save from a visitor is ignored: the public page never stores anything.
+  });
+})();
+</script>
+
+{{template "modern-footer" .}}

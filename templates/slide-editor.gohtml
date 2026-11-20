@@ -167,7 +167,70 @@
   </div>
 
   <div style="flex:1;min-height:0;display:flex;flex-direction:column">
+    {{if .Slide.IsDeck}}
+    <!-- DeckCraft deck: the vendored web build (static/vendor/deckcraft) edits the stored file
+         over its ?host=parent bridge. Save in DeckCraft stores the deck; this form's button
+         saves only the settings above. -->
+    <div class="slide-meta-strip" style="justify-content:space-between">
+      <span id="deck-status" style="font-size:12px;color:var(--text-secondary,#64748b)">{{if .Slide.DeckName}}{{.Slide.DeckName}}{{else}}New deck: use Save in DeckCraft (Ctrl+S) to store it{{end}}</span>
+      <button type="submit" class="meta-toggle">Save settings</button>
+    </div>
+    <iframe id="deckcraft-frame" title="DeckCraft editor"
+            src="/static/vendor/deckcraft/index.html?host=parent&author={{.Username}}"
+            allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen
+            style="flex:1;min-height:0;width:100%;border:0"></iframe>
+    <script src="/static/js/deckcraft-fonts.js?v=1"></script>
+    <script>
+    (function() {
+      var frame = document.getElementById('deckcraft-frame');
+      var status = document.getElementById('deck-status');
+      var slideID = {{.Slide.ID}}, slug = {{.Slide.Slug}}, deckName = {{.Slide.DeckName}};
+      var csrf = (document.querySelector('input[name="gorilla.csrf.Token"]') || {}).value || '';
+      var dirty = false;
+      window.addEventListener('beforeunload', function(e) { if (dirty) e.preventDefault(); });
+
+      function download(name, bytes) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([bytes]));
+        a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function() { URL.revokeObjectURL(a.href); }, 10000);
+      }
+
+      window.addEventListener('message', function(e) {
+        var m = e.data;
+        if (e.source !== frame.contentWindow || e.origin !== location.origin || !m || typeof m.type !== 'string') return;
+        if (m.type === 'deckcraft:ready') {
+          var fonts = window.deckcraftFonts(frame.contentWindow.deckcraft);
+          if (!deckName) return; // new deck: DeckCraft starts empty and its first Save names the file
+          fonts.then(function() { return fetch('/slides/' + encodeURIComponent(slug) + '/deck', { credentials: 'same-origin' }); })
+            .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+            .then(function(bytes) { frame.contentWindow.postMessage({ type: 'deckcraft:open', name: deckName, bytes: bytes }, location.origin, [bytes]); })
+            .catch(function(err) { status.textContent = 'Could not load the deck: ' + err.message; });
+        } else if (m.type === 'deckcraft:dirty') {
+          dirty = !!m.dirty;
+        } else if (m.type === 'deckcraft:failed') {
+          status.textContent = 'DeckCraft could not start: ' + m.error;
+        } else if (m.type === 'deckcraft:save') {
+          // Only Save, or Save As to a presentation format, replaces the stored deck;
+          // exports (PDF, pictures, a .pptx copy of a .deckcraft deck) are downloads.
+          var isDeck = /\.(pptx|deckcraft)$/i.test(m.name);
+          if (!isDeck || !(m.saveAs || m.name === deckName)) { download(m.name, m.bytes); return; }
+          status.textContent = 'Saving ' + m.name + '…';
+          fetch('/admin/slides/' + slideID + '/deck?name=' + encodeURIComponent(m.name), {
+            method: 'POST', body: m.bytes, credentials: 'same-origin', headers: { 'X-CSRF-Token': csrf }
+          }).then(function(r) {
+            if (!r.ok) return r.text().then(function(t) { throw new Error(t || ('HTTP ' + r.status)); });
+            deckName = m.name;
+            status.textContent = 'Saved ' + m.name + ' at ' + new Date().toLocaleTimeString();
+          }).catch(function(err) { dirty = true; status.textContent = 'Save failed: ' + err.message; });
+        }
+      });
+    })();
+    </script>
+    {{else}}
     {{.GoSlideEditorHTML}}
+    {{end}}
   </div>
 </form>
 <script>

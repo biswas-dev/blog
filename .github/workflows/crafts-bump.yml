@@ -1,0 +1,37 @@
+name: Bump craft apps
+
+# Opens a PR when DeckCraft or PdfCraft publish a new release (crafts.lock, scripts/crafts.sh).
+# A PR opened with GITHUB_TOKEN does not start other workflows: run the smoke test
+# (node tests/playwright/crafts_smoke.js) or push a commit to the branch before merging.
+on:
+  schedule:
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Point crafts.lock at the latest releases
+        run: scripts/crafts.sh bump
+      - name: Open a PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git diff --quiet crafts.lock && { echo "craft apps are current"; exit 0; }
+          versions=$(grep -v '^#' crafts.lock | awk '{printf "%s %s, ", $1, $2}' | sed 's/, $//')
+          branch=chore/crafts-bump
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git commit -am "Bump craft apps: $versions"
+          git push -f origin "$branch"
+          gh pr view "$branch" >/dev/null 2>&1 || gh pr create --base main --head "$branch" \
+            --title "Bump craft apps: $versions" \
+            --body "Upstream release bump from crafts.lock. Before merging: \`scripts/crafts.sh fetch && node tests/playwright/crafts_smoke.js\`." \
+            || echo "::warning::Pushed $branch but could not open a PR (Settings > Actions > 'Allow GitHub Actions to create pull requests' is off). Open it: https://github.com/${{ github.repository }}/compare/main...$branch"
