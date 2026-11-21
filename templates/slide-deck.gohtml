@@ -7,7 +7,7 @@
     <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">{{.Slide.Title}}</h1>
     <div style="display:flex;gap:12px;align-items:center">
       <button type="button" id="deck-fullscreen" class="nav-link">Full screen</button>
-      {{if .UserPermissions.CanEditSlides}}<a class="nav-link" href="/admin/slides/{{.Slide.ID}}/edit">Edit deck</a>{{end}}
+      {{if .UserPermissions.CanEditSlides}}<a class="edit-icon" href="/admin/slides/{{.Slide.ID}}/edit" aria-label="Edit deck" title="Edit deck">{{icon "edit" "w-4 h-4"}}</a>{{end}}
     </div>
   </div>
   {{if .Slide.Description}}<p class="text-gray-600 dark:text-gray-400" style="margin-top:6px">{{.Slide.Description}}</p>{{end}}
