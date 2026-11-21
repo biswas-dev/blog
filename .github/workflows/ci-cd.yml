@@ -181,15 +181,12 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          ARCH=$(uname -m)
-          SONAR_SCANNER_VERSION=5.0.1.3006
-          if [ "$ARCH" = "aarch64" ]; then
-            SONAR_ZIP="sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-aarch64.zip"
-          else
-            SONAR_ZIP="sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip"
-          fi
-          curl -sSLo sonar-scanner.zip \
-            "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/$SONAR_ZIP"
+          # 5.x had no ARM64 build: on the arm64 runner the download was a 403 page that unzip rejected.
+          SONAR_SCANNER_VERSION=8.3.1.16491
+          case "$(uname -m)" in aarch64|arm64) SONAR_ARCH=linux-aarch64 ;; *) SONAR_ARCH=linux-x64 ;; esac
+          curl -fsSLo sonar-scanner.zip \
+            "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-${SONAR_ARCH}.zip"
+          rm -rf sonar-scanner-*/
           unzip -q sonar-scanner.zip
           SCANNER_DIR=$(ls -d sonar-scanner-*)
           "$SCANNER_DIR/bin/sonar-scanner" \
