@@ -2,7 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"os"
@@ -37,7 +36,7 @@ type Slide struct {
 	SlideCount        int
 	CreatedAt         string
 	UpdatedAt         string
-	RelativeTime      string              // For displaying "10 months ago"
+	RelativeTime      string     // For displaying "10 months ago"
 	Categories        []Category `json:"categories,omitempty"`
 	Contributors      []User     `json:"-"`
 	IsDeck            bool       // a DeckCraft deck (deck_name non-NULL), not go-slide HTML
@@ -46,215 +45,6 @@ type Slide struct {
 
 type SlideService struct {
 	DB *sql.DB
-}
-
-// MigrateThemeID backfills slide_metadata.theme_id for every slide that
-// doesn't already have one. Heuristic:
-//   * Decks whose content references the .aal-* design system (the AI
-//     Agent Lens pitch) get theme_id = "aal".
-//   * Everything else gets theme_id = "default".
-// Idempotent: rows already carrying theme_id are skipped.
-//
-// Done in Go (rather than the 0040 SQL migration) because legacy rows
-// can store empty strings or malformed JSON in slide_metadata, and
-// Postgres evaluates the ::jsonb cast eagerly in some plan shapes —
-// even inside a CASE branch that should be unreachable.
-//
-// Logs counts to stderr so a silent failure in production is impossible
-// to miss.
-func (ss *SlideService) MigrateThemeID() {
-	// slide_metadata is JSONB — must cast to text BEFORE coalescing with
-	// '' or pq throws "invalid input syntax for type json" and the
-	// migration becomes a silent no-op (this exact bug shipped to
-	// production once; covered by TestMigrateThemeID_BackfillsEmptyMetadata).
-	rows, err := ss.DB.Query(`SELECT slide_id, COALESCE(slide_metadata::text, ''), COALESCE(content, '') FROM Slides`)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "MigrateThemeID: query failed: %v\n", err)
-		return
-	}
-	defer rows.Close()
-	type pair struct {
-		id       int
-		metadata string
-	}
-	var (
-		toUpdate []pair
-		scanned  int
-		skipped  int
-	)
-	for rows.Next() {
-		scanned++
-		var id int
-		var metadata, content string
-		if err := rows.Scan(&id, &metadata, &content); err != nil {
-			fmt.Fprintf(os.Stderr, "MigrateThemeID: scan slide_id=?: %v\n", err)
-			continue
-		}
-		m := map[string]interface{}{}
-		if metadata != "" && metadata != "{}" {
-			if err := json.Unmarshal([]byte(metadata), &m); err != nil {
-				// Treat malformed JSON as empty so we don't lose the row.
-				m = map[string]interface{}{}
-			}
-		}
-		if _, ok := m["theme_id"].(string); ok {
-			skipped++
-			continue
-		}
-		theme := "default"
-		if strings.Contains(content, `class="aal `) ||
-			strings.Contains(content, `class="aal-light `) ||
-			strings.Contains(content, `class="aal pptx-slide`) ||
-			strings.Contains(content, `class="aal-light pptx-slide`) {
-			theme = "aal"
-		}
-		m["theme_id"] = theme
-		b, err := json.Marshal(m)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "MigrateThemeID: marshal slide_id=%d: %v\n", id, err)
-			continue
-		}
-		toUpdate = append(toUpdate, pair{id: id, metadata: string(b)})
-	}
-	if err := rows.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "MigrateThemeID: rows iter: %v\n", err)
-	}
-
-	updated := 0
-	for _, p := range toUpdate {
-		if _, err := ss.DB.Exec(`UPDATE Slides SET slide_metadata = $1::jsonb WHERE slide_id = $2`, p.metadata, p.id); err != nil {
-			fmt.Fprintf(os.Stderr, "MigrateThemeID: update slide_id=%d: %v\n", p.id, err)
-			continue
-		}
-		updated++
-	}
-	fmt.Fprintf(os.Stderr, "MigrateThemeID: scanned=%d skipped=%d updated=%d\n",
-		scanned, skipped, updated)
-}
-
-// MigrateSlideCount backfills Slides.slide_count for any row where it's 0
-// or NULL by counting <section ...> tags in the content. Idempotent — only
-// rewrites rows whose stored count differs from what the content implies,
-// so harmless to re-run.
-//
-// Why this exists: slide_count is updated on every Save (controllers/slides.go
-// :881, :984) but predates that wiring for older decks, so legacy rows have
-// slide_count = 0 and the listing template suppresses the "N slides" badge
-// (templates/slides-list.gohtml:45). This restores the badge for every deck.
-func (ss *SlideService) MigrateSlideCount() {
-	rows, err := ss.DB.Query(`SELECT slide_id, COALESCE(content, ''), COALESCE(slide_count, 0) FROM Slides`)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "MigrateSlideCount: query failed: %v\n", err)
-		return
-	}
-	defer rows.Close()
-	type pair struct {
-		id    int
-		count int
-	}
-	var (
-		toUpdate []pair
-		scanned  int
-		skipped  int
-	)
-	for rows.Next() {
-		scanned++
-		var id, stored int
-		var content string
-		if err := rows.Scan(&id, &content, &stored); err != nil {
-			fmt.Fprintf(os.Stderr, "MigrateSlideCount: scan: %v\n", err)
-			continue
-		}
-		// Count actual <section ...> openings. Use case-insensitive search on
-		// "<section" — handles "<section>", "<section class=...>", "<SECTION".
-		count := strings.Count(strings.ToLower(content), "<section")
-		if count == 0 && content != "" {
-			// Single-section deck stored as raw HTML (no <section> wrapper) —
-			// treat as 1 so the listing still shows a badge.
-			count = 1
-		}
-		if stored == count {
-			skipped++
-			continue
-		}
-		toUpdate = append(toUpdate, pair{id: id, count: count})
-	}
-	if err := rows.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "MigrateSlideCount: rows iter: %v\n", err)
-	}
-	updated := 0
-	for _, p := range toUpdate {
-		if _, err := ss.DB.Exec(`UPDATE Slides SET slide_count = $1 WHERE slide_id = $2`, p.count, p.id); err != nil {
-			fmt.Fprintf(os.Stderr, "MigrateSlideCount: update slide_id=%d: %v\n", p.id, err)
-			continue
-		}
-		updated++
-	}
-	fmt.Fprintf(os.Stderr, "MigrateSlideCount: scanned=%d skipped=%d updated=%d\n",
-		scanned, skipped, updated)
-}
-
-// MigrateLegacyInlineStyles removes leading inline <style>...</style> blocks
-// from slide content. Older AAL decks embedded the theme CSS inline (which
-// the WYSIWYG editor would strip on every save, breaking the slide). go-slide
-// now serves theme CSS centrally, so the inline block is redundant.
-//
-// Safe to call on every startup. Only rewrites slides whose content begins
-// with "<style>".
-func (ss *SlideService) MigrateLegacyInlineStyles() {
-	rows, err := ss.DB.Query(`SELECT slide_id, content FROM Slides WHERE content LIKE '<style>%'`)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-	type pair struct {
-		id      int
-		content string
-	}
-	var toUpdate []pair
-	for rows.Next() {
-		var p pair
-		if err := rows.Scan(&p.id, &p.content); err != nil {
-			continue
-		}
-		end := strings.Index(p.content, "</style>")
-		if end == -1 {
-			continue
-		}
-		// Strip the <style>...</style> block plus any whitespace after it.
-		stripped := strings.TrimLeft(p.content[end+len("</style>"):], " \r\n\t")
-		toUpdate = append(toUpdate, pair{id: p.id, content: stripped})
-	}
-	for _, p := range toUpdate {
-		ss.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, p.content, p.id)
-	}
-}
-
-// MigrateFileContentToDB migrates slide content from files into the DB column.
-// Safe to call on every startup — only updates slides with empty DB content.
-func (ss *SlideService) MigrateFileContentToDB() {
-	// Ensure the content column exists (idempotent)
-	ss.DB.Exec(`ALTER TABLE Slides ADD COLUMN IF NOT EXISTS content TEXT DEFAULT ''`)
-
-	// Backfill from files for any slides with empty DB content
-	rows, err := ss.DB.Query(`SELECT slide_id, content_file_path FROM Slides WHERE content IS NULL OR content = ''`)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id int
-		var filePath string
-		if err := rows.Scan(&id, &filePath); err != nil {
-			continue
-		}
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			continue
-		}
-		ss.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, string(content), id)
-	}
 }
 
 // Create creates a new slide with the given parameters
@@ -705,7 +495,7 @@ func (ss *SlideService) loadSlideCategories(slide *Slide) error {
 			  FROM Categories c 
 			  JOIN Slide_Categories sc ON c.category_id = sc.category_id 
 			  WHERE sc.slide_id = $1`
-	
+
 	rows, err := ss.DB.Query(query, slide.ID)
 	if err != nil {
 		return fmt.Errorf("failed to load categories: %v", err)
@@ -841,43 +631,6 @@ func (ss *SlideService) SaveDeck(slideID int, name string, data []byte) error {
 	return err
 }
 
-// LegacyDeck is a slide still rendered from its HTML (not a DeckCraft deck yet).
-type LegacyDeck struct {
-	ID          int
-	Slug, Title string
-}
-
-// ListLegacyDecks lists the slides with HTML content and no DeckCraft file.
-func (ss *SlideService) ListLegacyDecks() ([]LegacyDeck, error) {
-	rows, err := ss.DB.Query(`SELECT slide_id, slug, title FROM Slides WHERE deck_name IS NULL AND COALESCE(content, '') <> '' ORDER BY slide_id`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []LegacyDeck
-	for rows.Next() {
-		var d LegacyDeck
-		if err := rows.Scan(&d.ID, &d.Slug, &d.Title); err != nil {
-			return nil, err
-		}
-		out = append(out, d)
-	}
-	return out, rows.Err()
-}
-
-// SaveConvertedDeck stores the DeckCraft file made from a legacy deck. It leaves updated_at alone
-// (a conversion is not an edit) and the HTML content in place, and only fills a row not converted yet.
-func (ss *SlideService) SaveConvertedDeck(slideID int, name string, data []byte, count int) error {
-	res, err := ss.DB.Exec(`UPDATE Slides SET deck_name = $1, deck_file = $2, slide_count = $3 WHERE slide_id = $4 AND deck_name IS NULL`, name, data, count, slideID)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n != 1 {
-		return fmt.Errorf("slide %d is already a DeckCraft deck", slideID)
-	}
-	return nil
-}
-
 func (ss *SlideService) UpdateSlideCount(slideID, count int) error {
 	_, err := ss.DB.Exec(`UPDATE Slides SET slide_count = $1 WHERE slide_id = $2`, count, slideID)
 	return err
@@ -885,7 +638,7 @@ func (ss *SlideService) UpdateSlideCount(slideID, count int) error {
 
 // Slug sanitisation regexes, compiled once.
 var (
-	slugNonAlnumRe = regexp.MustCompile(`[^a-z0-9]+`)
+	slugNonAlnumRe     = regexp.MustCompile(`[^a-z0-9]+`)
 	slugNonAlnumDashRe = regexp.MustCompile(`[^a-z0-9-]`)
 )
 
@@ -895,12 +648,12 @@ func generateSlug(title string) string {
 	slug := strings.ToLower(title)
 	slug = slugNonAlnumRe.ReplaceAllString(slug, "-")
 	slug = strings.Trim(slug, "-")
-	
+
 	// Ensure slug is not empty
 	if slug == "" {
 		slug = fmt.Sprintf("slide-%d", time.Now().Unix())
 	}
-	
+
 	return slug
 }
 
@@ -909,11 +662,11 @@ func sanitizeSlug(slug string) string {
 	slug = strings.ToLower(slug)
 	slug = slugNonAlnumDashRe.ReplaceAllString(slug, "-")
 	slug = strings.Trim(slug, "-")
-	
+
 	// Ensure slug is not empty
 	if slug == "" {
 		slug = fmt.Sprintf("slide-%d", time.Now().Unix())
 	}
-	
+
 	return slug
 }

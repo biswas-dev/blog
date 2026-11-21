@@ -1,60 +1,34 @@
 package controllers
 
 import (
-	"archive/zip"
-	"bytes"
-	"encoding/json"
 	"errors"
-	"encoding/xml"
 	"fmt"
-	"html/template"
-	"io"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
 	"anshumanbiswas.com/blog/models"
 	"anshumanbiswas.com/blog/utils"
 	"anshumanbiswas.com/blog/views"
-	goslide "github.com/anchoo2kewl/go-slide"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Slides struct {
 	Templates struct {
-		AdminSlides       views.Template
-		SlideEditor       views.Template
-		SlidesList        views.Template
-		SlidePresentation views.Template
-		SlidePassword     views.Template
-		SlideDeck         views.Template
+		AdminSlides   views.Template
+		SlideEditor   views.Template
+		SlidesList    views.Template
+		SlidePassword views.Template
+		SlideDeck     views.Template
 	}
 	SlideService        *models.SlideService
 	SlideVersionService *models.SlideVersionService
 	SessionService      *models.SessionService
 	CategoryService     *models.CategoryService
 	APITokenService     *models.APITokenService
-	// Engine is the go-slide engine. When set, ViewSlide renders the
-	// presentation through it (using the slide's theme); EditSlide
-	// embeds the go-slide editor in the admin page. When nil, the
-	// controller falls back to the legacy local templates.
-	Engine *goslide.Engine
-
-	// PDF export (see slide_pdf.go). PDFRemoteURL is the http base of the
-	// headless-Chrome sidecar (e.g. http://pdfsvc:9222). ExportBaseURL is how
-	// that Chrome reaches this app over the internal network (e.g.
-	// http://app:22222). ExportSecret signs short-lived export tokens. When
-	// PDFRemoteURL/ExportSecret are empty, export returns 503 and the token
-	// bypass is inert.
-	PDFRemoteURL  string
-	ExportBaseURL string
-	ExportSecret  string
 }
 
 // AdminSlides displays the admin slides management page
@@ -109,53 +83,6 @@ func (s Slides) AdminSlides(w http.ResponseWriter, r *http.Request) {
 	s.Templates.AdminSlides.Execute(w, r, data)
 }
 
-// NewSlide displays the slide creation page
-func (s Slides) NewSlide(w http.ResponseWriter, r *http.Request) {
-	user, err := s.isUserLoggedIn(r)
-	if err != nil {
-		http.Redirect(w, r, "/signin", http.StatusFound)
-		return
-	}
-
-	if !models.CanEditSlides(user.Role) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	categories, err := s.CategoryService.GetAll()
-	if err != nil {
-		log.Printf("Error fetching categories: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	data := struct {
-		LoggedIn        bool
-		Username        string
-		IsAdmin         bool
-		SignupDisabled  bool
-		Description     string
-		CurrentPage     string
-		Categories      []models.Category
-		Slide           *models.Slide
-		IsEdit          bool
-		UserPermissions models.UserPermissions
-	}{
-		LoggedIn:        true,
-		Username:        user.Username,
-		IsAdmin:         models.IsAdmin(user.Role),
-		SignupDisabled:  true,
-		Description:     "Create New Slide - Anshuman Biswas Blog",
-		CurrentPage:     "admin-slides",
-		Categories:      categories,
-		Slide:           &models.Slide{},
-		IsEdit:          false,
-		UserPermissions: models.GetPermissions(user.Role),
-	}
-
-	s.Templates.SlideEditor.Execute(w, r, data)
-}
-
 // CreateSlide handles slide creation
 func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 	user, err := s.isUserLoggedIn(r)
@@ -177,23 +104,18 @@ func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 
 	title := r.FormValue("title")
 	slug := r.FormValue("slug")
-	content := r.FormValue("content")
 	isPublishedStr := r.FormValue("is_published")
 	categoriesStr := r.FormValue("categories")
 
-	// A DeckCraft deck keeps its slides in its file, not in content.
-	isDeck := r.FormValue("engine") == "deckcraft"
-	if title == "" || (content == "" && !isDeck) {
-		http.Error(w, "Title and content are required", http.StatusBadRequest)
+	// Every slide is a DeckCraft deck: its slides live in its file, optionally a .pptx uploaded here.
+	if title == "" {
+		http.Error(w, "Title is required", http.StatusBadRequest)
 		return
 	}
-	var deckName string
-	var deckData []byte
-	if isDeck {
-		if deckName, deckData, err = uploadedDeck(r); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+	deckName, deckData, err := uploadedDeck(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	isPublished := isPublishedStr == "on" || isPublishedStr == "true"
@@ -214,33 +136,23 @@ func (s Slides) CreateSlide(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	featuredImageURL := r.FormValue("featured_image_url")
 
-	slide, err := s.SlideService.Create(user.UserID, title, slug, content, isPublished, categoryIDs, description, metadata, password, featuredImageURL)
+	slide, err := s.SlideService.Create(user.UserID, title, slug, "", isPublished, categoryIDs, description, metadata, password, featuredImageURL)
 	if err != nil {
 		log.Printf("Error creating slide: %v", err)
 		http.Error(w, "Failed to create slide", http.StatusInternalServerError)
 		return
 	}
 
-	if isDeck {
-		if err := s.SlideService.SaveDeck(slide.ID, deckName, deckData); err != nil {
-			log.Printf("Error marking slide %d as a deck: %v", slide.ID, err)
-			http.Error(w, "Failed to create deck", http.StatusInternalServerError)
-			return
-		}
-	} else if s.SlideVersionService != nil {
-		// Create initial version
-		_ = s.SlideVersionService.MaybeCreateVersion(slide.ID, user.UserID, title, content)
+	if err := s.SlideService.SaveDeck(slide.ID, deckName, deckData); err != nil {
+		log.Printf("Error marking slide %d as a deck: %v", slide.ID, err)
+		http.Error(w, "Failed to create deck", http.StatusInternalServerError)
+		return
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/slides/%d/edit", slide.ID), http.StatusFound)
 }
 
-// EditSlide displays the slide editing page.
-//
-// When the engine is wired AND ?editor=v2 is in the URL, the go-slide
-// editor is embedded instead of the legacy TipTap bundle. This lets us
-// roll out the new editor incrementally — old links keep working with
-// the proven editor; new ones opt in.
+// EditSlide displays the DeckCraft editor and the deck's settings.
 func (s Slides) EditSlide(w http.ResponseWriter, r *http.Request) {
 	user, err := s.isUserLoggedIn(r)
 	if err != nil {
@@ -274,53 +186,28 @@ func (s Slides) EditSlide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// v2 is now the default editor. Pass ?editor=v1 to opt back into the
-	// legacy TipTap-bundle editor (kept for safety while v2 stabilises).
-	// DeckCraft decks always use the v2 layout: its settings strip hosts the DeckCraft frame.
-	useV2 := slide.IsDeck || (s.Engine != nil && r.URL.Query().Get("editor") != "v1")
-	var goslideEditorHTML template.HTML
-	if useV2 && !slide.IsDeck {
-		req := goslide.EditorRequest{
-			InitialContent:   string(slide.ContentHTML),
-			ThemeID:          themeIDFromMetadata(slide.SlideMetadata),
-			AutosaveEndpoint: fmt.Sprintf("/api/admin/slides/%d/autosave", slide.ID),
-			OutputFieldID:    "form-content",
-			OutputFieldName:  "content",
-			FormID:           "slide-form",
-		}
-		if h, err := s.Engine.RenderEditor(req); err == nil {
-			goslideEditorHTML = h
-		} else {
-			log.Printf("go-slide editor render: %v", err)
-		}
-	}
-
 	data := struct {
-		LoggedIn          bool
-		Username          string
-		IsAdmin           bool
-		SignupDisabled    bool
-		Description       string
-		CurrentPage       string
-		Categories        []models.Category
-		Slide             *models.Slide
-		IsEdit            bool
-		UserPermissions   models.UserPermissions
-		UseV2             bool
-		GoSlideEditorHTML template.HTML
+		LoggedIn        bool
+		Username        string
+		IsAdmin         bool
+		SignupDisabled  bool
+		Description     string
+		CurrentPage     string
+		Categories      []models.Category
+		Slide           *models.Slide
+		IsEdit          bool
+		UserPermissions models.UserPermissions
 	}{
-		LoggedIn:          true,
-		Username:          user.Username,
-		IsAdmin:           models.IsAdmin(user.Role),
-		SignupDisabled:    true,
-		Description:       "Edit Slide - Anshuman Biswas Blog",
-		CurrentPage:       "admin-slides",
-		Categories:        categories,
-		Slide:             slide,
-		IsEdit:            true,
-		UserPermissions:   models.GetPermissions(user.Role),
-		UseV2:             useV2,
-		GoSlideEditorHTML: goslideEditorHTML,
+		LoggedIn:        true,
+		Username:        user.Username,
+		IsAdmin:         models.IsAdmin(user.Role),
+		SignupDisabled:  true,
+		Description:     "Edit Slide - Anshuman Biswas Blog",
+		CurrentPage:     "admin-slides",
+		Categories:      categories,
+		Slide:           slide,
+		IsEdit:          true,
+		UserPermissions: models.GetPermissions(user.Role),
 	}
 
 	s.Templates.SlideEditor.Execute(w, r, data)
@@ -353,7 +240,6 @@ func (s Slides) UpdateSlide(w http.ResponseWriter, r *http.Request) {
 
 	title := r.FormValue("title")
 	slug := r.FormValue("slug")
-	content := r.FormValue("content")
 	isPublishedStr := r.FormValue("is_published")
 	categoriesStr := r.FormValue("categories")
 
@@ -362,10 +248,12 @@ func (s Slides) UpdateSlide(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Slide not found", http.StatusNotFound)
 		return
 	}
-	if title == "" || (content == "" && !existing.IsDeck) {
-		http.Error(w, "Title and content are required", http.StatusBadRequest)
+	if title == "" {
+		http.Error(w, "Title is required", http.StatusBadRequest)
 		return
 	}
+	// The form edits settings only. A converted deck keeps its old HTML, which site search indexes.
+	content := string(existing.ContentHTML)
 
 	isPublished := isPublishedStr == "on" || isPublishedStr == "true"
 
@@ -384,11 +272,6 @@ func (s Slides) UpdateSlide(w http.ResponseWriter, r *http.Request) {
 	metadata := r.FormValue("metadata")
 	password := r.FormValue("password")
 	featuredImageURL := r.FormValue("featured_image_url")
-
-	// Create version snapshot before updating (decks are versioned in their file only)
-	if s.SlideVersionService != nil && !existing.IsDeck {
-		_ = s.SlideVersionService.MaybeCreateVersion(slideID, user.UserID, title, content)
-	}
 
 	err = s.SlideService.Update(slideID, title, slug, content, isPublished, categoryIDs, description, metadata, password, featuredImageURL)
 	if err != nil {
@@ -492,8 +375,7 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 		slide.Contributors = contributors
 	}
 
-	// Published/editor and password checks; a valid export token (carried by the
-	// headless-Chrome sidecar during PDF rendering) unlocks exactly this slug.
+	// Published/editor and password checks.
 	visible, unlocked := s.slideGate(r, slide, user)
 	if !visible {
 		http.Error(w, "Slide not found", http.StatusNotFound)
@@ -534,51 +416,6 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 		userPerms = models.GetPermissions(user.Role)
 	}
 
-	// Render via go-slide when wired in. The engine reads the slide's
-	// theme from the metadata JSON ("theme_id"), falls back to the
-	// registry default for older decks. Auth (password gate, edit
-	// permission) was already enforced above. DeckCraft decks skip it.
-	if s.Engine != nil && !slide.IsDeck {
-		gs := goslide.Slide{
-			Title:           slide.Title,
-			Slug:            slide.Slug,
-			Description:     slide.Description,
-			ContentHTML:     slide.ContentHTML,
-			ThemeID:         themeIDFromMetadata(slide.SlideMetadata),
-			AuthorName:      slide.AuthorDisplayName,
-			AuthorUsername:  slide.Username,
-			AuthorAvatarURL: slide.AuthorAvatarURL,
-			CanonicalURL:    "https://anshumanbiswas.com/slides/" + slide.Slug,
-		}
-		if user != nil && models.CanEditSlides(user.Role) {
-			gs.EditURL = fmt.Sprintf("/admin/slides/%d/edit", slide.ID)
-		}
-		for _, c := range slide.Contributors {
-			gs.Coauthors = append(gs.Coauthors, goslide.Coauthor{
-				Name: c.FullName, Username: c.Username, AvatarURL: c.AvatarURL,
-			})
-		}
-		html, err := s.Engine.RenderPresentation(gs)
-		if err != nil {
-			log.Printf("go-slide render error: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-		// Repoint the engine's in-presentation "Download PDF" button from the
-		// client-side browser-print flow (?print-pdf, which the template's
-		// overflow:hidden clipping breaks) to our server-side endpoint, which
-		// renders a correct multi-page PDF. The endpoint enforces the same
-		// access rules (a viewer of a protected deck already holds the cookie).
-		html = strings.Replace(html,
-			`href="?print-pdf" target="_blank" rel="noopener" class="nav-btn" title="Download PDF" id="download-pdf-btn"`,
-			fmt.Sprintf(`href="/slides/%s/pdf" class="nav-btn" title="Download PDF" id="download-pdf-btn" download`, slide.Slug),
-			1)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(html))
-		_ = userPerms // keep referenced for legacy fallback path
-		return
-	}
-
 	data := struct {
 		LoggedIn        bool
 		Username        string
@@ -599,93 +436,7 @@ func (s Slides) ViewSlide(w http.ResponseWriter, r *http.Request) {
 		UserPermissions: userPerms,
 	}
 
-	if slide.IsDeck {
-		s.Templates.SlideDeck.Execute(w, r, data)
-		return
-	}
-	s.Templates.SlidePresentation.Execute(w, r, data)
-}
-
-// themeIDFromMetadata reads the "theme_id" key from a slide's metadata
-// JSON. Returns "" if absent so the renderer falls back to the registry
-// default.
-func themeIDFromMetadata(metadata string) string {
-	if metadata == "" || metadata == "{}" {
-		return ""
-	}
-	var m map[string]interface{}
-	if err := json.Unmarshal([]byte(metadata), &m); err != nil {
-		return ""
-	}
-	if v, ok := m["theme_id"].(string); ok {
-		return v
-	}
-	return ""
-}
-
-// PreviewSlide handles slide preview (for admin)
-func (s Slides) PreviewSlide(w http.ResponseWriter, r *http.Request) {
-	user, err := s.isUserLoggedIn(r)
-	if err != nil {
-		http.Redirect(w, r, "/signin", http.StatusFound)
-		return
-	}
-
-	if !models.CanEditSlides(user.Role) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	content := r.FormValue("content")
-	if content == "" {
-		http.Error(w, "Content is required", http.StatusBadRequest)
-		return
-	}
-
-	// Wrap content in proper Reveal.js HTML structure for preview
-	previewHTML := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Slide Preview</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/white.css">
-    <style>
-        .reveal { font-size: 24px; }
-        .reveal h1, .reveal h2, .reveal h3 { text-transform: none; }
-    </style>
-</head>
-<body>
-    <div class="reveal">
-        <div class="slides">
-            %s
-        </div>
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
-    <script>
-        Reveal.initialize({
-            hash: true,
-            controls: true,
-            progress: true,
-            center: true,
-            transition: 'slide',
-            width: '100%%',
-            height: '100%%'
-        });
-    </script>
-</body>
-</html>`, content)
-
-	// Return the rendered HTML content
-	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(previewHTML))
+	s.Templates.SlideDeck.Execute(w, r, data)
 }
 
 // VerifySlidePassword handles POST /slides/{slug}/verify
@@ -748,28 +499,13 @@ func (s Slides) VerifySlidePassword(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/slides/%s", slug), http.StatusFound)
 }
 
-// detectThemeID picks a theme from raw slide HTML using the same
-// heuristic as models.SlideService.MigrateThemeID — content that
-// references the AAL design system gets "aal", everything else
-// "default". Used by AutoSave to keep slide_metadata.theme_id in
-// sync with the actual content on every save.
-func detectThemeID(content string) string {
-	if strings.Contains(content, `class="aal `) ||
-		strings.Contains(content, `class="aal-light `) ||
-		strings.Contains(content, `class="aal pptx-slide`) ||
-		strings.Contains(content, `class="aal-light pptx-slide`) {
-		return "aal"
-	}
-	return "default"
-}
-
 // authSlideEditor returns a user with edit-slide permission, accepting
 // either a session cookie or a Bearer token. Two Bearer paths, mirroring
 // the fallback in users.UploadImage:
-//   1. API_TOKEN env var (legacy / deploy automation)
-//   2. A user-issued token in the api_tokens table, validated via
-//      APITokenService — returns the actual issuing user so version
-//      history credits the right person.
+//  1. API_TOKEN env var (legacy / deploy automation)
+//  2. A user-issued token in the api_tokens table, validated via
+//     APITokenService — returns the actual issuing user so version
+//     history credits the right person.
 func (s Slides) authSlideEditor(r *http.Request) *models.User {
 	if user, err := s.isUserLoggedIn(r); err == nil && models.CanEditSlides(user.Role) {
 		return user
@@ -788,804 +524,6 @@ func (s Slides) authSlideEditor(r *http.Request) *models.User {
 		}
 	}
 	return nil
-}
-
-// GetContent handles GET /api/admin/slides/{slideID}/content — returns
-// the slide's title + raw section HTML + metadata. Bearer-auth friendly
-// so it can be paired with AutoSave for scripted content rewrites.
-func (s Slides) GetContent(w http.ResponseWriter, r *http.Request) {
-	if s.authSlideEditor(r) == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-	slideID, err := strconv.Atoi(chi.URLParam(r, "slideID"))
-	if err != nil {
-		http.Error(w, "Invalid slide ID", http.StatusBadRequest)
-		return
-	}
-	slide, err := s.SlideService.GetByID(slideID)
-	if err != nil {
-		http.Error(w, "Slide not found", http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"slide_id":           slide.ID,
-		"title":              slide.Title,
-		"slug":               slide.Slug,
-		"content":            string(slide.ContentHTML),
-		"description":        slide.Description,
-		"featured_image_url": slide.FeaturedImageURL,
-		"slide_metadata":     slide.SlideMetadata,
-		"is_published":       slide.IsPublished,
-	})
-}
-
-// AutoSave handles POST /api/admin/slides/{slideID}/autosave
-func (s Slides) AutoSave(w http.ResponseWriter, r *http.Request) {
-	user := s.authSlideEditor(r)
-	if user == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	slideID, err := strconv.Atoi(chi.URLParam(r, "slideID"))
-	if err != nil {
-		http.Error(w, "Invalid slide ID", http.StatusBadRequest)
-		return
-	}
-
-	var req struct {
-		Content  string `json:"content"`
-		Title    string `json:"title"`
-		Metadata string `json:"metadata"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	slide, err := s.SlideService.GetByID(slideID)
-	if err != nil {
-		http.Error(w, "Slide not found", http.StatusNotFound)
-		return
-	}
-
-	// Persist content to BOTH the legacy file path AND the Slides.content
-	// column. loadSlideContent prefers the DB, so without the DB write
-	// autosave was a silent no-op for any deck that had already migrated.
-	if req.Content != "" {
-		if slide.ContentFilePath != "" {
-			_ = os.MkdirAll(filepath.Dir(slide.ContentFilePath), 0755)
-			if err := os.WriteFile(slide.ContentFilePath, []byte(req.Content), 0644); err != nil {
-				log.Printf("Autosave file write error: %v", err)
-			}
-		}
-		if _, err := s.SlideService.DB.Exec(`UPDATE Slides SET content = $1 WHERE slide_id = $2`, req.Content, slideID); err != nil {
-			log.Printf("Autosave DB write error: %v", err)
-			http.Error(w, "Failed to save", http.StatusInternalServerError)
-			return
-		}
-		// Refresh slide_count so the listing badge stays accurate.
-		sectionCount := strings.Count(strings.ToLower(req.Content), "<section")
-		if sectionCount == 0 {
-			sectionCount = 1
-		}
-		s.SlideService.UpdateSlideCount(slideID, sectionCount)
-
-		// Re-detect theme_id from the saved content (mirrors MigrateThemeID's
-		// heuristic). Without this, decks rewritten via API stay tagged
-		// theme_id="default" even after their HTML moves to AAL classes,
-		// so the AAL theme CSS never loads and the rendered page falls
-		// back to bare reveal.js. Updates only when the detected theme
-		// actually changes, so we don't churn slide_metadata on every save.
-		detected := detectThemeID(req.Content)
-		var stored string
-		_ = s.SlideService.DB.QueryRow(`SELECT COALESCE(slide_metadata::text, '') FROM Slides WHERE slide_id = $1`, slideID).Scan(&stored)
-		m := map[string]interface{}{}
-		if stored != "" && stored != "{}" {
-			_ = json.Unmarshal([]byte(stored), &m)
-		}
-		if existing, _ := m["theme_id"].(string); existing != detected {
-			m["theme_id"] = detected
-			if b, err := json.Marshal(m); err == nil {
-				_, _ = s.SlideService.DB.Exec(`UPDATE Slides SET slide_metadata = $1::jsonb WHERE slide_id = $2`, string(b), slideID)
-			}
-		}
-	}
-
-	title := req.Title
-	if title == "" {
-		title = slide.Title
-	}
-	content := req.Content
-	if content == "" {
-		content = string(slide.ContentHTML)
-	}
-
-	// Create version snapshot. Bearer-auth callers have user.UserID == 0
-	// and would FK-violate the slide_contributors insert; fall back to
-	// crediting the slide's primary author so version history stays
-	// consistent.
-	versionUserID := user.UserID
-	if versionUserID == 0 {
-		versionUserID = slide.UserID
-	}
-	var versionNum int
-	if s.SlideVersionService != nil && versionUserID != 0 {
-		_ = s.SlideVersionService.MaybeCreateVersion(slideID, versionUserID, title, content)
-		versions, err := s.SlideVersionService.GetVersions(slideID)
-		if err == nil && len(versions) > 0 {
-			versionNum = versions[0].VersionNumber
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  "saved",
-		"version": versionNum,
-	})
-}
-
-// UploadSlideImage handles POST /admin/slides/upload-image
-func (s Slides) UploadSlideImage(w http.ResponseWriter, r *http.Request) {
-	user, err := s.isUserLoggedIn(r)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-	if !models.CanEditSlides(user.Role) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
-	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB
-		http.Error(w, "File too large", http.StatusBadRequest)
-		return
-	}
-
-	file, header, err := r.FormFile("image")
-	if err != nil {
-		http.Error(w, "No image file provided", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	slug := r.FormValue("slug")
-	if slug == "" {
-		slug = "general"
-	}
-
-	url, err := saveUploadedFile(file, header.Filename, "slide", slug)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"url": url})
-}
-
-// ImportPPTX handles POST /api/admin/slides/import-pptx
-func (s Slides) ImportPPTX(w http.ResponseWriter, r *http.Request) {
-	user, err := s.isUserLoggedIn(r)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-	if !models.CanEditSlides(user.Role) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
-	if err := r.ParseMultipartForm(50 << 20); err != nil { // 50MB
-		http.Error(w, "File too large", http.StatusBadRequest)
-		return
-	}
-
-	file, _, err := r.FormFile("pptx")
-	if err != nil {
-		http.Error(w, "No PPTX file provided", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	// Read file into memory for zip processing
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, file); err != nil {
-		http.Error(w, "Failed to read file", http.StatusInternalServerError)
-		return
-	}
-
-	zipReader, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-	if err != nil {
-		http.Error(w, "Invalid PPTX file", http.StatusBadRequest)
-		return
-	}
-
-	title := r.FormValue("title")
-	if title == "" {
-		title = "Imported Presentation"
-	}
-	slug := r.FormValue("slug")
-
-	// Parse slides from PPTX
-	sections, mediaFiles := parsePPTX(zipReader)
-
-	// Create the slide first to get ID and slug
-	content := strings.Join(sections, "\n")
-	slide, err := s.SlideService.Create(user.UserID, title, slug, content, false, nil, "", `{"source":"pptx"}`, "", "")
-	if err != nil {
-		log.Printf("Error creating imported slide: %v", err)
-		http.Error(w, "Failed to create slide", http.StatusInternalServerError)
-		return
-	}
-
-	// Save extracted media files
-	if len(mediaFiles) > 0 {
-		mediaDir := filepath.Join("static", "uploads", "slide", slide.Slug)
-		os.MkdirAll(mediaDir, 0755)
-		for name, data := range mediaFiles {
-			destPath := filepath.Join(mediaDir, name)
-			os.WriteFile(destPath, data, 0644)
-		}
-	}
-
-	// Update slide count
-	s.SlideService.UpdateSlideCount(slide.ID, len(sections))
-
-	// Create initial version
-	if s.SlideVersionService != nil {
-		_ = s.SlideVersionService.MaybeCreateVersion(slide.ID, user.UserID, title, content)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"slideID":    slide.ID,
-		"slug":       slide.Slug,
-		"slideCount": len(sections),
-	})
-}
-
-// ReimportPPTX handles POST /api/admin/slides/{slideID}/reimport-pptx
-// Replaces an existing slide's content with freshly parsed PPTX.
-func (s Slides) ReimportPPTX(w http.ResponseWriter, r *http.Request) {
-	user, err := s.isUserLoggedIn(r)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-	if !models.CanEditSlides(user.Role) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
-	slideIDStr := chi.URLParam(r, "slideID")
-	slideID, err := strconv.Atoi(slideIDStr)
-	if err != nil {
-		http.Error(w, "Invalid slide ID", http.StatusBadRequest)
-		return
-	}
-
-	// Verify slide exists
-	slide, err := s.SlideService.GetByID(slideID)
-	if err != nil {
-		http.Error(w, "Slide not found", http.StatusNotFound)
-		return
-	}
-
-	if err := r.ParseMultipartForm(50 << 20); err != nil {
-		http.Error(w, "File too large", http.StatusBadRequest)
-		return
-	}
-
-	file, _, err := r.FormFile("pptx")
-	if err != nil {
-		http.Error(w, "No PPTX file provided", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, file); err != nil {
-		http.Error(w, "Failed to read file", http.StatusInternalServerError)
-		return
-	}
-
-	zipReader, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-	if err != nil {
-		http.Error(w, "Invalid PPTX file", http.StatusBadRequest)
-		return
-	}
-
-	sections, mediaFiles := parsePPTX(zipReader)
-	content := strings.Join(sections, "\n")
-
-	// Create version snapshot before updating
-	if s.SlideVersionService != nil {
-		_ = s.SlideVersionService.MaybeCreateVersion(slideID, user.UserID, slide.Title, content)
-	}
-
-	// Ensure content file directory exists (may not exist in fresh container)
-	os.MkdirAll(filepath.Dir(slide.ContentFilePath), 0755)
-
-	// Update slide content (keep existing title, slug, published state, etc.)
-	// Mark as PPTX source in metadata
-	metadata := slide.SlideMetadata
-	if metadata == "" || metadata == "{}" {
-		metadata = `{"source":"pptx"}`
-	} else if !strings.Contains(metadata, `"source"`) {
-		metadata = strings.TrimSuffix(metadata, "}") + `,"source":"pptx"}`
-	}
-	err = s.SlideService.Update(slideID, slide.Title, slide.Slug, content, slide.IsPublished, nil, slide.Description, metadata, "", slide.FeaturedImageURL)
-	if err != nil {
-		log.Printf("Error reimporting slide: %v", err)
-		http.Error(w, "Failed to update slide", http.StatusInternalServerError)
-		return
-	}
-
-	// Save extracted media files
-	if len(mediaFiles) > 0 {
-		mediaDir := filepath.Join("static", "uploads", "slide", slide.Slug)
-		os.MkdirAll(mediaDir, 0755)
-		for name, data := range mediaFiles {
-			destPath := filepath.Join(mediaDir, name)
-			os.WriteFile(destPath, data, 0644)
-		}
-	}
-
-	// Update slide count
-	s.SlideService.UpdateSlideCount(slideID, len(sections))
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"slideID":    slideID,
-		"slug":       slide.Slug,
-		"slideCount": len(sections),
-	})
-}
-
-// PPTX slide dimensions in EMU (English Metric Units)
-const (
-	pptxSlideWidthEMU  = 9144000.0
-	pptxSlideHeightEMU = 5143500.0
-	pptxBaseFontPt     = 20.0 // reveal.js base font size (30px / 1.5 scale factor for readability)
-)
-
-// parsePPTX extracts slide content and media from a PPTX zip archive.
-func parsePPTX(zr *zip.Reader) (sections []string, media map[string][]byte) {
-	media = make(map[string][]byte)
-
-	// Collect slide XML files and sort by number
-	type slideFile struct {
-		num  int
-		file *zip.File
-	}
-	var slideFiles []slideFile
-
-	slideNumRe := regexp.MustCompile(`ppt/slides/slide(\d+)\.xml`)
-
-	for _, f := range zr.File {
-		if m := slideNumRe.FindStringSubmatch(f.Name); m != nil {
-			num, _ := strconv.Atoi(m[1])
-			slideFiles = append(slideFiles, slideFile{num: num, file: f})
-		}
-		// Extract media files
-		if strings.HasPrefix(f.Name, "ppt/media/") {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			data, err := io.ReadAll(rc)
-			rc.Close()
-			if err != nil {
-				continue
-			}
-			baseName := filepath.Base(f.Name)
-			media[baseName] = data
-		}
-	}
-
-	sort.Slice(slideFiles, func(i, j int) bool {
-		return slideFiles[i].num < slideFiles[j].num
-	})
-
-	for _, sf := range slideFiles {
-		sectionAttrs, body := parseSlideXML(sf.file)
-		sections = append(sections, fmt.Sprintf("<section%s>\n%s\n</section>", sectionAttrs, body))
-	}
-
-	if len(sections) == 0 {
-		sections = append(sections, "<section>\n<h1>Imported Presentation</h1>\n<p>No slides could be extracted.</p>\n</section>")
-	}
-
-	return sections, media
-}
-
-// OOXML types for parsing slide content with full styling support
-type pptSlide struct {
-	CSld struct {
-		Bg *struct {
-			BgPr *struct {
-				SolidFill *pptSolidFill `xml:"solidFill"`
-			} `xml:"bgPr"`
-		} `xml:"bg"`
-		SpTree struct {
-			Shapes []pptShape `xml:"sp"`
-		} `xml:"spTree"`
-	} `xml:"cSld"`
-}
-
-type pptSolidFill struct {
-	SrgbClr *struct {
-		Val string `xml:"val,attr"`
-	} `xml:"srgbClr"`
-}
-
-type pptShape struct {
-	NvSpPr struct {
-		CNvPr struct {
-			Name string `xml:"name,attr"`
-		} `xml:"cNvPr"`
-		NvPr struct {
-			Ph *struct {
-				Type string `xml:"type,attr"`
-				Idx  string `xml:"idx,attr"`
-			} `xml:"ph"`
-		} `xml:"nvPr"`
-	} `xml:"nvSpPr"`
-	SpPr *struct {
-		Xfrm *struct {
-			Off *struct {
-				X int64 `xml:"x,attr"`
-				Y int64 `xml:"y,attr"`
-			} `xml:"off"`
-			Ext *struct {
-				Cx int64 `xml:"cx,attr"`
-				Cy int64 `xml:"cy,attr"`
-			} `xml:"ext"`
-		} `xml:"xfrm"`
-		SolidFill *pptSolidFill `xml:"solidFill"`
-		NoFill    *struct{}     `xml:"noFill"`
-	} `xml:"spPr"`
-	TxBody *struct {
-		BodyPr *struct {
-			LIns *int64 `xml:"lIns,attr"`
-			TIns *int64 `xml:"tIns,attr"`
-			RIns *int64 `xml:"rIns,attr"`
-			BIns *int64 `xml:"bIns,attr"`
-		} `xml:"bodyPr"`
-		Paragraphs []pptParagraph `xml:"p"`
-	} `xml:"txBody"`
-}
-
-type pptParagraph struct {
-	PPr *struct {
-		Algn    string   `xml:"algn,attr"`
-		BuNone  *struct{} `xml:"buNone"`
-		BuChar  *struct {
-			Char string `xml:"char,attr"`
-		} `xml:"buChar"`
-		BuAutoNum *struct{} `xml:"buAutoNum"`
-		Lvl       int       `xml:"lvl,attr"`
-		MarL      int64     `xml:"marL,attr"`
-		Indent    int64     `xml:"indent,attr"`
-	} `xml:"pPr"`
-	Runs      []pptRun `xml:"r"`
-	EndParaRPr *pptRunProps `xml:"endParaRPr"`
-}
-
-type pptRun struct {
-	RPr  *pptRunProps `xml:"rPr"`
-	Text string       `xml:"t"`
-}
-
-type pptRunProps struct {
-	B         int           `xml:"b,attr"`
-	I         int           `xml:"i,attr"`
-	Sz        int           `xml:"sz,attr"`
-	Spc       int           `xml:"spc,attr"`
-	SolidFill *pptSolidFill `xml:"solidFill"`
-}
-
-// parseSlideXML extracts a single slide's HTML with full styling.
-// Returns (section attributes string, inner HTML).
-func parseSlideXML(f *zip.File) (string, string) {
-	rc, err := f.Open()
-	if err != nil {
-		return "", "<p>Failed to parse slide</p>"
-	}
-	defer rc.Close()
-
-	var slide pptSlide
-	if err := xml.NewDecoder(rc).Decode(&slide); err != nil {
-		return "", "<p>Failed to parse slide</p>"
-	}
-
-	// Extract slide background color
-	var sectionAttrs string
-	if slide.CSld.Bg != nil && slide.CSld.Bg.BgPr != nil &&
-		slide.CSld.Bg.BgPr.SolidFill != nil && slide.CSld.Bg.BgPr.SolidFill.SrgbClr != nil {
-		sectionAttrs = fmt.Sprintf(` data-background-color="#%s"`, slide.CSld.Bg.BgPr.SolidFill.SrgbClr.Val)
-	}
-
-	var parts []string
-	hasPositioned := false
-
-	// Collect bounding boxes of all decorative shapes for overlap detection
-	type shapeRect struct {
-		left, top, width, height float64
-	}
-	var decoRects []shapeRect
-	for _, shape := range slide.CSld.SpTree.Shapes {
-		if pptxIsDecorativeShape(shape) && shape.SpPr != nil && shape.SpPr.Xfrm != nil &&
-			shape.SpPr.Xfrm.Off != nil && shape.SpPr.Xfrm.Ext != nil {
-			r := shapeRect{
-				left:   float64(shape.SpPr.Xfrm.Off.X) / pptxSlideWidthEMU * 100,
-				top:    float64(shape.SpPr.Xfrm.Off.Y) / pptxSlideHeightEMU * 100,
-				width:  float64(shape.SpPr.Xfrm.Ext.Cx) / pptxSlideWidthEMU * 100,
-				height: float64(shape.SpPr.Xfrm.Ext.Cy) / pptxSlideHeightEMU * 100,
-			}
-			// Only consider large decorative shapes (>5% height) as potential occluders
-			if r.height > 5 {
-				decoRects = append(decoRects, r)
-			}
-		}
-	}
-
-	for _, shape := range slide.CSld.SpTree.Shapes {
-		posStyle := pptxShapePosition(shape)
-		if posStyle != "" {
-			hasPositioned = true
-		}
-
-		// Check if this is a decorative (filled, no meaningful text) shape
-		if pptxIsDecorativeShape(shape) {
-			if html := pptxRenderDecorativeShape(shape, posStyle); html != "" {
-				parts = append(parts, html)
-			}
-			continue
-		}
-
-		if shape.TxBody == nil {
-			continue
-		}
-
-		// For text shapes, check if they overlap with a large decorative shape below.
-		// If so, shrink the text shape's height to end at the decorative shape's top edge.
-		if shape.SpPr != nil && shape.SpPr.Xfrm != nil &&
-			shape.SpPr.Xfrm.Off != nil && shape.SpPr.Xfrm.Ext != nil {
-			tLeft := float64(shape.SpPr.Xfrm.Off.X) / pptxSlideWidthEMU * 100
-			tTop := float64(shape.SpPr.Xfrm.Off.Y) / pptxSlideHeightEMU * 100
-			tWidth := float64(shape.SpPr.Xfrm.Ext.Cx) / pptxSlideWidthEMU * 100
-			tHeight := float64(shape.SpPr.Xfrm.Ext.Cy) / pptxSlideHeightEMU * 100
-			tRight := tLeft + tWidth
-			tBottom := tTop + tHeight
-
-			for _, dr := range decoRects {
-				drRight := dr.left + dr.width
-				// Check horizontal overlap
-				if tLeft < drRight && tRight > dr.left {
-					// Decorative shape starts within or below the text shape
-					if dr.top > tTop && dr.top < tBottom {
-						// Shrink text shape height to end above the decorative shape with a gap
-						tHeight = dr.top - tTop - 1.5
-						if tHeight < 1 {
-							tHeight = 1
-						}
-						posStyle = fmt.Sprintf("position:absolute;left:%.2f%%;top:%.2f%%;width:%.2f%%;height:%.2f%%",
-							tLeft, tTop, tWidth, tHeight)
-						break
-					}
-				}
-			}
-		}
-
-		// Render text shape
-		if html := pptxRenderTextShape(shape, posStyle); html != "" {
-			parts = append(parts, html)
-		}
-	}
-
-	if hasPositioned {
-		sectionAttrs += ` class="pptx-slide"`
-	}
-
-	if len(parts) == 0 {
-		return sectionAttrs, "<p></p>"
-	}
-	return sectionAttrs, strings.Join(parts, "\n")
-}
-
-// pptxShapePosition extracts absolute CSS position from shape's xfrm transform.
-func pptxShapePosition(shape pptShape) string {
-	if shape.SpPr == nil || shape.SpPr.Xfrm == nil || shape.SpPr.Xfrm.Off == nil || shape.SpPr.Xfrm.Ext == nil {
-		return ""
-	}
-	left := float64(shape.SpPr.Xfrm.Off.X) / pptxSlideWidthEMU * 100
-	top := float64(shape.SpPr.Xfrm.Off.Y) / pptxSlideHeightEMU * 100
-	width := float64(shape.SpPr.Xfrm.Ext.Cx) / pptxSlideWidthEMU * 100
-	height := float64(shape.SpPr.Xfrm.Ext.Cy) / pptxSlideHeightEMU * 100
-	return fmt.Sprintf("position:absolute;left:%.2f%%;top:%.2f%%;width:%.2f%%;height:%.2f%%", left, top, width, height)
-}
-
-// pptxIsDecorativeShape returns true if the shape is a filled rectangle with no meaningful text.
-func pptxIsDecorativeShape(shape pptShape) bool {
-	// Must have a solid fill (not noFill)
-	if shape.SpPr == nil || shape.SpPr.SolidFill == nil {
-		return false
-	}
-	// Check if there's no text, or only empty text
-	if shape.TxBody == nil {
-		return true
-	}
-	for _, p := range shape.TxBody.Paragraphs {
-		for _, r := range p.Runs {
-			if strings.TrimSpace(r.Text) != "" {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// pptxRenderDecorativeShape renders a filled decorative shape as a div.
-func pptxRenderDecorativeShape(shape pptShape, posStyle string) string {
-	if shape.SpPr == nil || shape.SpPr.SolidFill == nil || shape.SpPr.SolidFill.SrgbClr == nil {
-		return ""
-	}
-	color := shape.SpPr.SolidFill.SrgbClr.Val
-	if posStyle == "" {
-		return fmt.Sprintf(`<div style="background:#%s;width:100%%;height:4px;margin:0.5em 0"></div>`, color)
-	}
-	return fmt.Sprintf(`<div style="%s;background:#%s"></div>`, posStyle, color)
-}
-
-// pptxRenderTextShape renders a text shape with full styling.
-func pptxRenderTextShape(shape pptShape, posStyle string) string {
-	if shape.TxBody == nil {
-		return ""
-	}
-
-	var paragraphs []string
-	isBulletList := false
-
-	for _, para := range shape.TxBody.Paragraphs {
-		text := pptxExtractRunText(para.Runs)
-		if text == "" {
-			continue
-		}
-
-		// Paragraph-level alignment
-		var paraStyle string
-		if para.PPr != nil && para.PPr.Algn != "" {
-			switch para.PPr.Algn {
-			case "ctr":
-				paraStyle = ` style="text-align:center"`
-			case "r":
-				paraStyle = ` style="text-align:right"`
-			case "just":
-				paraStyle = ` style="text-align:justify"`
-			}
-		}
-
-		// Check for bullet points
-		hasBullet := para.PPr != nil && para.PPr.BuChar != nil
-		hasAutoNum := para.PPr != nil && para.PPr.BuAutoNum != nil
-
-		if hasBullet || hasAutoNum {
-			isBulletList = true
-			paragraphs = append(paragraphs, fmt.Sprintf("<li%s>%s</li>", paraStyle, text))
-		} else {
-			// Determine tag from placeholder type
-			phType := ""
-			if shape.NvSpPr.NvPr.Ph != nil {
-				phType = shape.NvSpPr.NvPr.Ph.Type
-			}
-
-			switch phType {
-			case "title", "ctrTitle":
-				paragraphs = append(paragraphs, fmt.Sprintf("<h1%s>%s</h1>", paraStyle, text))
-			case "subTitle":
-				paragraphs = append(paragraphs, fmt.Sprintf("<h3%s>%s</h3>", paraStyle, text))
-			default:
-				paragraphs = append(paragraphs, fmt.Sprintf("<p%s>%s</p>", paraStyle, text))
-			}
-		}
-	}
-
-	if len(paragraphs) == 0 {
-		return ""
-	}
-
-	var inner string
-	if isBulletList {
-		inner = "<ul>\n" + strings.Join(paragraphs, "\n") + "\n</ul>"
-	} else {
-		inner = strings.Join(paragraphs, "\n")
-	}
-
-	// Wrap in a positioned div if we have position data
-	if posStyle != "" {
-		// Compute padding from bodyPr insets (default: 91440 EMU ≈ 0.1 inch)
-		padding := pptxBodyPadding(shape)
-		return fmt.Sprintf(`<div style="%s;display:flex;align-items:center;overflow:hidden;%s">%s</div>`, posStyle, padding, inner)
-	}
-	return inner
-}
-
-// pptxBodyPadding returns a CSS padding string derived from OOXML bodyPr insets.
-// OOXML defaults: lIns=91440, tIns=45720, rIns=91440, bIns=45720 EMU.
-// When insets are explicitly 0, we still add a small minimum padding (0.4%)
-// to prevent text from touching the edge of overlapping background shapes.
-func pptxBodyPadding(shape pptShape) string {
-	const (
-		defLR   int64 = 91440  // default left/right inset EMU
-		defTB   int64 = 45720  // default top/bottom inset EMU
-		minPad        = 0.4    // minimum padding percentage
-	)
-
-	lIns, tIns, rIns, bIns := defLR, defTB, defLR, defTB
-	if shape.TxBody != nil && shape.TxBody.BodyPr != nil {
-		bp := shape.TxBody.BodyPr
-		if bp.LIns != nil {
-			lIns = *bp.LIns
-		}
-		if bp.TIns != nil {
-			tIns = *bp.TIns
-		}
-		if bp.RIns != nil {
-			rIns = *bp.RIns
-		}
-		if bp.BIns != nil {
-			bIns = *bp.BIns
-		}
-	}
-
-	// Convert EMU to percentage of slide dimensions, with minimum
-	lPct := max(float64(lIns)/pptxSlideWidthEMU*100, minPad)
-	rPct := max(float64(rIns)/pptxSlideWidthEMU*100, minPad)
-	tPct := max(float64(tIns)/pptxSlideHeightEMU*100, minPad)
-	bPct := max(float64(bIns)/pptxSlideHeightEMU*100, minPad)
-
-	return fmt.Sprintf("padding:%.2f%% %.2f%% %.2f%% %.2f%%", tPct, rPct, bPct, lPct)
-}
-
-// pptxExtractRunText converts text runs to HTML with inline styling.
-func pptxExtractRunText(runs []pptRun) string {
-	var parts []string
-	for _, run := range runs {
-		text := run.Text
-		if run.RPr == nil {
-			parts = append(parts, text)
-			continue
-		}
-
-		var styles []string
-		if run.RPr.SolidFill != nil && run.RPr.SolidFill.SrgbClr != nil {
-			styles = append(styles, fmt.Sprintf("color:#%s", run.RPr.SolidFill.SrgbClr.Val))
-		}
-		if run.RPr.Sz > 0 {
-			emSize := float64(run.RPr.Sz) / 100.0 / pptxBaseFontPt
-			styles = append(styles, fmt.Sprintf("font-size:%.2fem", emSize))
-		}
-		if run.RPr.Spc != 0 {
-			spacing := float64(run.RPr.Spc) / 100.0
-			styles = append(styles, fmt.Sprintf("letter-spacing:%.1fpt", spacing))
-		}
-		if run.RPr.B == 1 {
-			styles = append(styles, "font-weight:bold")
-		}
-		if run.RPr.I == 1 {
-			styles = append(styles, "font-style:italic")
-		}
-
-		if len(styles) > 0 {
-			text = fmt.Sprintf(`<span style="%s">%s</span>`, strings.Join(styles, ";"), text)
-		}
-		parts = append(parts, text)
-	}
-	return strings.Join(parts, "")
 }
 
 // Helper functions
