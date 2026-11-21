@@ -1,4 +1,4 @@
-{{define "head-extra"}}{{with index .Posts.Posts 0}}{{if .FeaturedImageURL}}<link rel="preload" as="image" href="{{.FeaturedImageURL}}" fetchpriority="high">{{end}}{{end}}
+{{define "head-extra"}}{{if .Posts.Posts}}{{with index .Posts.Posts 0}}{{if .FeaturedImageURL}}<link rel="preload" as="image" href="{{.FeaturedImageURL}}" fetchpriority="high">{{end}}{{end}}{{end}}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",

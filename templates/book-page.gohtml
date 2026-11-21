@@ -157,8 +157,7 @@
         margin: 0 0 1rem; padding: 0; border: none;
     }
 
-    .book-admin-link { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; color: var(--accent); text-decoration: none; font-weight: 500; margin-bottom: 1.5rem; }
-    .book-admin-link:hover { text-decoration: underline; }
+    .book-admin-link { margin-bottom: 1.5rem; }
 
     .book-back-link { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.9375rem; color: var(--accent); text-decoration: none; font-weight: 500; }
     .book-back-link:hover { text-decoration: underline; }
@@ -182,9 +181,7 @@
     </nav>
 
     {{if .IsAdmin}}
-    <a href="/admin/books/{{.Book.Slug}}/edit" class="book-admin-link">
-        {{icon "pencil" "w-4 h-4"}} Edit Book
-    </a>
+    <a href="/admin/books/{{.Book.Slug}}/edit" class="edit-icon book-admin-link" aria-label="Edit book" title="Edit book">{{icon "edit" "w-4 h-4"}}</a>
     {{end}}
 
     <!-- Hero -->

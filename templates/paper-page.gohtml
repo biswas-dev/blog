@@ -104,8 +104,6 @@
     }
     .paper-link-btn:hover { opacity: 0.85; }
 
-    .edit-link { font-size: 0.8125rem; color: var(--accent); text-decoration: none; font-weight: 500; margin-top: 0.5rem; }
-    .edit-link:hover { text-decoration: underline; }
 
     /* Content sections */
     .paper-section { margin-bottom: 3rem; }
@@ -216,7 +214,7 @@
             </div>
 
             {{if .IsAdmin}}
-            <a class="edit-link" href="/admin/papers/{{.Paper.Slug}}/edit">{{icon "edit" "w-4 h-4"}} Edit Paper</a>
+            <a class="edit-icon" href="/admin/papers/{{.Paper.Slug}}/edit" aria-label="Edit paper" title="Edit paper">{{icon "edit" "w-4 h-4"}}</a>
             {{end}}
         </div>
     </div>
