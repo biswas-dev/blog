@@ -704,8 +704,30 @@ func (p Papers) SavePDF(w http.ResponseWriter, r *http.Request) {
 	if err := p.PaperService.SetPDFSize(paperID, int64(len(data))); err != nil {
 		log.Printf("SavePDF %d: size: %v", paperID, err)
 	}
+	p.syncPDFAnnotations(paperID, user.UserID, data)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "size": len(data)})
+}
+
+// syncPDFAnnotations mirrors the saved PDF's highlights into Key Passages. The PDF is already
+// stored, so failures are only logged.
+func (p Papers) syncPDFAnnotations(paperID, userID int, data []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("SavePDF %d: annotation sync panic: %v", paperID, r)
+		}
+	}()
+	hs, err := models.ExtractPDFHighlights(data)
+	if err != nil {
+		log.Printf("SavePDF %d: annotation sync: %v", paperID, err)
+		return
+	}
+	res, err := p.PaperAnnotationService.SyncFromPDF(paperID, userID, hs)
+	if err != nil {
+		log.Printf("SavePDF %d: annotation sync: %v", paperID, err)
+		return
+	}
+	log.Printf("SavePDF %d: annotation sync: %d upserted, %d deleted, %d skipped (no text)", paperID, res.Upserted, res.Deleted, res.SkippedEmpty)
 }
 
 // paperPDFPath maps a stored /static/uploads/papers/... URL to its file, relative to the
