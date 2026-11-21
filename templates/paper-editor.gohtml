@@ -285,7 +285,7 @@
             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-300" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{.SelectedText}}</td>
             <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{if .Note}}{{.Note}}{{else}}&mdash;{{end}}</td>
             <td class="px-4 py-3 whitespace-nowrap">
-              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: {{if eq .Color "yellow"}}#fef08a{{else if eq .Color "green"}}#bbf7d0{{else if eq .Color "blue"}}#bfdbfe{{else if eq .Color "pink"}}#fbcfe8{{else if eq .Color "orange"}}#fed7aa{{else}}#fef08a{{end}}; border: 1px solid #d1d5db;"></span>
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: {{if eq .Color "yellow"}}#fef08a{{else if eq .Color "green"}}#bbf7d0{{else if eq .Color "blue"}}#bfdbfe{{else if eq .Color "pink"}}#fbcfe8{{else if eq .Color "orange"}}#fed7aa{{else if .Color}}{{.Color}}{{else}}#fef08a{{end}}; border: 1px solid #d1d5db;"></span>
             </td>
             <td class="px-4 py-3 whitespace-nowrap text-center">
               <label class="cursor-pointer">
