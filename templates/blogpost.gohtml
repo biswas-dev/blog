@@ -125,10 +125,7 @@
             
             {{if .UserPermissions.CanEditPosts}}
             <div class="flex items-center gap-2 ml-auto">
-                <a href="/admin/posts/{{.Post.ID}}/edit" class="text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                    {{icon "edit" "w-4 h-4"}}
-                    Edit
-                </a>
+                <a href="/admin/posts/{{.Post.ID}}/edit" class="edit-icon" aria-label="Edit post" title="Edit post">{{icon "edit" "w-4 h-4"}}</a>
             </div>
             {{end}}
         </div>

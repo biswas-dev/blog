@@ -5,9 +5,6 @@
 
 <style>
     .papers-page { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
-    .papers-header { text-align: center; margin-bottom: 3rem; }
-    .papers-header h1 { font-size: 2.5rem; font-weight: 700; color: var(--text-primary); }
-    .papers-header p { margin-top: 1rem; font-size: 1.125rem; color: var(--text-secondary); max-width: 36rem; margin-left: auto; margin-right: auto; }
 
     .papers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem; }
 
@@ -79,15 +76,12 @@
 
     .paper-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 0.5rem; }
     .paper-card-reading-time { font-size: 0.75rem; color: var(--text-tertiary); }
-    .paper-card .edit-link { font-size: 0.75rem; color: var(--accent); text-decoration: none; font-weight: 500; }
-    .paper-card .edit-link:hover { text-decoration: underline; }
 
     .empty-state { text-align: center; padding: 4rem 1rem; }
     .empty-state h3 { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-top: 1.5rem; }
     .empty-state p { color: var(--text-secondary); margin-top: 0.5rem; }
 
     @media (max-width: 640px) {
-        .papers-header h1 { font-size: 2rem; }
         .papers-grid { grid-template-columns: 1fr; }
     }
     @media (min-width: 1024px) {
@@ -97,15 +91,15 @@
 
 <div class="papers-page">
     <!-- Header -->
-    <div class="papers-header">
+    <header class="page-header">
         {{if .FilterName}}
-        <p style="margin-bottom: 0.5rem;"><a href="/papers" style="color: var(--accent); text-decoration: none;">&larr; All Papers</a></p>
+        <a href="/papers" class="page-header-back">&larr; All papers</a>
         <h1>Papers in {{.FilterName}}</h1>
         {{else}}
         <h1>Paper Reviews</h1>
-        <p>Reviews and annotations of CS research papers &mdash; systems, ML, distributed computing, and more.</p>
+        <p>Reviews and annotations of computer science research papers: systems, ML, distributed computing and more.</p>
         {{end}}
-    </div>
+    </header>
 
     {{if .Papers}}
     <div class="papers-grid">
@@ -146,7 +140,7 @@
 
                 <div class="paper-card-footer">
                     {{if .ReadingTime}}<span class="paper-card-reading-time">{{.ReadingTime}} min read</span>{{else}}<span></span>{{end}}
-                    {{if $.IsAdmin}}<a class="edit-link" href="/admin/papers/{{.Slug}}/edit">Edit</a>{{end}}
+                    {{if $.IsAdmin}}<a class="edit-icon" href="/admin/papers/{{.Slug}}/edit" aria-label="Edit {{.Title}}" title="Edit">{{icon "edit" "w-4 h-4"}}</a>{{end}}
                 </div>
             </div>
         </div>

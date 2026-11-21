@@ -43,6 +43,21 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 				return strings.Contains(s, substr)
 			},
 			"upper": func(s string) string { return strings.ToUpper(s) },
+			// dict builds a map from key/value pairs so a template can pass several values to a sub-template.
+			"dict": func(kv ...any) (map[string]any, error) {
+				if len(kv)%2 != 0 {
+					return nil, fmt.Errorf("dict needs key/value pairs, got %d args", len(kv))
+				}
+				m := make(map[string]any, len(kv)/2)
+				for i := 0; i < len(kv); i += 2 {
+					k, ok := kv[i].(string)
+					if !ok {
+						return nil, fmt.Errorf("dict key %v is not a string", kv[i])
+					}
+					m[k] = kv[i+1]
+				}
+				return m, nil
+			},
 			"icon": func(name, class string) template.HTML {
 				return icons.Icon(name, class)
 			},

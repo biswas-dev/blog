@@ -3,14 +3,10 @@
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
-    <div class="text-center mb-12">
-        <h1 class="text-4xl font-bold sm:text-5xl" style="color: var(--text-primary);">
-            Slide Presentations
-        </h1>
-        <p class="mt-4 text-xl max-w-2xl mx-auto" style="color: var(--text-secondary);">
-            Presentations and talks
-        </p>
-    </div>
+    <header class="page-header mb-8">
+        <h1>Slides</h1>
+        <p>Presentations and talks.</p>
+    </header>
 
         {{if .Slides.Slides}}
             <!-- Slides Grid -->
@@ -97,7 +93,7 @@
                                 {{.RelativeTime}}
                             </div>
                             {{if $.IsAdmin}}
-                                <a href="/admin/slides/{{.ID}}/edit" class="font-medium" style="color: var(--accent);">Edit</a>
+                                <a href="/admin/slides/{{.ID}}/edit" class="edit-icon" aria-label="Edit {{.Title}}" title="Edit">{{icon "edit" "w-4 h-4"}}</a>
                             {{end}}
                         </div>
 
