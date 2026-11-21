@@ -177,6 +177,11 @@ jobs:
           name: coverage
         continue-on-error: true
 
+      # The scanner's JavaScript analysis needs Node.js, which the self-hosted runners don't have.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
       - name: Run SonarQube
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
