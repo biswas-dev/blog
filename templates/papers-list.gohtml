@@ -115,11 +115,11 @@
                 <a class="paper-card-title" href="/papers/{{.Slug}}">{{.Title}}</a>
 
                 {{if .PaperAuthors}}
-                <span class="paper-card-authors">{{authorLinks .PaperAuthors ""}}</span>
+                <span class="paper-card-authors">{{.PaperAuthors}}</span>
                 {{end}}
 
                 <span class="paper-card-venue">
-                    {{if .Conference}}{{publisherLink .Conference ""}}{{end}}{{if and .Conference .PaperYear}} &middot; {{end}}{{if .PaperYear}}{{.PaperYear}}{{end}}
+                    {{if .Conference}}{{.Conference}}{{end}}{{if and .Conference .PaperYear}} &middot; {{end}}{{if .PaperYear}}{{.PaperYear}}{{end}}
                 </span>
 
                 {{if .Rating}}
@@ -140,7 +140,7 @@
 
                 <div class="paper-card-footer">
                     {{if .ReadingTime}}<span class="paper-card-reading-time">{{.ReadingTime}} min read</span>{{else}}<span></span>{{end}}
-                    {{if $.IsAdmin}}<a class="edit-icon" href="/admin/papers/{{.Slug}}/edit" aria-label="Edit {{.Title}}" title="Edit">{{icon "edit" "w-4 h-4"}}</a>{{end}}
+                    {{if $.IsAdmin}}<a class="edit-icon" href="/admin/papers/{{.ID}}/edit" aria-label="Edit {{.Title}}" title="Edit">{{icon "edit" "w-4 h-4"}}</a>{{end}}
                 </div>
             </div>
         </div>

@@ -258,12 +258,14 @@
                                         <span>Formatting Guide</span>
                                     </span>
                                 </a>
+                                {{if .UserPermissions.CanViewAdmin}}
                                 <a href="/admin/categories" class="dropdown-item">
                                     <span class="flex items-center gap-2">
                                         {{icon "list" "w-4 h-4"}}
                                         <span>Categories</span>
                                     </span>
                                 </a>
+                                {{end}}
                             </div>
                         </div>
                     </li>
