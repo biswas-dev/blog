@@ -1526,3 +1526,85 @@ func TestTemplateInternalLinksMatchRoutes(t *testing.T) {
 		}
 	}
 }
+
+// TestPaperMyNotesArePrivate ensures paper.MyNotes never leaks onto the public
+// paper-page.gohtml view and that paper-editor.gohtml clearly marks My Notes as
+// private / not published.
+func TestPaperMyNotesArePrivate(t *testing.T) {
+	sentinel := "TOP_SECRET_PRIVATE_PAPER_NOTE_98765"
+	paper := &models.Paper{
+		ID:          1,
+		Title:       "Private Notes Test Paper",
+		Slug:        "private-notes-test-paper",
+		Content:     "Public summary",
+		ContentHTML: template.HTML("<p>Public summary</p>"),
+		MyNotes:     sentinel,
+		MyNotesHTML: template.HTML("<p>" + sentinel + "</p>"),
+		IsPublished: true,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://anshumanbiswas.com/papers/private-notes-test-paper", nil)
+
+	// Public page must NOT render MyNotes or MyNotesHTML even if populated on the struct.
+	pubTpl := views.Must(views.ParseFS(templates.FS, "paper-page.gohtml", "tailwind.gohtml"))
+	pubRec := httptest.NewRecorder()
+	pubTpl.Execute(pubRec, req, struct {
+		LoggedIn          bool
+		Username          string
+		IsAdmin           bool
+		SignupDisabled    bool
+		UserID            int
+		Description       string
+		CurrentPage       string
+		Paper             *models.Paper
+		PublicAnnotations []models.PaperAnnotation
+		FullURL           string
+		UserPermissions   models.UserPermissions
+	}{
+		Paper:           paper,
+		CurrentPage:     "papers",
+		FullURL:         "https://anshumanbiswas.com/papers/private-notes-test-paper",
+		UserPermissions: models.GetPermissions(models.RoleCommenter),
+	})
+	if strings.Contains(pubRec.Body.String(), sentinel) {
+		t.Fatalf("paper-page.gohtml leaked private MyNotes into public HTML output")
+	}
+	if strings.Contains(pubRec.Body.String(), "My Notes") {
+		t.Fatalf("paper-page.gohtml should not render a public My Notes section")
+	}
+
+	// Admin editor MUST render MyNotes and clearly label it as private / not published.
+	edTpl := views.Must(views.ParseFS(templates.FS, "paper-editor.gohtml", "tailwind.gohtml"))
+	edRec := httptest.NewRecorder()
+	edTpl.Execute(edRec, req, struct {
+		LoggedIn        bool
+		Username        string
+		IsAdmin         bool
+		SignupDisabled  bool
+		Description     string
+		CurrentPage     string
+		ResearchAreas   []models.PaperResearchArea
+		SelectedAreaMap map[int]bool
+		Paper           *models.Paper
+		Mode            string
+		EditorHTML      template.HTML
+		Annotations     []models.PaperAnnotation
+		UserPermissions models.UserPermissions
+	}{
+		LoggedIn:        true,
+		Username:        "admin",
+		IsAdmin:         true,
+		CurrentPage:     "admin-papers",
+		Paper:           paper,
+		Mode:            "edit",
+		EditorHTML:      template.HTML("<textarea></textarea>"),
+		UserPermissions: models.GetPermissions(models.RoleAdministrator),
+	})
+	edHTML := edRec.Body.String()
+	if !strings.Contains(edHTML, sentinel) {
+		t.Fatalf("paper-editor.gohtml did not render Paper.MyNotes in the editor textarea")
+	}
+	if !strings.Contains(edHTML, "Not Published") {
+		t.Fatalf("paper-editor.gohtml missing clear 'Not Published' indicator for My Notes")
+	}
+}
