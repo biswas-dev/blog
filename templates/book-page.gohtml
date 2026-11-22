@@ -181,7 +181,7 @@
     </nav>
 
     {{if .IsAdmin}}
-    <a href="/admin/books/{{.Book.Slug}}/edit" class="edit-icon book-admin-link" aria-label="Edit book" title="Edit book">{{icon "edit" "w-4 h-4"}}</a>
+    <a href="/admin/books/{{.Book.ID}}/edit" class="edit-icon book-admin-link" aria-label="Edit book" title="Edit book">{{icon "edit" "w-4 h-4"}}</a>
     {{end}}
 
     <!-- Hero -->
@@ -251,7 +251,7 @@
             {{end}}
             {{if .Book.LinkURL}}
             <a href="{{.Book.LinkURL}}" target="_blank" rel="noopener noreferrer" class="book-link-btn" style="background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-light);">
-                {{if contains .Book.LinkURL "goodreads.com"}}Goodreads{{else if contains .Book.LinkURL "amazon."}}Amazon{{else}}More Info{{end}} {{icon "external" "w-4 h-4"}}
+                {{if contains .Book.LinkURL "goodreads.com"}}Goodreads{{else if contains .Book.LinkURL "amazon."}}Amazon{{else}}More Info{{end}} {{icon "external-link" "w-4 h-4"}}
             </a>
             {{end}}
             </div>

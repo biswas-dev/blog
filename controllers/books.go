@@ -164,7 +164,16 @@ func (b Books) ViewBook(w http.ResponseWriter, r *http.Request) {
 // GenrePage displays books filtered by a specific genre.
 // GET /books/genre/{name}
 func (b Books) GenrePage(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	raw := chi.URLParam(r, "name")
+	name, err := url.PathUnescape(raw)
+	if err != nil {
+		name = raw
+	}
+	name = strings.ReplaceAll(name, "+", " ")
+	if name == "" {
+		http.NotFound(w, r)
+		return
+	}
 	user, _ := utils.IsUserLoggedIn(r, b.SessionService)
 
 	genre, err := b.BookGenreService.GetByName(name)
@@ -217,6 +226,8 @@ func (b Books) GenrePage(w http.ResponseWriter, r *http.Request) {
 		WantToRead       []models.Book
 		Abandoned        []models.Book
 		UserPermissions  models.UserPermissions
+		FilterName       string
+		FilterType       string
 	}{
 		LoggedIn:         user != nil,
 		Username:         getUsername(user),
@@ -232,6 +243,8 @@ func (b Books) GenrePage(w http.ResponseWriter, r *http.Request) {
 		WantToRead:       wantToRead,
 		Abandoned:        abandoned,
 		UserPermissions:  userPerms,
+		FilterName:       genre.Name,
+		FilterType:       "genre",
 	}
 
 	b.Templates.BooksList.Execute(w, r, data)
@@ -726,6 +739,7 @@ func (b Books) AuthorPage(w http.ResponseWriter, r *http.Request) {
 	}{
 		CurrentPage:      "books",
 		Description:      fmt.Sprintf("Books by %s", name),
+		SignupDisabled:   true,
 		CurrentlyReading: cr,
 		Completed:        co,
 		WantToRead:       wt,
@@ -775,6 +789,7 @@ func (b Books) PublisherPage(w http.ResponseWriter, r *http.Request) {
 	}{
 		CurrentPage:      "books",
 		Description:      fmt.Sprintf("Books by %s", name),
+		SignupDisabled:   true,
 		CurrentlyReading: cr,
 		Completed:        co,
 		WantToRead:       wt,

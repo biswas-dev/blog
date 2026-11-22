@@ -97,7 +97,7 @@ func (b *Blog) GetBlogPost(w http.ResponseWriter, r *http.Request) {
 	data.ReadTime = fmt.Sprintf("%d", readingMinutes)
 
 	if post.ID == 0 {
-		http.Redirect(w, r, "/404", http.StatusFound)
+		http.NotFound(w, r)
 		return
 	}
 

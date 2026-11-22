@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -51,7 +53,12 @@ type Categories struct {
 
 // TagPage displays all posts and slides for a given tag/category name.
 func (c *Categories) TagPage(w http.ResponseWriter, r *http.Request) {
-	tagName := chi.URLParam(r, "name")
+	raw := chi.URLParam(r, "name")
+	tagName, err := url.PathUnescape(raw)
+	if err != nil {
+		tagName = raw
+	}
+	tagName = strings.ReplaceAll(tagName, "+", " ")
 	if tagName == "" {
 		http.NotFound(w, r)
 		return
@@ -113,6 +120,7 @@ func (c *Categories) TagPage(w http.ResponseWriter, r *http.Request) {
 	data.TotalCount = len(posts) + len(slides) + len(guides)
 	data.Description = fmt.Sprintf("Posts, presentations, and guides tagged with %q", category.Name)
 	data.CurrentPage = "tags"
+	data.SignupDisabled, _ = strconv.ParseBool(os.Getenv("APP_DISABLE_SIGNUP"))
 
 	if user != nil {
 		data.LoggedIn = true
