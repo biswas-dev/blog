@@ -6,8 +6,14 @@
 <style>
     .books-page { max-width: 1120px; margin: 0 auto; padding-bottom: 3rem; }
     .books-section { margin-top: 3rem; }
-    .books-section-title { font-size: 1.125rem; font-weight: 650; color: var(--text-primary); margin: 0 0 1.25rem; display: flex; align-items: baseline; gap: 0.5rem; letter-spacing: -0.01em; }
-    .section-count { font-size: 0.8125rem; font-weight: 500; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+    .books-section { scroll-margin-top: 5rem; }
+    .books-section-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0 0 1.5rem; display: flex; align-items: center; gap: 0.625rem; letter-spacing: -0.02em; }
+    .books-section-title::before { content: ""; width: 4px; height: 1.25em; border-radius: 2px; background: linear-gradient(180deg, var(--accent), #6366f1); }
+    .section-count { font-size: 0.8125rem; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); padding: 0.125rem 0.5rem; border-radius: 999px; font-variant-numeric: tabular-nums; }
+    .books-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 1.25rem; }
+    .books-stat { font-size: 0.875rem; color: var(--text-secondary); padding: 0.375rem 0.875rem; border: 1px solid var(--border-light); border-radius: 999px; background: var(--surface); transition: border-color 0.15s, color 0.15s; }
+    .books-stat strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .books-stat:hover { border-color: var(--accent); color: var(--accent); }
 
     /* One shelf per status; covers lead, text sits underneath */
     .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2rem 1.5rem; }
@@ -40,8 +46,13 @@
         <a href="/books" class="page-header-back">← All books</a>
         <h1>{{if eq .FilterType "author"}}Books by {{.FilterName}}{{else if eq .FilterType "publisher"}}Published by {{.FilterName}}{{else}}Books{{end}}</h1>
         {{else}}
-        <h1>Books</h1>
+        <h1>My <span class="hero-accent">Bookshelf</span></h1>
         <p>What I'm reading, what I've read, and what's next, with notes and reviews.</p>
+        <div class="books-stats">
+            {{if .CurrentlyReading}}<a href="#reading" class="books-stat"><strong>{{len .CurrentlyReading}}</strong> reading now</a>{{end}}
+            {{if .Completed}}<a href="#read" class="books-stat"><strong>{{len .Completed}}</strong> read</a>{{end}}
+            {{if .WantToRead}}<a href="#want" class="books-stat"><strong>{{len .WantToRead}}</strong> on the list</a>{{end}}
+        </div>
         {{end}}
     </header>
 
@@ -52,25 +63,25 @@
         </div>
     {{else}}
         {{if .CurrentlyReading}}
-        <section class="books-section">
+        <section class="books-section" id="reading">
             <h2 class="books-section-title">Currently reading <span class="section-count">{{len .CurrentlyReading}}</span></h2>
             <div class="shelf shelf-reading">{{range .CurrentlyReading}}{{template "book-tile" (dict "Book" . "IsAdmin" $.IsAdmin "Section" "reading")}}{{end}}</div>
         </section>
         {{end}}
         {{if .Completed}}
-        <section class="books-section">
+        <section class="books-section" id="read">
             <h2 class="books-section-title">Read <span class="section-count">{{len .Completed}}</span></h2>
             <div class="shelf shelf-completed">{{range .Completed}}{{template "book-tile" (dict "Book" . "IsAdmin" $.IsAdmin "Section" "completed")}}{{end}}</div>
         </section>
         {{end}}
         {{if .WantToRead}}
-        <section class="books-section">
+        <section class="books-section" id="want">
             <h2 class="books-section-title">Want to read <span class="section-count">{{len .WantToRead}}</span></h2>
             <div class="shelf shelf-want">{{range .WantToRead}}{{template "book-tile" (dict "Book" . "IsAdmin" $.IsAdmin "Section" "want")}}{{end}}</div>
         </section>
         {{end}}
         {{if .Abandoned}}
-        <section class="books-section">
+        <section class="books-section" id="abandoned">
             <h2 class="books-section-title">Set aside <span class="section-count">{{len .Abandoned}}</span></h2>
             <div class="shelf shelf-abandoned">{{range .Abandoned}}{{template "book-tile" (dict "Book" . "IsAdmin" $.IsAdmin "Section" "abandoned")}}{{end}}</div>
         </section>
