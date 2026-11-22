@@ -1,195 +1,158 @@
 {{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
 {{template "modern-header" .}}
 
-<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Header -->
-        <div class="mb-8">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Category Management</h1>
-                    <p class="text-gray-600 dark:text-gray-400 mt-1">Manage categories (displayed as tags to users)</p>
+<div class="admin-page">
+    <!-- Header -->
+    <div class="admin-header">
+        <div class="admin-header-text">
+            <h1>Category Management</h1>
+            <p>Manage categories (displayed as tags across posts, guides, and slides)</p>
+        </div>
+        <div class="admin-header-actions">
+            <a href="/admin/posts" class="admin-btn-secondary">
+                &larr; Back to Posts
+            </a>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="message-container" class="mb-6 hidden">
+        <div id="success-message" class="hidden admin-alert admin-alert-success">
+            {{icon "check-circle" "h-5 w-5 shrink-0"}}
+            <p id="success-text" style="margin:0;"></p>
+        </div>
+        <div id="error-message" class="hidden admin-alert admin-alert-error">
+            {{icon "x-circle" "h-5 w-5 shrink-0"}}
+            <p id="error-text" style="margin:0;"></p>
+        </div>
+    </div>
+
+    <!-- Create New Category -->
+    <div class="admin-card mb-6">
+        <div class="admin-card-header">
+            <h3>Create New Category</h3>
+        </div>
+        <div class="admin-form-card-body">
+            <form id="create-form" class="admin-inline-form">
+                <div class="admin-field">
+                    <label for="create-name">Category Name</label>
+                    <input type="text"
+                           id="create-name"
+                           name="name"
+                           required
+                           placeholder="e.g., Performance, Architecture, AI"
+                           class="admin-input">
                 </div>
-                <a href="/admin/posts" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                    ← Back to Posts
-                </a>
+                <button type="submit" id="create-btn" class="admin-btn-primary disabled:opacity-50">
+                    <svg id="create-spinner" class="hidden animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <svg id="create-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <span id="create-text">Create Category</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Categories List -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3>Existing Categories</h3>
+            <div id="loading-indicator" class="hidden flex items-center gap-2 text-sm" style="color:var(--text-secondary);">
+                <div class="animate-spin inline-block w-4 h-4 rounded-full" style="border:2px solid var(--accent);border-top-color:transparent;"></div>
+                <span>Loading...</span>
             </div>
         </div>
-
-        <!-- Success/Error Messages -->
-        <div id="message-container" class="mb-6 hidden">
-            <div id="success-message" class="hidden p-4 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        {{icon "check-circle" "h-5 w-5 text-green-400"}}
-                    </div>
-                    <div class="ml-3">
-                        <p id="success-text" class="text-sm text-green-800 dark:text-green-200"></p>
-                    </div>
-                </div>
-            </div>
-            <div id="error-message" class="hidden p-4 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        {{icon "x-circle" "h-5 w-5 text-red-400"}}
-                    </div>
-                    <div class="ml-3">
-                        <p id="error-text" class="text-sm text-red-800 dark:text-red-200"></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Create New Category -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg mb-8">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Create New Category</h3>
-            </div>
-            <div class="px-6 py-4">
-                <form id="create-form" class="flex items-end space-x-4">
-                    <div class="flex-1">
-                        <label for="create-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category Name</label>
-                        <input type="text" 
-                               id="create-name" 
-                               name="name" 
-                               required
-                               placeholder="e.g., Performance, Architecture, AI"
-                               class="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:text-white sm:text-sm">
-                    </div>
-                    <button type="submit" id="create-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50">
-                        <svg id="create-spinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <svg id="create-icon" class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-                        </svg>
-                        <span id="create-text">Create Category</span>
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Categories List -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Existing Categories</h3>
-                <div id="loading-indicator" class="hidden mt-2">
-                    <div class="animate-spin inline-block w-4 h-4 border-[2px] border-current border-t-transparent text-blue-600 rounded-full"></div>
-                    <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading...</span>
-                </div>
-            </div>
-            <div class="overflow-hidden">
-                <div id="categories-container">
-                    {{if .Categories}}
-                    <table id="categories-table" class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-                        <thead class="bg-gray-50 dark:bg-slate-700">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Category
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Posts Count
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Created
-                                </th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="categories-tbody" class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-                            {{range .Categories}}
-                            <tr id="category-row-{{.ID}}">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-8 w-8">
-                                            <div class="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
-                                                {{icon "tag-label" "w-4 h-4 text-indigo-600 dark:text-indigo-400"}}
-                                            </div>
-                                        </div>
-                                        <div class="ml-4">
-                                            <div class="text-sm font-medium text-gray-900 dark:text-white" id="category-name-{{.ID}}">
-                                                {{.Name}}
-                                            </div>
-                                        </div>
+        <div id="categories-container">
+            {{if .Categories}}
+            <div class="admin-table-wrap">
+                <table id="categories-table" class="admin-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Category</th>
+                            <th scope="col">Posts Count</th>
+                            <th scope="col">Created</th>
+                            <th scope="col" class="is-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categories-tbody">
+                        {{range .Categories}}
+                        <tr id="category-row-{{.ID}}">
+                            <td>
+                                <div class="admin-cell-row">
+                                    <div class="admin-tag-icon">
+                                        {{icon "tag-label" "w-4 h-4"}}
                                     </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    <span id="category-count-{{.ID}}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{if index $.PostCounts .ID}}{{if gt (index $.PostCounts .ID) 0}}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{{else}}bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200{{end}}{{else}}bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200{{end}}">
-                                        {{if index $.PostCounts .ID}}{{index $.PostCounts .ID}}{{else}}0{{end}} posts
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{.CreatedAt.Format "Jan 2, 2006"}}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <div class="flex items-center justify-end space-x-2">
-                                        <!-- Edit Button -->
-                                        <button onclick="editCategory({{.ID}}, {{.Name | js}})"
-                                                class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
-                                            {{icon "edit" "w-4 h-4"}}
-                                        </button>
-                                        <!-- Delete Button -->
-                                        <button onclick="deleteCategory({{.ID}}, {{.Name | js}})"
-                                                id="delete-btn-{{.ID}}"
-                                                class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-2"
-                                                {{if index $.PostCounts .ID}}{{if gt (index $.PostCounts .ID) 0}}disabled title="Cannot delete category with posts"{{end}}{{end}}>
-                                            {{icon "trash" "w-4 h-4"}}
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {{end}}
-                        </tbody>
-                    </table>
-                    {{else}}
-                    <div id="empty-state" class="px-6 py-8 text-center">
-                        {{icon "tag-label" "mx-auto h-12 w-12 text-gray-400"}}
-                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No categories</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating your first category.</p>
-                    </div>
-                    {{end}}
-                </div>
+                                    <span class="font-semibold" id="category-name-{{.ID}}" style="color:var(--text-primary);">{{.Name}}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span id="category-count-{{.ID}}" class="admin-badge {{if index $.PostCounts .ID}}{{if gt (index $.PostCounts .ID) 0}}admin-badge-accent{{else}}admin-badge-muted{{end}}{{else}}admin-badge-muted{{end}}">
+                                    {{if index $.PostCounts .ID}}{{index $.PostCounts .ID}}{{else}}0{{end}} posts
+                                </span>
+                            </td>
+                            <td class="admin-num">
+                                {{.CreatedAt.Format "Jan 2, 2006"}}
+                            </td>
+                            <td class="is-right">
+                                <div class="admin-actions">
+                                    <button type="button" onclick="editCategory({{.ID}}, {{.Name | js}})"
+                                            class="admin-icon-btn" title="Edit category" aria-label="Edit {{.Name}}">
+                                        {{icon "edit" "w-4 h-4"}}
+                                    </button>
+                                    <button type="button" onclick="deleteCategory({{.ID}}, {{.Name | js}})"
+                                            id="delete-btn-{{.ID}}"
+                                            class="admin-icon-btn danger"
+                                            title="{{if index $.PostCounts .ID}}{{if gt (index $.PostCounts .ID) 0}}Cannot delete category with posts{{else}}Delete category{{end}}{{else}}Delete category{{end}}"
+                                            aria-label="Delete {{.Name}}"
+                                            {{if index $.PostCounts .ID}}{{if gt (index $.PostCounts .ID) 0}}disabled{{end}}{{end}}>
+                                        {{icon "trash" "w-4 h-4"}}
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
             </div>
+            {{else}}
+            <div id="empty-state" class="admin-empty">
+                <div class="admin-empty-icon">{{icon "tag-label" "w-10 h-10"}}</div>
+                <h3>No categories</h3>
+                <p>Get started by creating your first category above.</p>
+            </div>
+            {{end}}
         </div>
     </div>
 </div>
 
 <!-- Edit Category Modal -->
-<div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-    <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-200/50 dark:border-slate-700/50">
-        <div class="flex items-center space-x-4 mb-6">
-            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-800 rounded-2xl flex items-center justify-center">
-                {{icon "edit" "w-6 h-6 text-blue-600 dark:text-blue-400"}}
-            </div>
+<div id="edit-modal" class="admin-modal-backdrop hidden">
+    <div class="admin-modal" onclick="event.stopPropagation()">
+        <div class="admin-modal-header">
             <div>
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Edit Category</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Update the category name</p>
+                <h3>Edit Category</h3>
+                <p class="text-xs mt-0.5" style="color:var(--text-tertiary);margin-bottom:0;">Update the category name</p>
             </div>
+            <button type="button" onclick="closeEditModal()" class="admin-icon-btn" aria-label="Close">
+                {{icon "close" "w-5 h-5"}}
+            </button>
         </div>
-        
-        <form id="edit-form" class="space-y-4">
-            <div>
-                <label for="edit-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category Name</label>
-                <input type="text" 
-                       id="edit-name" 
-                       name="name" 
-                       required
-                       class="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white sm:text-sm">
+
+        <form id="edit-form">
+            <div class="admin-modal-body">
+                <div class="admin-field">
+                    <label for="edit-name">Category Name</label>
+                    <input type="text" id="edit-name" name="name" required class="admin-input">
+                </div>
             </div>
-            
-            <div class="flex justify-end space-x-3 pt-4">
-                <button type="button" 
-                        onclick="closeEditModal()" 
-                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-600">
-                    Cancel
-                </button>
-                <button type="submit" 
-                        id="update-btn"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50">
-                    <svg id="update-spinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <div class="admin-modal-footer">
+                <button type="button" onclick="closeEditModal()" class="admin-btn-secondary">Cancel</button>
+                <button type="submit" id="update-btn" class="admin-btn-primary disabled:opacity-50">
+                    <svg id="update-spinner" class="hidden animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -201,29 +164,24 @@
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-    <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-200/50 dark:border-slate-700/50">
-        <div class="flex items-center space-x-4 mb-6">
-            <div class="w-12 h-12 bg-red-100 dark:bg-red-800 rounded-2xl flex items-center justify-center">
-                {{icon "trash" "w-6 h-6 text-red-600 dark:text-red-400"}}
-            </div>
+<div id="delete-modal" class="admin-modal-backdrop hidden">
+    <div class="admin-modal" onclick="event.stopPropagation()">
+        <div class="admin-modal-header">
             <div>
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Delete Category</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">This action cannot be undone</p>
+                <h3>Delete Category</h3>
+                <p class="text-xs mt-0.5" style="color:var(--text-tertiary);margin-bottom:0;">This action cannot be undone</p>
             </div>
-        </div>
-        
-        <p id="delete-message" class="text-sm text-gray-600 dark:text-gray-400 mb-6"></p>
-        
-        <div class="flex justify-end space-x-3">
-            <button type="button" 
-                    onclick="closeDeleteModal()" 
-                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-600">
-                Cancel
+            <button type="button" onclick="closeDeleteModal()" class="admin-icon-btn" aria-label="Close">
+                {{icon "close" "w-5 h-5"}}
             </button>
-            <button id="confirm-delete-btn" onclick="confirmDelete()"
-                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50">
-                <svg id="delete-spinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+        </div>
+        <div class="admin-modal-body">
+            <p id="delete-message" class="text-sm" style="color:var(--text-secondary);margin:0;"></p>
+        </div>
+        <div class="admin-modal-footer">
+            <button type="button" onclick="closeDeleteModal()" class="admin-btn-secondary">Cancel</button>
+            <button type="button" id="confirm-delete-btn" onclick="confirmDelete()" class="admin-btn-danger disabled:opacity-50">
+                <svg id="delete-spinner" class="hidden animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -234,20 +192,17 @@
 </div>
 
 <script>
-// Global variables
 let currentEditingId = null;
 let currentDeletingId = null;
 
-// Utility functions
 function showMessage(message, type = 'success') {
     const container = document.getElementById('message-container');
     const successDiv = document.getElementById('success-message');
     const errorDiv = document.getElementById('error-message');
-    
-    // Hide all messages first
+
     successDiv.classList.add('hidden');
     errorDiv.classList.add('hidden');
-    
+
     if (type === 'success') {
         document.getElementById('success-text').textContent = message;
         successDiv.classList.remove('hidden');
@@ -255,20 +210,16 @@ function showMessage(message, type = 'success') {
         document.getElementById('error-text').textContent = message;
         errorDiv.classList.remove('hidden');
     }
-    
+
     container.classList.remove('hidden');
-    
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-        container.classList.add('hidden');
-    }, 5000);
+    setTimeout(() => container.classList.add('hidden'), 5000);
 }
 
 function setButtonLoading(btnId, spinnerId, textId, loading, originalText) {
     const btn = document.getElementById(btnId);
     const spinner = document.getElementById(spinnerId);
     const text = document.getElementById(textId);
-    
+
     if (loading) {
         btn.disabled = true;
         spinner.classList.remove('hidden');
@@ -280,20 +231,18 @@ function setButtonLoading(btnId, spinnerId, textId, loading, originalText) {
     }
 }
 
-// Create category functionality
 document.getElementById('create-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
     const nameInput = document.getElementById('create-name');
     const name = nameInput.value.trim();
-    
+
     if (!name) {
         showMessage('Category name is required', 'error');
         return;
     }
-    
+
     setButtonLoading('create-btn', 'create-spinner', 'create-text', true, 'Create Category');
-    
+
     try {
         const response = await fetch('/admin/categories', {
             method: 'POST',
@@ -304,7 +253,7 @@ document.getElementById('create-form').addEventListener('submit', async function
             },
             body: JSON.stringify({ name: name })
         });
-        
+
         if (response.ok) {
             const category = await response.json();
             showMessage(`Category "${name}" created successfully!`, 'success');
@@ -326,37 +275,29 @@ document.getElementById('create-form').addEventListener('submit', async function
     }
 });
 
-// Edit category functionality
 function editCategory(id, name) {
-    console.log('editCategory called with:', { id, name });
     currentEditingId = id;
     const modal = document.getElementById('edit-modal');
     const nameInput = document.getElementById('edit-name');
-    
-    console.log('nameInput element:', nameInput);
     nameInput.value = name;
-    console.log('nameInput.value set to:', nameInput.value);
     modal.classList.remove('hidden');
     nameInput.focus();
 }
 
 document.getElementById('edit-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
     if (!currentEditingId) return;
-    
+
     const nameInput = document.getElementById('edit-name');
     const name = nameInput.value.trim();
-    
-    console.log('Form submission - nameInput:', nameInput, 'raw value:', nameInput.value, 'trimmed:', name);
-    
+
     if (!name) {
         showMessage('Category name is required', 'error');
         return;
     }
-    
+
     setButtonLoading('update-btn', 'update-spinner', 'update-text', true, 'Update Category');
-    
+
     try {
         const response = await fetch(`/admin/categories/${currentEditingId}`, {
             method: 'POST',
@@ -367,10 +308,10 @@ document.getElementById('edit-form').addEventListener('submit', async function(e
             },
             body: JSON.stringify({ name: name })
         });
-        
+
         if (response.ok) {
             const category = await response.json();
-            showMessage(`Category updated successfully!`, 'success');
+            showMessage('Category updated successfully!', 'success');
             updateCategoryInTable(currentEditingId, category.name);
             closeEditModal();
         } else {
@@ -394,21 +335,19 @@ function closeEditModal() {
     currentEditingId = null;
 }
 
-// Delete category functionality
 function deleteCategory(id, name) {
     currentDeletingId = id;
     const modal = document.getElementById('delete-modal');
     const message = document.getElementById('delete-message');
-    
     message.textContent = `Are you sure you want to delete the category "${name}"?`;
     modal.classList.remove('hidden');
 }
 
 async function confirmDelete() {
     if (!currentDeletingId) return;
-    
+
     setButtonLoading('confirm-delete-btn', 'delete-spinner', 'delete-text', true, 'Delete Category');
-    
+
     try {
         const response = await fetch(`/admin/categories/${currentDeletingId}/delete`, {
             method: 'POST',
@@ -417,7 +356,7 @@ async function confirmDelete() {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
-        
+
         if (response.ok) {
             showMessage('Category deleted successfully!', 'success');
             removeCategoryFromTable(currentDeletingId);
@@ -443,74 +382,59 @@ function closeDeleteModal() {
     currentDeletingId = null;
 }
 
-// Table manipulation functions
+function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function addCategoryToTable(category) {
-    const tbody = document.getElementById('categories-tbody');
-    
-    // Remove empty state if it exists
     const emptyState = document.getElementById('empty-state');
     if (emptyState) {
         emptyState.remove();
-        // Create table structure if it doesn't exist
         const container = document.getElementById('categories-container');
         container.innerHTML = `
-            <table id="categories-table" class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-                <thead class="bg-gray-50 dark:bg-slate-700">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Category</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Posts Count</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="categories-tbody" class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700"></tbody>
-            </table>
+            <div class="admin-table-wrap">
+                <table id="categories-table" class="admin-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Category</th>
+                            <th scope="col">Posts Count</th>
+                            <th scope="col">Created</th>
+                            <th scope="col" class="is-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categories-tbody"></tbody>
+                </table>
+            </div>
         `;
     }
-    
+
     const tbody2 = document.getElementById('categories-tbody');
     const createdDate = new Date(category.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    
+
     const row = document.createElement('tr');
     row.id = `category-row-${category.id}`;
     row.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap">
-            <div class="flex items-center">
-                <div class="flex-shrink-0 h-8 w-8">
-                    <div class="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
-                        {{icon "tag-label" "w-4 h-4 text-indigo-600 dark:text-indigo-400"}}
-                    </div>
-                </div>
-                <div class="ml-4">
-                    <div class="text-sm font-medium text-gray-900 dark:text-white" id="category-name-${category.id}">
-                        ${category.name}
-                    </div>
-                </div>
+        <td>
+            <div class="admin-cell-row">
+                <div class="admin-tag-icon">{{icon "tag-label" "w-4 h-4"}}</div>
+                <span class="font-semibold" id="category-name-${category.id}" style="color:var(--text-primary);">${escHtml(category.name)}</span>
             </div>
         </td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-            <span id="category-count-${category.id}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200">
-                0 posts
-            </span>
+        <td>
+            <span id="category-count-${category.id}" class="admin-badge admin-badge-muted">0 posts</span>
         </td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-            ${createdDate}
-        </td>
-        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-            <div class="flex items-center justify-end space-x-2">
-                <button onclick="editCategory(${category.id}, ${JSON.stringify(category.name)})"
-                        class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
+        <td class="admin-num">${createdDate}</td>
+        <td class="is-right">
+            <div class="admin-actions">
+                <button type="button" onclick="editCategory(${category.id}, ${JSON.stringify(category.name)})" class="admin-icon-btn" title="Edit category">
                     {{icon "edit" "w-4 h-4"}}
                 </button>
-                <button onclick="deleteCategory(${category.id}, ${JSON.stringify(category.name)})"
-                        id="delete-btn-${category.id}"
-                        class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-2">
+                <button type="button" onclick="deleteCategory(${category.id}, ${JSON.stringify(category.name)})" id="delete-btn-${category.id}" class="admin-icon-btn danger" title="Delete category">
                     {{icon "trash" "w-4 h-4"}}
                 </button>
             </div>
         </td>
     `;
-    
     tbody2.appendChild(row);
 }
 
@@ -523,25 +447,21 @@ function updateCategoryInTable(id, newName) {
 
 function removeCategoryFromTable(id) {
     const row = document.getElementById(`category-row-${id}`);
-    if (row) {
-        row.remove();
-    }
-    
-    // Check if table is empty and show empty state
+    if (row) row.remove();
+
     const tbody = document.getElementById('categories-tbody');
     if (tbody && tbody.children.length === 0) {
         const container = document.getElementById('categories-container');
         container.innerHTML = `
-            <div id="empty-state" class="px-6 py-8 text-center">
-                {{icon "tag-label" "mx-auto h-12 w-12 text-gray-400"}}
-                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No categories</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating your first category.</p>
+            <div id="empty-state" class="admin-empty">
+                <div class="admin-empty-icon">{{icon "tag-label" "w-10 h-10"}}</div>
+                <h3>No categories</h3>
+                <p>Get started by creating your first category above.</p>
             </div>
         `;
     }
 }
 
-// Keyboard shortcuts and modal interactions
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeEditModal();
@@ -550,15 +470,11 @@ document.addEventListener('keydown', function(e) {
 });
 
 document.getElementById('edit-modal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeEditModal();
-    }
+    if (e.target === this) closeEditModal();
 });
 
 document.getElementById('delete-modal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeDeleteModal();
-    }
+    if (e.target === this) closeDeleteModal();
 });
 </script>
 
