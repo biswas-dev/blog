@@ -34,8 +34,8 @@ type Paper struct {
 	Content           string
 	ContentHTML       template.HTML
 	Description       string
-	MyNotes           string
-	MyNotesHTML       template.HTML
+	MyNotes           string        // private admin/editor notes — never published publicly
+	MyNotesHTML       template.HTML // unused on public pages; kept for backwards struct compatibility
 	Rating            float64
 	IsPublished       bool
 	PublicationDate   string
@@ -195,12 +195,13 @@ func (ps *PaperService) GetBySlug(slug string) (*Paper, error) {
 
 	formatPaperDates(&paper)
 
-	// Render markdown content to HTML
+	// Render public markdown content to HTML (MyNotes is private and never rendered publicly)
 	paper.ContentHTML = template.HTML(RenderContent(paper.Content))
-	paper.MyNotesHTML = template.HTML(RenderContent(paper.MyNotes))
+	paper.MyNotes = ""
+	paper.MyNotesHTML = ""
 
-	// Calculate reading time
-	wordCount := len(strings.Fields(paper.Content)) + len(strings.Fields(paper.MyNotes))
+	// Calculate reading time from public content only
+	wordCount := len(strings.Fields(paper.Content))
 	paper.ReadingTime = (wordCount + 199) / 200
 	if paper.ReadingTime < 1 {
 		paper.ReadingTime = 1
@@ -242,7 +243,8 @@ func (ps *PaperService) GetPublishedPapers() (*PapersList, error) {
 			paper.ReadingTime = 1
 		}
 
-		// Content preview
+		// Content preview (strip private notes from public list queries)
+		paper.MyNotes = ""
 		paper.Content = previewContentRaw(paper.Content)
 		paper.ContentHTML = template.HTML(RenderContent(paper.Content))
 
@@ -313,6 +315,7 @@ func (ps *PaperService) GetPublishedPapersByArea(areaID int) ([]Paper, error) {
 			paper.ReadingTime = 1
 		}
 
+		paper.MyNotes = ""
 		paper.Content = previewContentRaw(paper.Content)
 		paper.ContentHTML = template.HTML(RenderContent(paper.Content))
 
@@ -353,6 +356,7 @@ func (ps *PaperService) GetPublishedPapersByUser(userID int) ([]Paper, error) {
 			paper.ReadingTime = 1
 		}
 
+		paper.MyNotes = ""
 		paper.Content = previewContentRaw(paper.Content)
 		paper.ContentHTML = template.HTML(RenderContent(paper.Content))
 

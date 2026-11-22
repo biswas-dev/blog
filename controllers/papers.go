@@ -97,6 +97,10 @@ func (p Papers) ViewPaper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Defense-in-depth: MyNotes is private and must never leak onto the public paper page
+	paper.MyNotes = ""
+	paper.MyNotesHTML = ""
+
 	// Load public annotations for "Key Passages" section
 	publicAnnotations, err := p.PaperAnnotationService.GetPublicByPaper(paper.ID)
 	if err != nil {
