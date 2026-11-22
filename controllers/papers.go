@@ -304,6 +304,7 @@ func (p Papers) NewPaper(w http.ResponseWriter, r *http.Request) {
 		Paper           *models.Paper
 		Mode            string
 		EditorHTML      template.HTML
+		Annotations     []models.PaperAnnotation
 		UserPermissions models.UserPermissions
 	}{
 		LoggedIn:        true,

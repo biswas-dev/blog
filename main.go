@@ -300,7 +300,7 @@ func main() {
 	r.Get("/docs/formatting-guide", controllers.StaticHandler(
 		views.Must(views.ParseFS(templates.FS, "admin-formatting-guide.gohtml", "tailwind.gohtml")), &sessionService))
 	r.Get("/docs/complete-formatting-guide", controllers.StaticHandler(
-		views.Must(views.ParseFS(templates.FS, "admin-formatting-guide.gohtml", "tailwind.gohtml")), &sessionService))
+		views.Must(views.ParseFS(templates.FS, "complete-formatting-guide.gohtml", "tailwind.gohtml")), &sessionService))
 
 	r.Get("/admin/formatting-guide", controllers.StaticHandler(
 		views.Must(views.ParseFS(templates.FS, "admin-formatting-guide.gohtml", "tailwind.gohtml")), &sessionService))
@@ -2629,10 +2629,10 @@ func sitemapHandler(
 			}
 		}
 
-		// Tag pages — URL-encode names (spaces → %20)
+		// Tag pages — URL-encode names (spaces → %20) and XML-escape (& → &amp;)
 		if cats, err := cs.GetAll(); err == nil {
 			for _, c := range cats {
-				encodedName := url.PathEscape(c.Name)
+				encodedName := xmlEscape(url.PathEscape(c.Name))
 				fmt.Fprintf(w, "  <url><loc>%s/tags/%s</loc><lastmod>%s</lastmod><priority>0.5</priority></url>\n",
 					baseURL, encodedName, now)
 			}
@@ -2653,7 +2653,7 @@ func sitemapHandler(
 		// Book genre pages
 		if genres, err := bgs.GetAll(); err == nil {
 			for _, g := range genres {
-				encodedName := url.PathEscape(g.Name)
+				encodedName := xmlEscape(url.PathEscape(g.Name))
 				fmt.Fprintf(w, "  <url><loc>%s/books/genre/%s</loc><lastmod>%s</lastmod><priority>0.4</priority></url>\n",
 					baseURL, encodedName, now)
 			}

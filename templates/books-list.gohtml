@@ -44,7 +44,7 @@
     <header class="page-header">
         {{if .FilterName}}
         <a href="/books" class="page-header-back">← All books</a>
-        <h1>{{if eq .FilterType "author"}}Books by {{.FilterName}}{{else if eq .FilterType "publisher"}}Published by {{.FilterName}}{{else}}Books{{end}}</h1>
+        <h1>{{if eq .FilterType "author"}}Books by {{.FilterName}}{{else if eq .FilterType "publisher"}}Published by {{.FilterName}}{{else if eq .FilterType "genre"}}{{.FilterName}} Books{{else}}Books{{end}}</h1>
         {{else}}
         <h1>My <span class="hero-accent">Bookshelf</span></h1>
         <p>What I'm reading, what I've read, and what's next, with notes and reviews.</p>
@@ -96,7 +96,7 @@
     <a href="/books/{{.Book.Slug}}" class="book-tile-cover" tabindex="-1" aria-hidden="true">
         {{if .Book.CoverImageURL}}<img src="{{.Book.CoverImageURL}}" alt="" width="200" height="300" loading="lazy" decoding="async">{{else}}<span class="cover-placeholder">{{.Book.Title}}</span>{{end}}
     </a>
-    {{if .IsAdmin}}<a href="/admin/books/{{.Book.Slug}}/edit" class="edit-icon book-tile-edit" aria-label="Edit {{.Book.Title}}" title="Edit">{{icon "edit" "w-4 h-4"}}</a>{{end}}
+    {{if .IsAdmin}}<a href="/admin/books/{{.Book.ID}}/edit" class="edit-icon book-tile-edit" aria-label="Edit {{.Book.Title}}" title="Edit">{{icon "edit" "w-4 h-4"}}</a>{{end}}
     <a href="/books/{{.Book.Slug}}" class="book-tile-title">{{.Book.Title}}</a>
     <span class="book-tile-author">{{authorLinks .Book.BookAuthor ""}}</span>
     {{if eq .Section "reading"}}{{if .Book.DateStarted}}<span class="book-tile-meta">Started {{.Book.DateStarted}}</span>{{end}}

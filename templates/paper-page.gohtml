@@ -181,11 +181,11 @@
             <h1>{{.Paper.Title}}</h1>
 
             {{if .Paper.PaperAuthors}}
-            <span class="paper-authors">{{authorLinks .Paper.PaperAuthors ""}}</span>
+            <span class="paper-authors">{{.Paper.PaperAuthors}}</span>
             {{end}}
 
             <span class="paper-venue">
-                {{if .Paper.Conference}}{{publisherLink .Paper.Conference ""}}{{end}}{{if and .Paper.Conference .Paper.PaperYear}} &middot; {{end}}{{if .Paper.PaperYear}}{{.Paper.PaperYear}}{{end}}
+                {{if .Paper.Conference}}{{.Paper.Conference}}{{end}}{{if and .Paper.Conference .Paper.PaperYear}} &middot; {{end}}{{if .Paper.PaperYear}}{{.Paper.PaperYear}}{{end}}
             </span>
 
             {{if .Paper.Rating}}
@@ -203,18 +203,18 @@
             <div class="paper-external-links">
                 {{if .Paper.DOI}}
                 <a href="https://doi.org/{{.Paper.DOI}}" target="_blank" rel="noopener noreferrer" class="paper-link-btn" style="background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-light);">
-                    DOI {{icon "external" "w-4 h-4"}}
+                    DOI {{icon "external-link" "w-4 h-4"}}
                 </a>
                 {{end}}
                 {{if .Paper.ArxivID}}
                 <a href="https://arxiv.org/abs/{{.Paper.ArxivID}}" target="_blank" rel="noopener noreferrer" class="paper-link-btn" style="background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-light);">
-                    arXiv {{icon "external" "w-4 h-4"}}
+                    arXiv {{icon "external-link" "w-4 h-4"}}
                 </a>
                 {{end}}
             </div>
 
             {{if .IsAdmin}}
-            <a class="edit-icon" href="/admin/papers/{{.Paper.Slug}}/edit" aria-label="Edit paper" title="Edit paper">{{icon "edit" "w-4 h-4"}}</a>
+            <a class="edit-icon" href="/admin/papers/{{.Paper.ID}}/edit" aria-label="Edit paper" title="Edit paper">{{icon "edit" "w-4 h-4"}}</a>
             {{end}}
         </div>
     </div>
