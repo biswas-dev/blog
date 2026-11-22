@@ -1,265 +1,192 @@
 {{define "meta-robots"}}<meta name="robots" content="noindex, nofollow" />{{end}}
 {{template "modern-header" .}}
 
-<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Header -->
-        <div class="mb-8">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Slide Management</h1>
-                    <p class="text-gray-600 dark:text-gray-400 mt-1">Create and manage presentations</p>
-                </div>
-                <div class="flex space-x-3">
-                    <a href="/slides" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700">
-                        View Public Slides
-                    </a>
-                    <!-- New decks are DeckCraft decks (static/vendor/deckcraft), optionally starting from a .pptx. -->
-                    <form method="POST" action="/admin/slides" enctype="multipart/form-data" class="inline-flex items-center space-x-2">
-                        {{csrfField}}
-                        <input type="hidden" name="engine" value="deckcraft">
-                        <label for="new-deck-title" class="sr-only">Deck title</label>
-                        <input type="text" id="new-deck-title" name="title" required placeholder="Deck title" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100">
-                        <label class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer">
-                            {{icon "cloud-upload" "w-4 h-4 mr-2"}}
-                            <span id="new-deck-file-label">From PPTX (optional)</span>
-                            <input type="file" id="new-deck-file" name="deck" accept=".pptx,.deckcraft" class="sr-only"
-                                   onchange="document.getElementById('new-deck-file-label').textContent = this.files[0] ? this.files[0].name : 'From PPTX (optional)'">
-                        </label>
-                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                            {{icon "plus" "w-4 h-4 mr-2"}}
-                            New Slide
-                        </button>
-                    </form>
-                </div>
+<div class="admin-page">
+    <!-- Header -->
+    <div class="admin-header">
+        <div class="admin-header-text">
+            <h1>Slide Management</h1>
+            <p>Create and manage DeckCraft presentations</p>
+        </div>
+        <div class="admin-header-actions">
+            <a href="/slides" class="admin-btn-secondary">
+                {{icon "external-link" "w-4 h-4"}}
+                View Public Slides
+            </a>
+            <!-- New decks are DeckCraft decks (static/vendor/deckcraft), optionally starting from a .pptx. -->
+            <form method="POST" action="/admin/slides" enctype="multipart/form-data" class="admin-header-actions">
+                {{csrfField}}
+                <input type="hidden" name="engine" value="deckcraft">
+                <label for="new-deck-title" class="sr-only">Deck title</label>
+                <input type="text" id="new-deck-title" name="title" required placeholder="Deck title" class="admin-input" style="width: 12rem;">
+                <label class="admin-btn-secondary cursor-pointer">
+                    {{icon "cloud-upload" "w-4 h-4"}}
+                    <span id="new-deck-file-label">From PPTX (optional)</span>
+                    <input type="file" id="new-deck-file" name="deck" accept=".pptx,.deckcraft" class="sr-only"
+                           onchange="document.getElementById('new-deck-file-label').textContent = this.files[0] ? this.files[0].name : 'From PPTX (optional)'">
+                </label>
+                <button type="submit" class="admin-btn-primary">
+                    {{icon "plus" "w-4 h-4"}}
+                    New Slide
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="admin-stats">
+        <div class="admin-stat-card">
+            <p class="admin-stat-label">Total Slides</p>
+            <p class="admin-stat-value">{{len .Slides.Slides}}</p>
+        </div>
+        <div class="admin-stat-card">
+            <p class="admin-stat-label">Published</p>
+            <p class="admin-stat-value is-green">
+                {{$published := 0}}{{range .Slides.Slides}}{{if .IsPublished}}{{$published = add $published 1}}{{end}}{{end}}{{$published}}
+            </p>
+        </div>
+        <div class="admin-stat-card">
+            <p class="admin-stat-label">Draft</p>
+            <p class="admin-stat-value is-amber">
+                {{$drafts := 0}}{{range .Slides.Slides}}{{if not .IsPublished}}{{$drafts = add $drafts 1}}{{end}}{{end}}{{$drafts}}
+            </p>
+        </div>
+    </div>
+
+    <!-- Slides List -->
+    <div class="admin-card">
+        <div class="admin-toolbar">
+            <div class="admin-search-wrap">
+                <span class="admin-search-icon">{{icon "search" "w-4 h-4"}}</span>
+                <input type="search" id="searchInput" placeholder="Search slides by title or author..." class="admin-input">
             </div>
+            {{if .IsAdmin}}
+            <button id="bulkDeleteBtn" class="hidden admin-btn-danger" onclick="confirmBulkDelete()">
+                {{icon "trash" "w-4 h-4"}}
+                Delete Selected
+            </button>
+            {{end}}
         </div>
 
-        <!-- Search Bar -->
-        <div class="mb-6">
-            <div class="max-w-md relative">
-                <input type="text" id="searchInput" placeholder="Search slides by title, content, or author..." class="w-full px-4 py-2 pl-10 pr-4 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    {{icon "search" "h-5 w-5 text-gray-400"}}
-                </div>
-            </div>
+        {{if .Slides.Slides}}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        {{if .IsAdmin}}<th scope="col" class="w-10">
+                            <input type="checkbox" id="selectAll" class="admin-checkbox" onchange="toggleAllSelection()">
+                        </th>{{end}}
+                        <th scope="col">Slide</th>
+                        <th scope="col">Author</th>
+                        <th scope="col">Categories</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Created</th>
+                        <th scope="col" class="is-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="slidesTableBody">
+                    {{range .Slides.Slides}}
+                    <tr class="slide-row" data-slide-id="{{.ID}}" data-searchable="{{.Title}} {{.Username}}">
+                        {{if $.IsAdmin}}<td>
+                            <input type="checkbox" class="slide-checkbox admin-checkbox" value="{{.ID}}" onchange="updateBulkDeleteButton()">
+                        </td>{{end}}
+                        <td class="admin-title-cell">
+                            <a href="/admin/slides/{{.ID}}/edit" class="admin-title-link">{{.Title}}</a>
+                            <div class="admin-subtext">
+                                <a href="/slides/{{.Slug}}" style="color:inherit;">/slides/{{.Slug}}</a>
+                            </div>
+                        </td>
+                        <td class="admin-secondary-cell">
+                            {{.Username}}
+                        </td>
+                        <td>
+                            <div class="admin-badge-list">
+                                {{range .Categories}}
+                                <span class="admin-badge admin-badge-accent">{{.Name}}</span>
+                                {{end}}
+                                {{if not .Categories}}
+                                <span class="admin-muted">&mdash;</span>
+                                {{end}}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="admin-badge-list" style="align-items:center;">
+                                {{if .IsPublished}}
+                                <span class="admin-badge admin-badge-published">
+                                    <span class="admin-badge-dot"></span>
+                                    Published
+                                </span>
+                                {{else}}
+                                <span class="admin-badge admin-badge-draft">
+                                    <span class="admin-badge-dot"></span>
+                                    Draft
+                                </span>
+                                {{end}}
+                                {{if .PasswordHash}}
+                                <span title="Password protected" class="admin-muted">{{icon "lock" "w-3.5 h-3.5"}}</span>
+                                {{end}}
+                                {{if .SlideCount}}
+                                <span class="admin-muted text-xs">{{.SlideCount}}s</span>
+                                {{end}}
+                                {{if contains .SlideMetadata "pptx"}}
+                                <span class="admin-badge admin-badge-orange">PPTX</span>
+                                {{end}}
+                            </div>
+                        </td>
+                        <td class="admin-num">
+                            {{.CreatedAt}}
+                        </td>
+                        <td class="is-right">
+                            <div class="admin-actions">
+                                <a href="/slides/{{.Slug}}" target="_blank" class="admin-icon-btn" title="View slide" aria-label="View {{.Title}}">
+                                    {{icon "eye" "w-4 h-4"}}
+                                </a>
+                                <a href="/admin/slides/{{.ID}}/edit" class="admin-icon-btn" title="Edit slide" aria-label="Edit {{.Title}}">
+                                    {{icon "edit" "w-4 h-4"}}
+                                </a>
+                                {{if $.IsAdmin}}
+                                <button type="button" onclick="deleteSingleSlide({{.ID}})" class="admin-icon-btn danger" title="Delete slide" aria-label="Delete {{.Title}}">
+                                    {{icon "trash" "w-4 h-4"}}
+                                </button>
+                                {{end}}
+                            </div>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
         </div>
-
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white dark:bg-slate-800 overflow-hidden shadow rounded-lg">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            {{icon "columns" "h-6 w-6 text-gray-400"}}
-                        </div>
-                        <div class="ml-5 w-0 flex-1">
-                            <dl>
-                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Slides</dt>
-                                <dd class="text-lg font-medium text-gray-900 dark:text-white">{{len .Slides.Slides}}</dd>
-                            </dl>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white dark:bg-slate-800 overflow-hidden shadow rounded-lg">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            {{icon "check-circle" "h-6 w-6 text-green-400"}}
-                        </div>
-                        <div class="ml-5 w-0 flex-1">
-                            <dl>
-                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Published</dt>
-                                <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                                    {{$published := 0}}
-                                    {{range .Slides.Slides}}
-                                        {{if .IsPublished}}{{$published = add $published 1}}{{end}}
-                                    {{end}}
-                                    {{$published}}
-                                </dd>
-                            </dl>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white dark:bg-slate-800 overflow-hidden shadow rounded-lg">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            {{icon "clock" "h-6 w-6 text-yellow-400"}}
-                        </div>
-                        <div class="ml-5 w-0 flex-1">
-                            <dl>
-                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Draft</dt>
-                                <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                                    {{$drafts := 0}}
-                                    {{range .Slides.Slides}}
-                                        {{if not .IsPublished}}{{$drafts = add $drafts 1}}{{end}}
-                                    {{end}}
-                                    {{$drafts}}
-                                </dd>
-                            </dl>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        {{else}}
+        <div class="admin-empty">
+            <div class="admin-empty-icon">{{icon "columns" "w-10 h-10"}}</div>
+            <h3>No slides yet</h3>
+            <p>Get started by creating a new slide presentation above.</p>
+            <a href="#new-deck-title" class="admin-btn-primary">
+                {{icon "plus" "w-4 h-4"}}
+                New Slide
+            </a>
         </div>
-
-        <!-- Slides List -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">All Slides</h3>
-                <div class="flex items-center space-x-3">
-                    {{if .IsAdmin}}<!-- Bulk Delete Button -->
-                    <button id="bulkDeleteBtn" class="hidden inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" onclick="confirmBulkDelete()">
-                        {{icon "trash" "w-4 h-4 mr-2"}}
-                        Delete Selected
-                    </button>{{end}}
-                </div>
-            </div>
-            <div class="overflow-hidden">
-                {{if .Slides.Slides}}
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-                        <thead class="bg-gray-50 dark:bg-slate-700">
-                            <tr>
-                                {{if .IsAdmin}}<th scope="col" class="px-6 py-3 text-left">
-                                    <input type="checkbox" id="selectAll" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" onchange="toggleAllSelection()">
-                                </th>{{end}}
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Slide
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Author
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Categories
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Created
-                                </th>
-                                <th scope="col" class="relative px-6 py-3">
-                                    <span class="sr-only">Actions</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700" id="slidesTableBody">
-                            {{range .Slides.Slides}}
-                            <tr class="hover:bg-gray-50 dark:hover:bg-slate-700 slide-row" data-slide-id="{{.ID}}" data-searchable="{{.Title}} {{.Username}}">
-                                {{if $.IsAdmin}}<td class="px-6 py-4 whitespace-nowrap">
-                                    <input type="checkbox" class="slide-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" value="{{.ID}}" onchange="updateBulkDeleteButton()">
-                                </td>{{end}}
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div>
-                                        <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                            <a href="/admin/slides/{{.ID}}/edit" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{{.Title}}</a>
-                                        </div>
-                                        <div class="text-sm text-gray-500 dark:text-gray-400">
-                                            <a href="/slides/{{.Slug}}" class="hover:text-indigo-500">/slides/{{.Slug}}</a>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900 dark:text-white">{{.Username}}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex flex-wrap gap-1">
-                                        {{range .Categories}}
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
-                                                {{.Name}}
-                                            </span>
-                                        {{end}}
-                                        {{if not .Categories}}
-                                            <span class="text-sm text-gray-400 dark:text-gray-500">No categories</span>
-                                        {{end}}
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-1.5">
-                                        {{if .IsPublished}}
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                                                Published
-                                            </span>
-                                        {{else}}
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
-                                                Draft
-                                            </span>
-                                        {{end}}
-                                        {{if .PasswordHash}}
-                                            <span title="Password protected" class="text-gray-400">{{icon "lock" "w-3.5 h-3.5"}}</span>
-                                        {{end}}
-                                        {{if .SlideCount}}
-                                            <span class="text-xs text-gray-400">{{.SlideCount}}s</span>
-                                        {{end}}
-                                        {{if contains .SlideMetadata "pptx"}}
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">PPTX</span>
-                                        {{end}}
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{.CreatedAt}}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <div class="flex items-center space-x-2">
-                                        <a href="/slides/{{.Slug}}" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">
-                                            {{icon "eye" "w-4 h-4"}}
-                                        </a>
-                                        <a href="/admin/slides/{{.ID}}/edit" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">
-                                            {{icon "edit" "w-4 h-4"}}
-                                        </a>
-                                        {{if $.IsAdmin}}<button onclick="deleteSingleSlide({{.ID}})" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300">
-                                            {{icon "trash" "w-4 h-4"}}
-                                        </button>{{end}}
-                                    </div>
-                                </td>
-                            </tr>
-                            {{end}}
-                        </tbody>
-                    </table>
-                {{else}}
-                    <div class="px-6 py-12 text-center">
-                        {{icon "columns" "mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"}}
-                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No slides</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating a new slide presentation.</p>
-                        <div class="mt-6">
-                            <a href="#new-deck-title" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                {{icon "plus" "w-4 h-4 mr-2"}}
-                                New Slide
-                            </a>
-                        </div>
-                    </div>
-                {{end}}
-            </div>
-        </div>
+        {{end}}
     </div>
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div id="deleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-slate-800">
-        <div class="mt-3 text-center">
-            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900">
-                {{icon "exclamation-triangle" "h-6 w-6 text-red-600 dark:text-red-400"}}
-            </div>
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mt-5" id="modalTitle">Delete Slide</h3>
-            <div class="mt-2 px-7 py-3">
-                <p class="text-sm text-gray-500 dark:text-gray-400" id="modalMessage">
-                    Are you sure you want to delete this slide? This action cannot be undone.
-                </p>
-            </div>
-            <div class="items-center px-4 py-3">
-                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-24 mr-2 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
-                    Delete
-                </button>
-                <button id="cancelDeleteBtn" class="px-4 py-2 bg-gray-500 dark:bg-gray-600 text-white text-base font-medium rounded-md w-24 hover:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300" onclick="closeDeleteModal()">
-                    Cancel
-                </button>
-            </div>
+<div id="deleteModal" class="admin-modal-backdrop hidden">
+    <div class="admin-modal" onclick="event.stopPropagation()">
+        <div class="admin-modal-header">
+            <h3 id="modalTitle">Delete Slide</h3>
+            <button type="button" class="admin-icon-btn" onclick="closeDeleteModal()" aria-label="Close">
+                {{icon "close" "w-5 h-5"}}
+            </button>
+        </div>
+        <div class="admin-modal-body">
+            <p id="modalMessage" class="text-sm" style="color: var(--text-secondary); margin: 0;">
+                Are you sure you want to delete this slide? This action cannot be undone.
+            </p>
+        </div>
+        <div class="admin-modal-footer">
+            <button type="button" id="cancelDeleteBtn" class="admin-btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+            <button type="button" id="confirmDeleteBtn" class="admin-btn-danger">Delete</button>
         </div>
     </div>
 </div>
@@ -269,51 +196,51 @@
 document.getElementById('searchInput').addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase();
     const rows = document.querySelectorAll('.slide-row');
-    
+
     rows.forEach(row => {
         const searchableText = row.getAttribute('data-searchable').toLowerCase();
-        if (searchableText.includes(searchTerm)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = searchableText.includes(searchTerm) ? '' : 'none';
     });
 });
 
 // Multi-select functionality
 function toggleAllSelection() {
     const selectAll = document.getElementById('selectAll');
+    if (!selectAll) return;
     const checkboxes = document.querySelectorAll('.slide-checkbox');
-    
+
     checkboxes.forEach(checkbox => {
         checkbox.checked = selectAll.checked;
     });
-    
+
     updateBulkDeleteButton();
 }
 
 function updateBulkDeleteButton() {
     const checkedBoxes = document.querySelectorAll('.slide-checkbox:checked');
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-    
-    if (checkedBoxes.length > 0) {
-        bulkDeleteBtn.classList.remove('hidden');
-        bulkDeleteBtn.classList.add('inline-flex');
-    } else {
-        bulkDeleteBtn.classList.add('hidden');
-        bulkDeleteBtn.classList.remove('inline-flex');
-    }
-    
-    // Update select all checkbox state
-    const allCheckboxes = document.querySelectorAll('.slide-checkbox');
     const selectAll = document.getElementById('selectAll');
-    selectAll.checked = allCheckboxes.length > 0 && checkedBoxes.length === allCheckboxes.length;
-    selectAll.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < allCheckboxes.length;
+
+    if (bulkDeleteBtn) {
+        if (checkedBoxes.length > 0) {
+            bulkDeleteBtn.classList.remove('hidden');
+            bulkDeleteBtn.classList.add('inline-flex');
+        } else {
+            bulkDeleteBtn.classList.add('hidden');
+            bulkDeleteBtn.classList.remove('inline-flex');
+        }
+    }
+
+    if (selectAll) {
+        const allCheckboxes = document.querySelectorAll('.slide-checkbox');
+        selectAll.checked = allCheckboxes.length > 0 && checkedBoxes.length === allCheckboxes.length;
+        selectAll.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < allCheckboxes.length;
+    }
 }
 
 // Delete functionality
 let deleteTarget = null;
-let deleteType = 'single'; // 'single' or 'bulk'
+let deleteType = 'single';
 
 function deleteSingleSlide(slideId) {
     deleteTarget = slideId;
@@ -340,26 +267,21 @@ function closeDeleteModal() {
 
 document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
     if (deleteType === 'single') {
-        // TODO: Implement single delete functionality
         alert(`Delete slide ${deleteTarget} functionality not implemented yet`);
     } else if (deleteType === 'bulk') {
-        // TODO: Implement bulk delete functionality  
         alert(`Bulk delete ${deleteTarget.length} slides functionality not implemented yet`);
     }
     closeDeleteModal();
 });
 
-// Close modal when clicking outside
 document.getElementById('deleteModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeDeleteModal();
     }
 });
 
-// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     updateBulkDeleteButton();
-
 });
 </script>
 

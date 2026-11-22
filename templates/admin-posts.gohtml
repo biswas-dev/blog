@@ -2,50 +2,10 @@
 {{template "modern-header" .}}
 
 <style>
-/* Scoped admin-posts overrides — prevent global rounded-lg border rule from affecting action buttons */
-.admin-action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 6px;
-    border: none !important;
-    background: transparent;
-    cursor: pointer;
-    color: #6b7280;
-    transition: color 0.15s, background-color 0.15s;
-    flex-shrink: 0;
-}
-.admin-action-btn:hover { color: #4f46e5; background-color: #f3f4f6; }
-.admin-action-btn.danger:hover { color: #dc2626; background-color: #fef2f2; }
-.dark .admin-action-btn:hover { color: #818cf8; background-color: rgba(255,255,255,0.08); }
-.dark .admin-action-btn.danger:hover { color: #f87171; background-color: rgba(220,38,38,0.1); }
-
-.category-badge {
-    display: inline-block;
-    padding: 0.125rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    background-color: #eef2ff;
-    color: #4338ca;
-    border: none;
-}
-.dark .category-badge {
-    background-color: rgba(99,102,241,0.15);
-    color: #a5b4fc;
-}
-
 .post-row { cursor: pointer; }
-.post-row:hover td { background-color: #f8fafc; }
-.dark .post-row:hover td { background-color: rgba(255,255,255,0.04); }
-
-/* Version modal backdrop */
 #versionModal { display: none; }
 #versionModal.open { display: flex; }
 
-/* Column picker dropdown */
 .col-toggle-label {
     display: flex;
     align-items: center;
@@ -53,224 +13,220 @@
     padding: 0.375rem 0.5rem;
     border-radius: 0.375rem;
     font-size: 0.8125rem;
-    color: #374151;
+    color: var(--text-primary);
     cursor: pointer;
     white-space: nowrap;
 }
-.col-toggle-label:hover { background: #f3f4f6; }
-.dark .col-toggle-label { color: #d1d5db; }
-.dark .col-toggle-label:hover { background: rgba(255,255,255,0.06); }
-.col-toggle-label input { cursor: pointer; }
-#colPickerMenu.dark-menu { background: #1e293b; border-color: #334155; }
-
-/* Slug sub-row hidden state */
+.col-toggle-label:hover { background: var(--bg-tertiary); }
+.col-toggle-label input { cursor: pointer; accent-color: var(--accent); }
 [data-col-td="slug"].col-hidden { display: none; }
 </style>
 
-<div class="min-h-screen bg-gray-50 dark:bg-slate-900">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Post Management</h1>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Create and manage blog posts</p>
-            </div>
-            <div class="flex items-center gap-3 shrink-0">
-                <a href="/" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                    {{icon "external-link" "w-4 h-4"}}
-                    View Site
-                </a>
-                <a href="/admin/posts/new" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm">
-                    {{icon "plus" "w-4 h-4"}}
-                    New Post
-                </a>
-            </div>
+<div class="admin-page">
+    <!-- Header -->
+    <div class="admin-header">
+        <div class="admin-header-text">
+            <h1>Post Management</h1>
+            <p>Create, edit, and organize blog posts</p>
         </div>
-
-        <!-- Stats — always 3 columns, no responsive stacking -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
-            <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{len .Posts.Posts}}</p>
-            </div>
-            <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Published</p>
-                <p class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
-                    {{$pub := 0}}{{range .Posts.Posts}}{{if .IsPublished}}{{$pub = add $pub 1}}{{end}}{{end}}{{$pub}}
-                </p>
-            </div>
-            <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Draft</p>
-                <p class="text-2xl font-bold text-amber-500 dark:text-amber-400 mt-1">
-                    {{$dft := 0}}{{range .Posts.Posts}}{{if not .IsPublished}}{{$dft = add $dft 1}}{{end}}{{end}}{{$dft}}
-                </p>
-            </div>
+        <div class="admin-header-actions">
+            <a href="/" class="admin-btn-secondary">
+                {{icon "external-link" "w-4 h-4"}}
+                View Site
+            </a>
+            <a href="/admin/posts/new" class="admin-btn-primary">
+                {{icon "plus" "w-4 h-4"}}
+                New Post
+            </a>
         </div>
+    </div>
 
-        <!-- Posts Table Card -->
-        <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+    <!-- Stats -->
+    <div class="admin-stats">
+        <div class="admin-stat-card">
+            <p class="admin-stat-label">Total</p>
+            <p class="admin-stat-value">{{len .Posts.Posts}}</p>
+        </div>
+        <div class="admin-stat-card">
+            <p class="admin-stat-label">Published</p>
+            <p class="admin-stat-value is-green">
+                {{$pub := 0}}{{range .Posts.Posts}}{{if .IsPublished}}{{$pub = add $pub 1}}{{end}}{{end}}{{$pub}}
+            </p>
+        </div>
+        <div class="admin-stat-card">
+            <p class="admin-stat-label">Draft</p>
+            <p class="admin-stat-value is-amber">
+                {{$dft := 0}}{{range .Posts.Posts}}{{if not .IsPublished}}{{$dft = add $dft 1}}{{end}}{{end}}{{$dft}}
+            </p>
+        </div>
+    </div>
 
-            <!-- Toolbar -->
-            <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex-wrap">
-                <!-- Search — inline styles to guarantee icon alignment regardless of global CSS -->
-                <div style="position:relative;flex:1;min-width:160px;">
-                    {{icon "search" "w-4 h-4"}}
-                    <input id="searchInput" type="search" placeholder="Search by title, slug, author…" style="width:100%;padding:0.45rem 0.75rem 0.45rem 2rem;font-size:0.875rem;" class="rounded-lg bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+    <!-- Posts Table Card -->
+    <div class="admin-card">
+        <!-- Toolbar -->
+        <div class="admin-toolbar">
+            <div class="admin-search-wrap">
+                <span class="admin-search-icon">{{icon "search" "w-4 h-4"}}</span>
+                <input id="searchInput" type="search" placeholder="Search by title, slug, author…" class="admin-input">
+            </div>
+
+            <!-- Column visibility picker -->
+            <div style="position:relative;" id="colPickerWrapper">
+                <button type="button" onclick="toggleColPicker()" class="admin-btn-secondary">
+                    {{icon "columns" "w-4 h-4"}}
+                    Columns
+                </button>
+                <div id="colPickerMenu" class="hidden admin-dropdown-panel">
+                    <p style="font-size:0.6875rem;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.06em;margin:0 0 0.5rem 0.25rem;">Show / hide columns</p>
+                    <label class="col-toggle-label" data-col="authors"><input type="checkbox" class="col-toggle" data-col="authors" checked> Author(s)</label>
+                    <label class="col-toggle-label" data-col="categories"><input type="checkbox" class="col-toggle" data-col="categories" checked> Categories</label>
+                    <label class="col-toggle-label" data-col="status"><input type="checkbox" class="col-toggle" data-col="status" checked> Status</label>
+                    <label class="col-toggle-label" data-col="created"><input type="checkbox" class="col-toggle" data-col="created" checked> Created</label>
+                    <label class="col-toggle-label" data-col="slug"><input type="checkbox" class="col-toggle" data-col="slug" checked> Slug</label>
                 </div>
-                <!-- Column visibility picker -->
-                <div style="position:relative;" id="colPickerWrapper">
-                    <button onclick="toggleColPicker()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors" style="border:1px solid #e5e7eb !important; white-space:nowrap;">
-                        {{icon "columns" "w-4 h-4"}}
-                        Columns
-                    </button>
-                    <div id="colPickerMenu" class="hidden" style="position:absolute;right:0;top:calc(100% + 0.5rem);z-index:30;background:white;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:0.75rem;min-width:160px;">
-                        <p style="font-size:0.7rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Show / hide columns</p>
-                        <label class="col-toggle-label" data-col="authors"><input type="checkbox" class="col-toggle" data-col="authors" checked> Author(s)</label>
-                        <label class="col-toggle-label" data-col="categories"><input type="checkbox" class="col-toggle" data-col="categories" checked> Categories</label>
-                        <label class="col-toggle-label" data-col="status"><input type="checkbox" class="col-toggle" data-col="status" checked> Status</label>
-                        <label class="col-toggle-label" data-col="created"><input type="checkbox" class="col-toggle" data-col="created" checked> Created</label>
-                        <label class="col-toggle-label" data-col="slug"><input type="checkbox" class="col-toggle" data-col="slug" checked> Slug</label>
-                    </div>
-                </div>
-                {{if .IsAdmin}}<!-- Bulk delete (hidden until selection) -->
-                <button id="bulkDeleteBtn" class="hidden items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors" onclick="confirmBulkDelete()" style="border:none !important; white-space:nowrap;">
-                    {{icon "trash" "w-4 h-4"}}
-                    Delete selected
-                </button>{{end}}
             </div>
 
-            {{if .Posts.Posts}}
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-200 dark:border-slate-700">
-                            {{if .IsAdmin}}<th class="w-10 px-4 py-3">
-                                <input type="checkbox" id="selectAll" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" onchange="toggleAllSelection()">
-                            </th>{{end}}
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Post</th>
-                            <th data-col-th="authors" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Author(s)</th>
-                            <th data-col-th="categories" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Categories</th>
-                            <th data-col-th="status" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
-                            <th data-col-th="created" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">Created</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="postsTableBody" class="divide-y divide-gray-100 dark:divide-slate-700">
-                        {{range .Posts.Posts}}
-                        <tr class="post-row" data-post-id="{{.ID}}" data-edit-url="/admin/posts/{{.ID}}/edit" data-searchable="{{.Title}} {{.Slug}} {{.AuthorDisplayName}}">
-                            {{if $.IsAdmin}}<td class="w-10 px-4 py-3" onclick="event.stopPropagation()">
-                                <input type="checkbox" class="post-checkbox h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="{{.ID}}" onchange="updateBulkDeleteButton()">
-                            </td>{{end}}
-                            <td class="px-4 py-3" style="min-width:200px;max-width:320px;">
-                                <div class="font-medium text-gray-900 dark:text-white truncate" title="{{.Title}}">{{.Title}}</div>
-                                <div data-col-td="slug" class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">/blog/{{.Slug}}</div>
-                            </td>
-                            <td data-col-td="authors" class="px-4 py-3 whitespace-nowrap" style="min-width:130px;">
-                                {{$authorID := .UserID}}
-                                <div class="font-medium text-gray-700 dark:text-gray-300 text-sm">{{.AuthorDisplayName}}</div>
-                                {{range .Contributors}}
-                                    {{if ne .UserID $authorID}}
-                                    <div class="inline-flex items-center gap-1 mt-1 text-xs text-indigo-600 dark:text-indigo-400">
-                                        {{icon "edit" "w-3 h-3"}}
-                                        {{.FullName}}
-                                    </div>
-                                    {{end}}
-                                {{end}}
-                            </td>
-                            <td data-col-td="categories" class="px-4 py-3" style="min-width:100px;">
-                                <div class="flex flex-wrap gap-1">
-                                    {{range .Categories}}
-                                        <span class="category-badge">{{.Name}}</span>
-                                    {{end}}
-                                    {{if not .Categories}}<span class="text-xs text-gray-300 dark:text-gray-600">—</span>{{end}}
-                                </div>
-                            </td>
-                            <td data-col-td="status" class="px-4 py-3 whitespace-nowrap">
-                                {{if .IsPublished}}
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400" style="border:none !important;">
-                                        <span style="width:0.375rem;height:0.375rem;border-radius:9999px;background:#22c55e;display:inline-block;"></span> Published
-                                    </span>
-                                {{else}}
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" style="border:none !important;">
-                                        <span style="width:0.375rem;height:0.375rem;border-radius:9999px;background:#f59e0b;display:inline-block;"></span> Draft
-                                    </span>
-                                {{end}}
-                            </td>
-                            <td data-col-td="created" class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" style="min-width:100px;">
-                                {{.PublicationDate}}
-                            </td>
-                            <td class="px-4 py-3" onclick="event.stopPropagation()">
-                                <div class="flex items-center justify-end gap-0.5">
-                                    <button class="admin-action-btn" title="Version history" data-post-id="{{.ID}}" data-post-title="{{.Title}}" onclick="openVersionHistory(this)">
-                                        {{icon "clock" "w-4 h-4"}}
-                                    </button>
-                                    <a class="admin-action-btn" title="View post" href="/blog/{{.Slug}}" target="_blank">
-                                        {{icon "eye" "w-4 h-4"}}
-                                    </a>
-                                    <a class="admin-action-btn" title="Edit post" href="/admin/posts/{{.ID}}/edit">
-                                        {{icon "edit" "w-4 h-4"}}
-                                    </a>
-                                    {{if $.IsAdmin}}<button class="admin-action-btn danger" title="Delete post" onclick="deleteSinglePost({{.ID}})">
-                                        {{icon "trash" "w-4 h-4"}}
-                                    </button>{{end}}
-                                </div>
-                            </td>
-                        </tr>
-                        {{end}}
-                    </tbody>
-                </table>
-            </div>
-            {{else}}
-            <div class="py-16 text-center">
-                {{icon "document" "mx-auto h-10 w-10 text-gray-300 dark:text-gray-600"}}
-                <p class="mt-3 text-sm font-medium text-gray-900 dark:text-white">No posts yet</p>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating your first blog post.</p>
-                <a href="/admin/posts/new" class="inline-flex items-center gap-1.5 mt-4 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
-                    {{icon "plus" "w-4 h-4"}}
-                    New Post
-                </a>
-            </div>
+            {{if .IsAdmin}}
+            <button type="button" id="bulkDeleteBtn" class="hidden admin-btn-danger" onclick="confirmBulkDelete()">
+                {{icon "trash" "w-4 h-4"}}
+                Delete selected
+            </button>
             {{end}}
         </div>
 
+        {{if .Posts.Posts}}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        {{if .IsAdmin}}<th scope="col" class="w-10">
+                            <input type="checkbox" id="selectAll" class="admin-checkbox" onchange="toggleAllSelection()">
+                        </th>{{end}}
+                        <th scope="col">Post</th>
+                        <th scope="col" data-col-th="authors">Author(s)</th>
+                        <th scope="col" data-col-th="categories">Categories</th>
+                        <th scope="col" data-col-th="status">Status</th>
+                        <th scope="col" data-col-th="created">Created</th>
+                        <th scope="col" class="is-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="postsTableBody">
+                    {{range .Posts.Posts}}
+                    <tr class="post-row" data-post-id="{{.ID}}" data-edit-url="/admin/posts/{{.ID}}/edit" data-searchable="{{.Title}} {{.Slug}} {{.AuthorDisplayName}}">
+                        {{if $.IsAdmin}}<td onclick="event.stopPropagation()">
+                            <input type="checkbox" class="post-checkbox admin-checkbox" value="{{.ID}}" onchange="updateBulkDeleteButton()">
+                        </td>{{end}}
+                        <td class="admin-title-cell">
+                            <div class="admin-title-link" title="{{.Title}}">{{.Title}}</div>
+                            <div data-col-td="slug" class="admin-subtext">/blog/{{.Slug}}</div>
+                        </td>
+                        <td data-col-td="authors" class="admin-secondary-cell">
+                            {{$authorID := .UserID}}
+                            <div style="font-weight:500;color:var(--text-primary);">{{.AuthorDisplayName}}</div>
+                            {{range .Contributors}}
+                                {{if ne .UserID $authorID}}
+                                <div class="inline-flex items-center gap-1 mt-1 text-xs" style="color:var(--accent);">
+                                    {{icon "edit" "w-3 h-3"}}
+                                    {{.FullName}}
+                                </div>
+                                {{end}}
+                            {{end}}
+                        </td>
+                        <td data-col-td="categories">
+                            <div class="admin-badge-list">
+                                {{range .Categories}}
+                                <span class="admin-badge admin-badge-accent">{{.Name}}</span>
+                                {{end}}
+                                {{if not .Categories}}<span class="admin-muted">&mdash;</span>{{end}}
+                            </div>
+                        </td>
+                        <td data-col-td="status">
+                            {{if .IsPublished}}
+                            <span class="admin-badge admin-badge-published">
+                                <span class="admin-badge-dot"></span>
+                                Published
+                            </span>
+                            {{else}}
+                            <span class="admin-badge admin-badge-draft">
+                                <span class="admin-badge-dot"></span>
+                                Draft
+                            </span>
+                            {{end}}
+                        </td>
+                        <td data-col-td="created" class="admin-num">
+                            {{.PublicationDate}}
+                        </td>
+                        <td class="is-right" onclick="event.stopPropagation()">
+                            <div class="admin-actions">
+                                <button type="button" class="admin-icon-btn" title="Version history" data-post-id="{{.ID}}" data-post-title="{{.Title}}" onclick="openVersionHistory(this)">
+                                    {{icon "clock" "w-4 h-4"}}
+                                </button>
+                                <a class="admin-icon-btn" title="View post" href="/blog/{{.Slug}}" target="_blank">
+                                    {{icon "eye" "w-4 h-4"}}
+                                </a>
+                                <a class="admin-icon-btn" title="Edit post" href="/admin/posts/{{.ID}}/edit">
+                                    {{icon "edit" "w-4 h-4"}}
+                                </a>
+                                {{if $.IsAdmin}}
+                                <button type="button" class="admin-icon-btn danger" title="Delete post" onclick="deleteSinglePost({{.ID}})">
+                                    {{icon "trash" "w-4 h-4"}}
+                                </button>
+                                {{end}}
+                            </div>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{else}}
+        <div class="admin-empty">
+            <div class="admin-empty-icon">{{icon "document" "w-10 h-10"}}</div>
+            <h3>No posts yet</h3>
+            <p>Get started by creating your first blog post.</p>
+            <a href="/admin/posts/new" class="admin-btn-primary">
+                {{icon "plus" "w-4 h-4"}}
+                New Post
+            </a>
+        </div>
+        {{end}}
     </div>
 </div>
 
 <!-- ── Delete Modal ── -->
-<div id="deleteModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background:rgba(0,0,0,0.45);">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6" onclick="event.stopPropagation()">
-        <div class="flex flex-col items-center text-center">
-            <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center mb-4">
-                {{icon "exclamation-triangle" "w-6 h-6 text-red-600 dark:text-red-400"}}
-            </div>
-            <h3 id="modalTitle" class="text-base font-semibold text-gray-900 dark:text-white">Delete post?</h3>
-            <p id="modalMessage" class="mt-1.5 text-sm text-gray-500 dark:text-gray-400">This action cannot be undone.</p>
-            <div class="flex gap-3 mt-6 w-full">
-                <button onclick="closeDeleteModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors" style="border:1px solid #d1d5db !important;">Cancel</button>
-                <button id="confirmDeleteBtn" class="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors" style="border:none !important;">Delete</button>
-            </div>
+<div id="deleteModal" class="admin-modal-backdrop hidden">
+    <div class="admin-modal" onclick="event.stopPropagation()">
+        <div class="admin-modal-header">
+            <h3 id="modalTitle">Delete post?</h3>
+            <button type="button" class="admin-icon-btn" onclick="closeDeleteModal()" aria-label="Close">
+                {{icon "close" "w-5 h-5"}}
+            </button>
+        </div>
+        <div class="admin-modal-body">
+            <p id="modalMessage" class="text-sm" style="color:var(--text-secondary);margin:0;">This action cannot be undone.</p>
+        </div>
+        <div class="admin-modal-footer">
+            <button type="button" onclick="closeDeleteModal()" class="admin-btn-secondary">Cancel</button>
+            <button type="button" id="confirmDeleteBtn" class="admin-btn-danger">Delete</button>
         </div>
     </div>
 </div>
 
 <!-- ── Version History Modal ── -->
-<div id="versionModal" class="fixed inset-0 z-50 items-center justify-center p-4" style="background:rgba(0,0,0,0.45);" onclick="closeVersionModal()">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style="max-height:80vh;" onclick="event.stopPropagation()">
-        <!-- Modal header -->
-        <div class="flex items-start justify-between px-5 pt-5 pb-4 border-b border-gray-100 dark:border-slate-700 shrink-0">
+<div id="versionModal" class="admin-modal-backdrop" onclick="closeVersionModal()">
+    <div class="admin-modal" style="max-width:28rem;max-height:80vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+        <div class="admin-modal-header shrink-0">
             <div class="min-w-0 pr-4">
-                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Version History</h2>
-                <p id="versionModalSubtitle" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate"></p>
+                <h2>Version History</h2>
+                <p id="versionModalSubtitle" class="text-xs mt-0.5 truncate" style="color:var(--text-tertiary);margin-bottom:0;"></p>
             </div>
-            <button onclick="closeVersionModal()" class="shrink-0 p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors" style="border:none !important;">
+            <button type="button" onclick="closeVersionModal()" class="admin-icon-btn shrink-0" aria-label="Close">
                 {{icon "close" "w-5 h-5"}}
             </button>
         </div>
-        <!-- Version list -->
         <div id="versionList" class="overflow-y-auto flex-1 px-5 py-4 space-y-2.5">
             <div class="flex items-center justify-center py-8">
-                <svg class="animate-spin h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24">
+                <svg class="animate-spin h-5 w-5" style="color:var(--accent);" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
@@ -297,8 +253,9 @@ document.getElementById('searchInput').addEventListener('input', function() {
 
 // ── Multi-select ──
 function toggleAllSelection() {
-    const checked = document.getElementById('selectAll').checked;
-    document.querySelectorAll('.post-checkbox').forEach(cb => cb.checked = checked);
+    const sel = document.getElementById('selectAll');
+    if (!sel) return;
+    document.querySelectorAll('.post-checkbox').forEach(cb => cb.checked = sel.checked);
     updateBulkDeleteButton();
 }
 
@@ -307,10 +264,14 @@ function updateBulkDeleteButton() {
     const all = document.querySelectorAll('.post-checkbox');
     const btn = document.getElementById('bulkDeleteBtn');
     const sel = document.getElementById('selectAll');
-    btn.classList.toggle('hidden', checked.length === 0);
-    btn.classList.toggle('flex', checked.length > 0);
-    sel.checked = all.length > 0 && checked.length === all.length;
-    sel.indeterminate = checked.length > 0 && checked.length < all.length;
+    if (btn) {
+        btn.classList.toggle('hidden', checked.length === 0);
+        btn.classList.toggle('inline-flex', checked.length > 0);
+    }
+    if (sel) {
+        sel.checked = all.length > 0 && checked.length === all.length;
+        sel.indeterminate = checked.length > 0 && checked.length < all.length;
+    }
 }
 
 // ── Delete ──
@@ -333,14 +294,10 @@ function confirmBulkDelete() {
 }
 
 function openDeleteModal() {
-    const m = document.getElementById('deleteModal');
-    m.classList.remove('hidden');
-    m.classList.add('flex');
+    document.getElementById('deleteModal').classList.remove('hidden');
 }
 function closeDeleteModal() {
-    const m = document.getElementById('deleteModal');
-    m.classList.add('hidden');
-    m.classList.remove('flex');
+    document.getElementById('deleteModal').classList.add('hidden');
     deleteTarget = null; deleteType = 'single';
 }
 document.getElementById('deleteModal').addEventListener('click', function(e) {
@@ -376,32 +333,32 @@ function closeVersionModal() {
 
 async function loadVersions(postId) {
     const list = document.getElementById('versionList');
-    list.innerHTML = `<div class="flex items-center justify-center py-8"><svg class="animate-spin h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>`;
+    list.innerHTML = `<div class="flex items-center justify-center py-8"><svg class="animate-spin h-5 w-5" style="color:var(--accent);" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>`;
     try {
         const r = await fetch(`/api/posts/${postId}/versions`);
         if (!r.ok) throw new Error('Server error');
         const versions = await r.json();
         if (!versions || versions.length === 0) {
-            list.innerHTML = `<div class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No versions recorded yet.</div>`;
+            list.innerHTML = `<div class="py-8 text-center text-sm" style="color:var(--text-tertiary);">No versions recorded yet.</div>`;
             return;
         }
         list.innerHTML = versions.map((v, i) => `
-            <div class="flex items-start gap-3 p-3 rounded-lg ${i === 0 ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'} transition-colors" data-version-row="${v.VersionNumber}">
-                <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400'}">
+            <div class="flex items-start gap-3 p-3 rounded-lg transition-colors" style="background:${i === 0 ? 'rgba(13,148,136,0.08)' : 'transparent'};border:1px solid ${i === 0 ? 'rgba(13,148,136,0.2)' : 'var(--border-light)'};" data-version-row="${v.VersionNumber}">
+                <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="${i === 0 ? 'background:var(--btn-primary-bg);color:var(--btn-primary-text);' : 'background:var(--bg-tertiary);color:var(--text-secondary);'}">
                     v${v.VersionNumber}
                 </div>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="text-sm font-medium text-gray-900 dark:text-white truncate">${escHtml(v.Title)}</span>
-                        ${i === 0 ? '<span class="shrink-0 text-xs px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">Latest</span>' : ''}
+                        <span class="text-sm font-medium truncate" style="color:var(--text-primary);">${escHtml(v.Title)}</span>
+                        ${i === 0 ? '<span class="shrink-0 admin-badge admin-badge-accent">Latest</span>' : ''}
                     </div>
                     <div class="flex items-center gap-2 mt-0.5">
-                        <span class="text-xs text-indigo-600 dark:text-indigo-400 font-medium">${escHtml(v.CreatedByName)}</span>
-                        <span class="text-xs text-gray-400">·</span>
-                        <span class="text-xs text-gray-400 dark:text-gray-500">${fmtDate(v.CreatedAt)}</span>
+                        <span class="text-xs font-medium" style="color:var(--accent);">${escHtml(v.CreatedByName)}</span>
+                        <span class="text-xs" style="color:var(--text-tertiary);">·</span>
+                        <span class="text-xs" style="color:var(--text-tertiary);">${fmtDate(v.CreatedAt)}</span>
                     </div>
                 </div>
-                ${isAdmin ? `<button class="shrink-0 p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Delete version" onclick="deleteVersion(${postId}, ${v.VersionNumber}, this)" style="border:none !important;"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
+                ${isAdmin ? `<button type="button" class="admin-icon-btn danger shrink-0" title="Delete version" onclick="deleteVersion(${postId}, ${v.VersionNumber}, this)"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
             </div>
         `).join('');
     } catch(e) {
@@ -428,10 +385,9 @@ async function deleteVersion(postId, versionNum, btn) {
         if (!r.ok) { const t = await r.text(); alert('Delete failed: ' + t); return; }
         const row = btn.closest('[data-version-row]');
         if (row) row.remove();
-        // If list is now empty show placeholder
         const list = document.getElementById('versionList');
         if (!list.querySelector('[data-version-row]')) {
-            list.innerHTML = `<div class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No versions recorded yet.</div>`;
+            list.innerHTML = `<div class="py-8 text-center text-sm" style="color:var(--text-tertiary);">No versions recorded yet.</div>`;
         }
     } catch(e) { alert('Error: ' + e.message); }
     finally { btn.disabled = false; }
@@ -449,34 +405,17 @@ function getColPrefs() {
 function applyColVisibility(prefs) {
     Object.keys(prefs).forEach(col => {
         const show = prefs[col];
-        // TH headers
         document.querySelectorAll(`[data-col-th="${col}"]`).forEach(el => el.style.display = show ? '' : 'none');
-        // TD cells
-        document.querySelectorAll(`[data-col-td="${col}"]`).forEach(el => {
-            if (col === 'slug') {
-                el.style.display = show ? '' : 'none';
-            } else {
-                el.style.display = show ? '' : 'none';
-            }
-        });
-        // Sync checkbox
+        document.querySelectorAll(`[data-col-td="${col}"]`).forEach(el => el.style.display = show ? '' : 'none');
         const cb = document.querySelector(`.col-toggle[data-col="${col}"]`);
         if (cb) cb.checked = show;
     });
 }
 
 function toggleColPicker() {
-    const menu = document.getElementById('colPickerMenu');
-    menu.classList.toggle('hidden');
-    // Apply dark mode styling dynamically
-    if (document.documentElement.classList.contains('dark')) {
-        menu.style.background = '#1e293b';
-        menu.style.borderColor = '#334155';
-        menu.style.color = '#d1d5db';
-    }
+    document.getElementById('colPickerMenu').classList.toggle('hidden');
 }
 
-// Close picker when clicking outside
 document.addEventListener('click', function(e) {
     const wrapper = document.getElementById('colPickerWrapper');
     if (wrapper && !wrapper.contains(e.target)) {
