@@ -2,4 +2,4 @@
 # Update with: scripts/crafts.sh bump   (then scripts/crafts.sh fetch and run the smoke test)
 # app        version  sha256 of <app>-web-<version>.zip
 deckcraft    0.18.1   3196e537fcfab538aaa2e88584bc74e29bb584459b916ab584ac22fbafe32db5
-pdfcraft     0.21.1   fe9708d46af191aebb56f70eb32cf8b112b0b9452d17ae6ba3a8c4a8665fe748
+pdfcraft     0.22.0   5da6db0d6d0d5ae517e9bb62c39eb57285f8befd81ef6555e9a807ccf5da5954
